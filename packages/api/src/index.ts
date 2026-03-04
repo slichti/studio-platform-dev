@@ -53,6 +53,7 @@ import challenges from './routes/challenges';
 import jobs from './routes/jobs';
 import video from './routes/video';
 import kioskRoutes from './routes/kiosk'; // [NEW] Kiosk
+import publicInstructors from './routes/tenant.instructors'; // [NEW] Public Instructor Profiles
 import invitesRouter from './routes/invites'; // [NEW] RBAC
 import rolesRoutes from './routes/roles'; // [NEW] RBAC
 import videoManagement from './routes/video-management';
@@ -889,6 +890,7 @@ app.route('/refunds', refunds);
 app.route('/challenges', challenges);
 app.route('/platform', platform);
 app.route('/kiosk', kioskRoutes); // [NEW] Mount
+app.route('/public/instructors', publicInstructors); // [NEW] Public Instructor Profiles
 app.route('/jobs', jobs);
 app.route('/video', video);
 app.route('/video-management', videoManagement);

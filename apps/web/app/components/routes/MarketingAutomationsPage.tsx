@@ -19,6 +19,8 @@ export const TRIGGERS = [
     { id: 'birthday', label: 'Member Birthday', icon: Bell, description: "Send a birthday wish or gift." },
     { id: 'membership_expiring', label: 'Membership Expiring', icon: Clock, description: "Remind members to renew." },
     { id: 'product_purchase', label: 'Product Purchased', icon: Zap, description: "Thank you email or cross-sell." },
+    { id: 'waitlist_promoted', label: 'Waitlist Spot Available', icon: Bell, description: "Notify a member when a spot opens up." },
+    { id: 'pack_credits_low', label: 'Pack Credits Running Low', icon: Zap, description: "Alert when a class pack has ≤ 2 credits left." },
 ];
 
 export default function MarketingAutomationsPageComponent() {

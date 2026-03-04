@@ -207,3 +207,46 @@ export function useInstructorProfitability(slug: string, range: DateRange, custo
         retry: 1
     });
 }
+
+export function useChurnOverview(slug: string) {
+    const { getToken } = useAuth();
+    return useQuery({
+        queryKey: ['analytics', 'churn-overview', slug],
+        queryFn: async () => {
+            const token = await getToken();
+            return apiRequest<{ safe: number; at_risk: number; churned: number; total: number }>(`/analytics/churn-overview`, token, {
+                headers: { 'X-Tenant-Slug': slug }
+            });
+        },
+        enabled: !!slug
+    });
+}
+
+export function useRevenueBreakdown(slug: string) {
+    const { getToken } = useAuth();
+    return useQuery({
+        queryKey: ['analytics', 'revenue-breakdown', slug],
+        queryFn: async () => {
+            const token = await getToken();
+            return apiRequest<Array<{ month: string; packs: number; pos: number; memberships: number }>>(`/analytics/revenue-breakdown`, token, {
+                headers: { 'X-Tenant-Slug': slug }
+            });
+        },
+        enabled: !!slug
+    });
+}
+
+export function useAutomationStats(slug: string) {
+    const { getToken } = useAuth();
+    return useQuery({
+        queryKey: ['analytics', 'automation-stats', slug],
+        queryFn: async () => {
+            const token = await getToken();
+            return apiRequest<Array<{ automationId: string; name: string; channel: string; totalSent: number; totalOpened: number; totalClicked: number; openRate: number; clickRate: number }>>(`/analytics/automation-stats`, token, {
+                headers: { 'X-Tenant-Slug': slug }
+            });
+        },
+        enabled: !!slug
+    });
+}
+

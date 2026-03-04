@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useOutletContext, useParams, useNavigate } from "react-router";
-import { Search, CheckCircle, XCircle, User, Calendar, RotateCcw } from "lucide-react";
+import { Search, CheckCircle, XCircle, User, Calendar, RotateCcw, CreditCard, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -13,7 +13,10 @@ export default function KioskMode() {
     const [query, setQuery] = useState("");
     const [results, setResults] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
-    const [checkingIn, setCheckingIn] = useState<string | null>(null); // bookingId
+    const [checkingIn, setCheckingIn] = useState<string | null>(null);
+    const [showWalkIn, setShowWalkIn] = useState<string | null>(null); // memberId for walk-in
+    const [todayClasses, setTodayClasses] = useState<any[]>([]);
+    const [successMember, setSuccessMember] = useState<{ name: string; credits?: number | null; className?: string } | null>(null);
 
     // Check Auth on Mount
     useEffect(() => {
@@ -66,14 +69,14 @@ export default function KioskMode() {
 
             if (!res.ok) throw new Error("Check-in failed");
 
-            // Success Animation/Toast
-            toast.success(`Welcome, ${memberName}!`);
+            // Show success overlay
+            setSuccessMember({ name: memberName });
 
-            // Clear Search after 2 seconds to reset for next person
             setTimeout(() => {
+                setSuccessMember(null);
                 setQuery("");
                 setResults([]);
-            }, 2000);
+            }, 3000);
 
         } catch (e) {
             toast.error("Could not check in. Please see desk.");
@@ -81,6 +84,138 @@ export default function KioskMode() {
             setCheckingIn(null);
         }
     };
+
+    const handleWalkIn = async (memberId: string, memberName: string) => {
+        // Fetch today's classes
+        try {
+            const token = localStorage.getItem(`kiosk_token_${params.slug}`);
+            const API_URL = (window as any).ENV.API_URL;
+            const res = await fetch(`${API_URL}/kiosk/today-classes`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json() as any[];;
+                setTodayClasses(data);
+                setShowWalkIn(memberId);
+            }
+        } catch (e) {
+            toast.error("Could not load classes.");
+        }
+    };
+
+    const handleWalkInBook = async (classId: string) => {
+        if (!showWalkIn) return;
+        const member = results.find(r => r.memberId === showWalkIn);
+        const memberName = member ? `${member.firstName || ''} ${member.lastName || ''}`.trim() : 'Student';
+
+        try {
+            const token = localStorage.getItem(`kiosk_token_${params.slug}`);
+            const API_URL = (window as any).ENV.API_URL;
+            const res = await fetch(`${API_URL}/kiosk/walk-in`, {
+                method: "POST",
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ memberId: showWalkIn, classId })
+            });
+
+            if (!res.ok) {
+                const err = await res.json() as { error?: string };
+                throw new Error(err.error || 'Walk-in failed');
+            }
+
+            const data = await res.json() as any;
+            setShowWalkIn(null);
+            setSuccessMember({
+                name: memberName,
+                credits: data.creditsRemaining,
+                className: data.className
+            });
+
+            setTimeout(() => {
+                setSuccessMember(null);
+                setQuery("");
+                setResults([]);
+            }, 4000);
+
+        } catch (e: unknown) {
+            toast.error((e as Error).message || "Walk-in failed. Please see desk.");
+        }
+    };
+
+    // Success Overlay
+    if (successMember) {
+        return (
+            <div className="fixed inset-0 z-50 bg-gradient-to-br from-green-500 to-emerald-600 flex flex-col items-center justify-center text-white animate-in zoom-in duration-300">
+                <div className="relative mb-8">
+                    <Sparkles className="h-24 w-24 animate-pulse" />
+                    <div className="absolute -top-2 -right-2 animate-bounce">
+                        <CheckCircle className="h-12 w-12 text-green-200" />
+                    </div>
+                </div>
+                <h1 className="text-5xl font-bold mb-4">Welcome, {successMember.name}!</h1>
+                {successMember.className && (
+                    <p className="text-2xl text-green-100 mb-2">Booked into: {successMember.className}</p>
+                )}
+                {successMember.credits !== null && successMember.credits !== undefined && (
+                    <div className="mt-4 bg-white/20 backdrop-blur-sm rounded-2xl px-8 py-4 flex items-center gap-3">
+                        <CreditCard className="h-6 w-6" />
+                        <span className="text-xl font-semibold">{successMember.credits} credits remaining</span>
+                    </div>
+                )}
+                <p className="mt-8 text-green-200 text-lg">You're all checked in. Enjoy your class!</p>
+            </div>
+        );
+    }
+
+    // Walk-in Class Selection
+    if (showWalkIn) {
+        const member = results.find(r => r.memberId === showWalkIn);
+        return (
+            <div className="h-full flex flex-col items-center pt-16 px-6 max-w-2xl mx-auto">
+                <button
+                    onClick={() => setShowWalkIn(null)}
+                    className="self-start mb-6 flex items-center gap-2 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
+                >
+                    <RotateCcw className="h-5 w-5" /> Back to search
+                </button>
+                <h2 className="text-3xl font-bold mb-2">Select a Class</h2>
+                <p className="text-zinc-500 mb-8 text-lg">
+                    Walk-in for {member?.firstName} {member?.lastName}
+                </p>
+
+                <div className="w-full space-y-3">
+                    {todayClasses.length === 0 ? (
+                        <div className="text-center py-12 text-zinc-400">
+                            <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                            <p className="text-lg">No upcoming classes today.</p>
+                        </div>
+                    ) : todayClasses.map(cls => (
+                        <button
+                            key={cls.id}
+                            onClick={() => handleWalkInBook(cls.id)}
+                            disabled={cls.spotsRemaining <= 0}
+                            className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 shadow-sm flex items-center justify-between hover:border-purple-400 hover:shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                            <div className="text-left">
+                                <div className="font-bold text-lg text-zinc-900 dark:text-zinc-100">{cls.title}</div>
+                                <div className="text-zinc-500 text-sm mt-1">
+                                    {format(new Date(cls.startTime), 'h:mm a')}
+                                    {cls.endTime && ` – ${format(new Date(cls.endTime), 'h:mm a')}`}
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <div className={`text-sm font-medium ${cls.spotsRemaining > 5 ? 'text-green-600' : cls.spotsRemaining > 0 ? 'text-amber-600' : 'text-red-500'}`}>
+                                    {cls.spotsRemaining > 0 ? `${cls.spotsRemaining} spots` : 'Full'}
+                                </div>
+                            </div>
+                        </button>
+                    ))}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="h-full flex flex-col items-center pt-20 px-6 max-w-2xl mx-auto">
@@ -136,10 +271,16 @@ export default function KioskMode() {
                                 ) : (
                                     <div className="text-zinc-400 text-sm">No bookings today</div>
                                 )}
+                                {member.availableCredits > 0 && (
+                                    <div className="flex items-center gap-1 text-xs text-purple-600 mt-0.5">
+                                        <CreditCard className="h-3 w-3" />
+                                        {member.availableCredits} credits available
+                                    </div>
+                                )}
                             </div>
                         </div>
 
-                        <div>
+                        <div className="flex items-center gap-2">
                             {member.nextBooking ? (
                                 member.nextBooking.checkedInAt ? (
                                     <div className="px-4 py-2 bg-green-100 text-green-700 rounded-lg font-medium flex items-center gap-2">
@@ -156,7 +297,12 @@ export default function KioskMode() {
                                     </button>
                                 )
                             ) : (
-                                <span className="text-zinc-400 text-sm font-medium">See Front Desk</span>
+                                <button
+                                    onClick={() => handleWalkIn(member.memberId, `${member.firstName || ''} ${member.lastName || ''}`)}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-lg font-bold text-base shadow-sm active:scale-95 transition-all"
+                                >
+                                    Walk-In
+                                </button>
                             )}
                         </div>
                     </div>

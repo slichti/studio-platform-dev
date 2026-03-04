@@ -2,7 +2,7 @@
 import { Hono } from 'hono';
 import { eq, and, sql, desc, asc } from 'drizzle-orm';
 import { createDb } from '../db';
-import { waitlist, classes, bookings, users, tenants } from '@studio/db/src/schema'; // Ensure this path matches
+import { waitlist, classes, bookings, users, tenants, automationLogs, marketingAutomations } from '@studio/db/src/schema'; // Ensure this path matches
 import { authMiddleware } from '../middleware/auth';
 import { HonoContext } from '../types';
 import { z } from 'zod';
@@ -172,6 +172,30 @@ export const checkAndPromoteWaitlist = async (classId: string, tenantId: string,
                     } catch (pushErr) {
                         console.error("[Waitlist] Push Failed", pushErr);
                     }
+                }
+
+                // Fire waitlist_promoted automation trigger
+                try {
+                    const automations = await db.query.marketingAutomations.findMany({
+                        where: and(
+                            eq(marketingAutomations.tenantId, tenantId),
+                            eq(marketingAutomations.triggerEvent, 'waitlist_promoted'),
+                            eq(marketingAutomations.isEnabled, true)
+                        )
+                    });
+                    for (const auto of automations) {
+                        await db.insert(automationLogs).values({
+                            id: crypto.randomUUID(),
+                            tenantId,
+                            automationId: auto.id,
+                            userId: candidate.userId,
+                            channel: 'email',
+                            stepIndex: 0,
+                            triggeredAt: new Date()
+                        }).run();
+                    }
+                } catch (autoErr) {
+                    console.error("[Waitlist] Automation trigger failed", autoErr);
                 }
             }
         }

@@ -166,4 +166,129 @@ app.get('/seo', async (c) => {
     });
 });
 
+// GET /churn-overview - Member Distribution by Churn Status
+app.get('/churn-overview', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context required" }, 400);
+    if (!c.get('can')('view_reports')) return c.json({ error: 'Unauthorized' }, 403);
+
+    const results = await db.select({
+        status: tenantMembers.churnStatus,
+        count: sql<number>`count(*)`
+    })
+        .from(tenantMembers)
+        .where(eq(tenantMembers.tenantId, tenant.id))
+        .groupBy(tenantMembers.churnStatus)
+        .all();
+
+    const overview = { safe: 0, at_risk: 0, churned: 0, total: 0 };
+    results.forEach(r => {
+        const s = r.status || 'safe';
+        overview[s as keyof typeof overview] = r.count;
+        overview.total += r.count;
+    });
+
+    return c.json(overview);
+});
+
+// GET /revenue-breakdown - Monthly Revenue by Source
+app.get('/revenue-breakdown', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context required" }, 400);
+    if (!c.get('can')('view_reports')) return c.json({ error: 'Unauthorized' }, 403);
+
+    const { subscriptions } = await import('@studio/db/src/schema');
+
+    // Packs revenue by month
+    const packsByMonth = await db.select({
+        month: sql<string>`strftime('%Y-%m', ${purchasedPacks.createdAt})`,
+        total: sql<number>`sum(${purchasedPacks.price})`
+    })
+        .from(purchasedPacks)
+        .where(and(eq(purchasedPacks.tenantId, tenant.id), gte(purchasedPacks.createdAt, sql`datetime('now', '-12 months')`)))
+        .groupBy(sql`strftime('%Y-%m', ${purchasedPacks.createdAt})`)
+        .all();
+
+    // POS revenue by month
+    const posByMonth = await db.select({
+        month: sql<string>`strftime('%Y-%m', ${posOrders.createdAt})`,
+        total: sql<number>`sum(${posOrders.totalAmount})`
+    })
+        .from(posOrders)
+        .where(and(eq(posOrders.tenantId, tenant.id), gte(posOrders.createdAt, sql`datetime('now', '-12 months')`)))
+        .groupBy(sql`strftime('%Y-%m', ${posOrders.createdAt})`)
+        .all();
+
+    // Membership revenue by month (active subscriptions)
+    const membershipByMonth = await db.select({
+        month: sql<string>`strftime('%Y-%m', ${subscriptions.createdAt})`,
+        count: sql<number>`count(*)`
+    })
+        .from(subscriptions)
+        .where(and(eq(subscriptions.tenantId, tenant.id), gte(subscriptions.createdAt, sql`datetime('now', '-12 months')`)))
+        .groupBy(sql`strftime('%Y-%m', ${subscriptions.createdAt})`)
+        .all();
+
+    // Build unified monthly data
+    const months = new Set<string>();
+    packsByMonth.forEach(r => months.add(r.month));
+    posByMonth.forEach(r => months.add(r.month));
+    membershipByMonth.forEach(r => months.add(r.month));
+
+    const packsMap = Object.fromEntries(packsByMonth.map(r => [r.month, (r.total || 0) / 100]));
+    const posMap = Object.fromEntries(posByMonth.map(r => [r.month, (r.total || 0) / 100]));
+    const membershipMap = Object.fromEntries(membershipByMonth.map(r => [r.month, r.count]));
+
+    const breakdown = Array.from(months).sort().map(month => ({
+        month,
+        packs: packsMap[month] || 0,
+        pos: posMap[month] || 0,
+        memberships: membershipMap[month] || 0
+    }));
+
+    return c.json(breakdown);
+});
+
+// GET /automation-stats - Automation Effectiveness
+app.get('/automation-stats', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context required" }, 400);
+    if (!c.get('can')('view_reports')) return c.json({ error: 'Unauthorized' }, 403);
+
+    const { automationLogs, marketingAutomations } = await import('@studio/db/src/schema');
+
+    const stats = await db.select({
+        automationId: automationLogs.automationId,
+        channel: automationLogs.channel,
+        totalSent: sql<number>`count(*)`,
+        totalOpened: sql<number>`sum(case when ${automationLogs.openedAt} is not null then 1 else 0 end)`,
+        totalClicked: sql<number>`sum(case when ${automationLogs.clickedAt} is not null then 1 else 0 end)`,
+    })
+        .from(automationLogs)
+        .where(eq(automationLogs.tenantId, tenant.id))
+        .groupBy(automationLogs.automationId, automationLogs.channel)
+        .all();
+
+    // Get automation names
+    const automationIds = [...new Set(stats.map(s => s.automationId))];
+    const automations = automationIds.length > 0
+        ? await db.select({ id: marketingAutomations.id, triggerEvent: marketingAutomations.triggerEvent, metadata: marketingAutomations.metadata })
+            .from(marketingAutomations)
+            .where(sql`${marketingAutomations.id} IN (${sql.join(automationIds.map(id => sql`${id}`), sql`, `)})`)
+            .all()
+        : [];
+
+    const nameMap = Object.fromEntries(automations.map(a => [a.id, (a.metadata as any)?.name || a.triggerEvent || 'Unnamed']));
+
+    return c.json(stats.map(s => ({
+        ...s,
+        name: nameMap[s.automationId] || 'Unknown',
+        openRate: s.totalSent > 0 ? Math.round((s.totalOpened / s.totalSent) * 100) : 0,
+        clickRate: s.totalSent > 0 ? Math.round((s.totalClicked / s.totalSent) * 100) : 0,
+    })));
+});
+
 export default app;

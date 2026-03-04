@@ -1,15 +1,16 @@
 import { useOutletContext } from "react-router";
-import { DollarSign, TrendingUp, Download } from "lucide-react";
+import { DollarSign, TrendingUp, Download, BarChart3, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { useAuth } from "@clerk/react-router";
 
-import { useRevenue, useInstructorProfitability, DateRange } from "~/hooks/useAnalytics";
+import { useRevenue, useInstructorProfitability, useRevenueBreakdown, useAutomationStats, DateRange } from "~/hooks/useAnalytics";
 import { MetricCard } from "~/components/charts/MetricCard";
 import React, { Suspense, lazy } from "react";
 import { SkeletonLoader } from "~/components/ui/SkeletonLoader";
 const RevenueChart = lazy(() => import("~/components/charts/RevenueChart.client").then(mod => ({ default: mod.RevenueChart })));
 const InstructorRoiChart = lazy(() => import("~/components/charts/InstructorRoiChart.client").then(mod => ({ default: mod.InstructorRoiChart })));
+const RevenueBreakdownChart = lazy(() => import("~/components/charts/RevenueBreakdownChart.client").then(mod => ({ default: mod.RevenueBreakdownChart })));
 import { PrivacyBlur } from "~/components/PrivacyBlur";
 
 export default function AnalyticsFinancials() {
@@ -18,7 +19,9 @@ export default function AnalyticsFinancials() {
     const [exporting, setExporting] = useState(false);
 
     const { data: revenueData, isLoading, isError, error } = useRevenue(tenant.slug, dateRange);
-    const { data: roiData, isLoading: isLoadingRoi } = useInstructorProfitability(tenant.slug, dateRange);
+    const { data: roiData } = useInstructorProfitability(tenant.slug, dateRange);
+    const { data: breakdownData } = useRevenueBreakdown(tenant.slug);
+    const { data: automationStats } = useAutomationStats(tenant.slug);
 
     const handleExportJournal = async () => {
         setExporting(true);
@@ -151,6 +154,23 @@ export default function AnalyticsFinancials() {
                 </div>
             </div>
 
+            {/* Revenue Breakdown by Source */}
+            <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative min-h-[400px] mt-8">
+                <h3 className="text-lg font-semibold mb-6 flex justify-between items-center">
+                    <span className="flex items-center gap-2"><BarChart3 size={20} className="text-blue-600" /> Revenue by Source</span>
+                    <span className="text-xs font-normal text-zinc-500">Memberships vs. Packs vs. POS (12 months)</span>
+                </h3>
+                {shouldBlur && (
+                    <div className="absolute inset-0 z-10 backdrop-blur-md bg-white/30 dark:bg-black/30 flex items-center justify-center rounded-xl"></div>
+                )}
+                <div className="h-80 w-full">
+                    <Suspense fallback={<div className="h-full w-full bg-zinc-50 dark:bg-zinc-800/50 animate-pulse rounded-lg" />}>
+                        <RevenueBreakdownChart data={breakdownData as any} />
+                    </Suspense>
+                </div>
+            </div>
+
+            {/* Instructor Profitability */}
             <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative min-h-[400px] mt-8">
                 <h3 className="text-lg font-semibold mb-6 flex justify-between items-center">
                     Instructor Profitability (ROI)
@@ -165,6 +185,51 @@ export default function AnalyticsFinancials() {
                     </Suspense>
                 </div>
             </div>
+
+            {/* Automation Effectiveness */}
+            {automationStats && Array.isArray(automationStats) && automationStats.length > 0 && (
+                <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm mt-8">
+                    <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
+                        <Zap size={20} className="text-amber-500" /> Automation Effectiveness
+                    </h3>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700">
+                                <tr>
+                                    <th className="px-4 py-3 font-medium text-zinc-500">Automation</th>
+                                    <th className="px-4 py-3 font-medium text-zinc-500">Channel</th>
+                                    <th className="px-4 py-3 font-medium text-zinc-500 text-right">Sent</th>
+                                    <th className="px-4 py-3 font-medium text-zinc-500 text-right">Open Rate</th>
+                                    <th className="px-4 py-3 font-medium text-zinc-500 text-right">Click Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                {automationStats.map((stat: any, i: number) => (
+                                    <tr key={i} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
+                                        <td className="px-4 py-3 font-medium text-zinc-800 dark:text-zinc-200">{stat.name}</td>
+                                        <td className="px-4 py-3">
+                                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${stat.channel === 'email' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'}`}>
+                                                {stat.channel}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-right font-mono text-zinc-600 dark:text-zinc-400">{stat.totalSent}</td>
+                                        <td className="px-4 py-3 text-right">
+                                            <span className={`font-mono ${stat.openRate >= 30 ? 'text-green-600' : stat.openRate >= 15 ? 'text-amber-600' : 'text-red-500'}`}>
+                                                {stat.openRate}%
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-right">
+                                            <span className={`font-mono ${stat.clickRate >= 5 ? 'text-green-600' : stat.clickRate >= 2 ? 'text-amber-600' : 'text-zinc-400'}`}>
+                                                {stat.clickRate}%
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

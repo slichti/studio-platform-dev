@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { createDb } from '../db';
 import { eq, and, or, desc, sql, inArray, lte } from 'drizzle-orm';
-import { tenantMembers, tenantRoles, studentNotes, users, classes, bookings, tenants, marketingAutomations, emailLogs, coupons, couponRedemptions, automationLogs, purchasedPacks, waiverSignatures } from '@studio/db/src/schema';
+import { tenantMembers, tenantRoles, studentNotes, users, classes, bookings, tenants, marketingAutomations, emailLogs, coupons, couponRedemptions, automationLogs, purchasedPacks, waiverSignatures, posOrders, subscriptions } from '@studio/db/src/schema';
 import { HonoContext } from '../types';
 import { quotaMiddleware } from '../middleware/quota';
 
@@ -789,6 +789,145 @@ app.openapi(bulkMemberActionRoute, async (c) => {
     }
     // ... other actions
     return c.json({ success: true, affected: list.length }, 200);
+});
+
+// GET /members/:id/communications - Communication history (emails + automations)
+app.get('/:id/communications', async (c) => {
+    if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant')!;
+    const memberId = c.req.param('id');
+
+    const member = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.id, memberId), eq(tenantMembers.tenantId, tenant.id)),
+        with: { user: true }
+    });
+    if (!member) return c.json({ error: 'Not found' }, 404);
+
+    // Email logs sent to this member
+    const emails = await db.select()
+        .from(emailLogs)
+        .where(and(
+            eq(emailLogs.tenantId, tenant.id),
+            eq(emailLogs.recipientEmail, member.user.email)
+        ))
+        .orderBy(desc(emailLogs.sentAt))
+        .limit(50)
+        .all();
+
+    // Automation logs for this member
+    const automations = await db.select({
+        log: automationLogs,
+        automation: marketingAutomations
+    })
+        .from(automationLogs)
+        .leftJoin(marketingAutomations, eq(automationLogs.automationId, marketingAutomations.id))
+        .where(and(
+            eq(automationLogs.tenantId, tenant.id),
+            eq(automationLogs.userId, member.userId)
+        ))
+        .orderBy(desc(automationLogs.triggeredAt))
+        .limit(50)
+        .all();
+
+    const timeline = [
+        ...emails.map(e => ({
+            type: 'email' as const,
+            date: e.sentAt,
+            subject: e.subject,
+            status: e.status,
+            templateId: e.templateId,
+            campaignId: e.campaignId
+        })),
+        ...automations.map(a => ({
+            type: 'automation' as const,
+            date: a.log.triggeredAt,
+            channel: a.log.channel,
+            automationName: (a.automation?.metadata as any)?.name || a.automation?.triggerEvent || 'Unknown',
+            stepIndex: a.log.stepIndex,
+            openedAt: a.log.openedAt,
+            clickedAt: a.log.clickedAt
+        }))
+    ].sort((a, b) => {
+        const da = a.date ? new Date(a.date).getTime() : 0;
+        const db2 = b.date ? new Date(b.date).getTime() : 0;
+        return db2 - da;
+    });
+
+    return c.json({ communications: timeline });
+});
+
+// GET /members/:id/purchases - Purchase timeline (packs + POS + subscriptions)
+app.get('/:id/purchases', async (c) => {
+    if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant')!;
+    const memberId = c.req.param('id');
+
+    const member = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.id, memberId), eq(tenantMembers.tenantId, tenant.id))
+    });
+    if (!member) return c.json({ error: 'Not found' }, 404);
+
+    // Purchased packs
+    const packs = await db.query.purchasedPacks.findMany({
+        where: eq(purchasedPacks.memberId, memberId),
+        with: { definition: true },
+        orderBy: [desc(purchasedPacks.createdAt)]
+    });
+
+    // POS orders
+    const pos = await db.select()
+        .from(posOrders)
+        .where(and(
+            eq(posOrders.tenantId, tenant.id),
+            eq(posOrders.memberId, memberId)
+        ))
+        .orderBy(desc(posOrders.createdAt))
+        .limit(50)
+        .all();
+
+    // Subscriptions
+    const subs = await db.select()
+        .from(subscriptions)
+        .where(and(
+            eq(subscriptions.tenantId, tenant.id),
+            eq(subscriptions.memberId, memberId)
+        ))
+        .orderBy(desc(subscriptions.createdAt))
+        .all();
+
+    const timeline = [
+        ...packs.map(p => ({
+            type: 'pack' as const,
+            date: p.createdAt,
+            name: (p as any).definition?.name || 'Class Pack',
+            amount: p.price ? p.price / 100 : 0,
+            creditsRemaining: p.remainingCredits,
+            creditsTotal: (p as any).definition?.classCount || p.remainingCredits
+        })),
+        ...pos.map(o => ({
+            type: 'pos' as const,
+            date: o.createdAt,
+            items: (o as any).items || [],
+            amount: (o.totalAmount || 0) / 100,
+            status: o.status
+        })),
+        ...subs.map(s => ({
+            type: 'subscription' as const,
+            date: s.createdAt,
+            status: s.status,
+            tier: s.tier,
+            currentPeriodEnd: s.currentPeriodEnd,
+            canceledAt: s.canceledAt
+        }))
+    ].sort((a, b) => {
+        const da = a.date ? new Date(a.date).getTime() : 0;
+        const db2 = b.date ? new Date(b.date).getTime() : 0;
+        return db2 - da;
+    });
+
+    return c.json({ purchases: timeline });
 });
 
 export default app;

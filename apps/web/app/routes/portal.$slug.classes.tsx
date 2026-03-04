@@ -199,6 +199,22 @@ export default function StudentPortalClasses() {
                                                         <MapPin size={14} />
                                                         <span>{cls.location?.name || "Main Studio"}</span>
                                                     </div>
+                                                    {cls.capacity > 0 && (
+                                                        <div className={`flex items-center gap-1.5 font-medium ${(cls.bookedCount || 0) >= cls.capacity
+                                                                ? 'text-red-500'
+                                                                : cls.capacity - (cls.bookedCount || 0) <= 3
+                                                                    ? 'text-amber-500'
+                                                                    : 'text-emerald-500'
+                                                            }`}>
+                                                            <AlertCircle size={14} />
+                                                            <span>
+                                                                {(cls.bookedCount || 0) >= cls.capacity
+                                                                    ? `Full${cls.waitlistCount ? ` • ${cls.waitlistCount} waitlisted` : ''}`
+                                                                    : `${cls.capacity - (cls.bookedCount || 0)} spots left`
+                                                                }
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
 

@@ -2,7 +2,7 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { createOpenAPIApp } from '../lib/openapi';
 import { createDb } from '../db';
-import { tenants, tenantMembers, users, bookings, classes, tenantFeatures } from '@studio/db/src/schema';
+import { tenants, tenantMembers, users, bookings, classes, tenantFeatures, purchasedPacks } from '@studio/db/src/schema';
 import { BookingService } from '../services/bookings';
 import { eq, and, like, desc, gte, sql, inArray, or } from 'drizzle-orm';
 import { sign, verify } from 'hono/jwt';
@@ -38,7 +38,8 @@ const KioskMemberSchema = z.object({
         status: z.string(),
         checkedInAt: z.any().nullable()
     }).nullable(),
-    hasBookingToday: z.boolean()
+    hasBookingToday: z.boolean(),
+    availableCredits: z.number().optional()
 });
 
 const KioskSearchResponseSchema = z.array(KioskMemberSchema);
@@ -220,13 +221,30 @@ protectedApp.openapi(createRoute({
         .orderBy(desc(classes.startTime))
         .all();
 
+    // Get credit counts for each member
+    const allPacks = memberIds.length > 0
+        ? await db.select({
+            memberId: purchasedPacks.memberId,
+            credits: purchasedPacks.remainingCredits
+        })
+            .from(purchasedPacks)
+            .where(inArray(purchasedPacks.memberId, memberIds))
+            .all()
+        : [];
+
+    const creditsByMember: Record<string, number> = {};
+    for (const p of allPacks) {
+        creditsByMember[p.memberId] = (creditsByMember[p.memberId] || 0) + (p.credits || 0);
+    }
+
     const finalResults = results.map(m => {
         const memberBookings = fileteredBookings.filter(b => b.memberId === m.memberId);
         const nextBooking = memberBookings.find(b => !b.checkedInAt);
         return {
             ...m,
             nextBooking: nextBooking || null,
-            hasBookingToday: memberBookings.length > 0
+            hasBookingToday: memberBookings.length > 0,
+            availableCredits: creditsByMember[m.memberId] || 0
         };
     });
 
@@ -263,6 +281,133 @@ protectedApp.openapi(createRoute({
     } catch (e: any) {
         return c.json({ error: e.message }, 500);
     }
+});
+
+/**
+ * GET /kiosk/today-classes — Get today's upcoming classes for walk-in booking
+ */
+protectedApp.get('/today-classes', async (c) => {
+    const tenantId = c.get('kioskTenantId');
+    const db = createDb(c.env.DB);
+    const now = new Date();
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const todayClasses = await db.select({
+        id: classes.id,
+        title: classes.title,
+        startTime: classes.startTime,
+        capacity: classes.capacity
+    })
+        .from(classes)
+        .where(and(
+            eq(classes.tenantId, tenantId),
+            gte(classes.startTime, now),
+            sql`${classes.startTime} <= ${endOfDay}`
+        ))
+        .orderBy(classes.startTime)
+        .all();
+
+    // Get current booking counts
+    const classIds = todayClasses.map(c => c.id);
+    const bookingCounts = classIds.length > 0
+        ? await db.select({ classId: bookings.classId, count: sql<number>`count(*)` })
+            .from(bookings)
+            .where(and(inArray(bookings.classId, classIds), eq(bookings.status, 'confirmed')))
+            .groupBy(bookings.classId)
+            .all()
+        : [];
+
+    const countsMap: Record<string, number> = {};
+    for (const bc of bookingCounts) {
+        countsMap[bc.classId] = bc.count;
+    }
+
+    const result = todayClasses.map(c => ({
+        ...c,
+        spotsRemaining: (c.capacity || 30) - (countsMap[c.id] || 0)
+    }));
+
+    return c.json(result);
+});
+
+/**
+ * POST /kiosk/walk-in — Walk-in booking + immediate check-in
+ */
+protectedApp.post('/walk-in', async (c) => {
+    const tenantId = c.get('kioskTenantId');
+    const db = createDb(c.env.DB);
+    const { memberId, classId } = await c.req.json();
+
+    if (!memberId || !classId) {
+        return c.json({ error: 'Missing memberId or classId' }, 400);
+    }
+
+    // Verify member belongs to tenant
+    const member = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.id, memberId), eq(tenantMembers.tenantId, tenantId))
+    });
+    if (!member) return c.json({ error: 'Member not found' }, 404);
+
+    // Verify class belongs to tenant and has spots
+    const cls = await db.select().from(classes).where(and(eq(classes.id, classId), eq(classes.tenantId, tenantId))).get();
+    if (!cls) return c.json({ error: 'Class not found' }, 404);
+
+    const currentCount = await db.select({ count: sql<number>`count(*)` })
+        .from(bookings)
+        .where(and(eq(bookings.classId, classId), eq(bookings.status, 'confirmed')))
+        .get();
+
+    if ((currentCount?.count || 0) >= (cls.capacity || 30)) {
+        return c.json({ error: 'Class is full' }, 409);
+    }
+
+    // Check no duplicate booking
+    const existing = await db.query.bookings.findFirst({
+        where: and(eq(bookings.memberId, memberId), eq(bookings.classId, classId))
+    });
+    if (existing) {
+        // Already booked, just check in
+        if (!existing.checkedInAt) {
+            await db.update(bookings).set({ checkedInAt: new Date() }).where(eq(bookings.id, existing.id)).run();
+        }
+        return c.json({ success: true, bookingId: existing.id, timestamp: new Date().toISOString(), alreadyBooked: true });
+    }
+
+    // Create booking + check in
+    const bookingId = crypto.randomUUID();
+    await db.insert(bookings).values({
+        id: bookingId,
+        classId,
+        memberId,
+        status: 'confirmed',
+        checkedInAt: new Date(),
+        createdAt: new Date()
+    }).run();
+
+    // Deduct class pack credit if available
+    let creditsRemaining: number | null = null;
+    const activePack = await db.query.purchasedPacks.findFirst({
+        where: and(
+            eq(purchasedPacks.memberId, memberId),
+            sql`${purchasedPacks.remainingCredits} > 0`
+        )
+    });
+    if (activePack) {
+        const newCredits = (activePack.remainingCredits || 1) - 1;
+        await db.update(purchasedPacks).set({ remainingCredits: newCredits }).where(eq(purchasedPacks.id, activePack.id)).run();
+        creditsRemaining = newCredits;
+    }
+
+    return c.json({
+        success: true,
+        bookingId,
+        timestamp: new Date().toISOString(),
+        creditsRemaining,
+        className: cls.title
+    });
 });
 
 app.route('/', protectedApp);

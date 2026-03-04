@@ -1,14 +1,16 @@
 import { useOutletContext } from "react-router";
 import { Users, AlertTriangle, Calendar } from "lucide-react";
-import { useAtRisk } from "~/hooks/useAnalytics";
+import { useAtRisk, useChurnOverview } from "~/hooks/useAnalytics";
 import { SkeletonLoader } from "~/components/ui/SkeletonLoader";
-import { useState } from "react";
+import { useState, Suspense, lazy } from "react";
 import { format } from "date-fns";
+const ChurnChart = lazy(() => import("~/components/charts/ChurnChart.client").then(mod => ({ default: mod.ChurnChart })));
 
 export default function AnalyticsAtRisk() {
     const { tenant } = useOutletContext<{ tenant: any }>();
     const [days, setDays] = useState(14);
     const { data, isLoading, isError, error } = useAtRisk(tenant?.slug ?? "", days);
+    const { data: churnData } = useChurnOverview(tenant?.slug ?? "");
 
     if (isLoading) {
         return (
@@ -56,6 +58,34 @@ export default function AnalyticsAtRisk() {
                     </select>
                 </div>
             </div>
+
+            {/* Churn Distribution Chart */}
+            {churnData && (churnData as any).total > 0 && (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                        <h3 className="text-sm font-semibold text-zinc-500 uppercase tracking-wide mb-4">Member Health</h3>
+                        <div className="h-64">
+                            <Suspense fallback={<div className="h-full bg-zinc-50 dark:bg-zinc-800/50 animate-pulse rounded-lg" />}>
+                                <ChurnChart data={churnData as any} />
+                            </Suspense>
+                        </div>
+                    </div>
+                    <div className="lg:col-span-2 grid grid-cols-3 gap-4 content-start">
+                        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4 text-center">
+                            <div className="text-3xl font-bold text-green-600">{(churnData as any).safe}</div>
+                            <div className="text-xs text-green-700 dark:text-green-400 mt-1 uppercase tracking-wide">Safe</div>
+                        </div>
+                        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 text-center">
+                            <div className="text-3xl font-bold text-amber-600">{(churnData as any).at_risk}</div>
+                            <div className="text-xs text-amber-700 dark:text-amber-400 mt-1 uppercase tracking-wide">At Risk</div>
+                        </div>
+                        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 text-center">
+                            <div className="text-3xl font-bold text-red-600">{(churnData as any).churned}</div>
+                            <div className="text-xs text-red-700 dark:text-red-400 mt-1 uppercase tracking-wide">Churned</div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
                 <div className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-3">

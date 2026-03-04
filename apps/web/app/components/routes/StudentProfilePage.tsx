@@ -5,24 +5,27 @@ import { useAuth } from "@clerk/react-router";
 import { format } from "date-fns";
 import {
     User, Mail, Calendar, CreditCard, FileText,
-    MoreHorizontal, Check, X, Plus, Pencil, Trash2, Camera, History
+    Edit, Shield, Camera, Package, Trash2,
+    Check, AlertTriangle, X, MoreVertical,
+    Send, Clock, ShoppingBag, MessageSquare,
+    MoreHorizontal, Plus
 } from "lucide-react";
-import { toast } from "sonner";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-
-import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/Card";
 import { Button } from "../ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import { Select } from "../ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { Badge } from "../ui/Badge";
-import { Card, CardHeader, CardTitle, CardContent } from "../ui/Card";
+import { toast } from "sonner";
 
 import { useMember, useMemberNotes, useMemberCoupons } from "../../hooks/useMember";
 import { usePacks } from "../../hooks/usePacks";
 import { apiRequest, API_URL } from "../../utils/api";
 import { ComponentErrorBoundary } from "../ErrorBoundary";
+
 
 const safeFormat = (date: any, fmt: string) => {
     try {
@@ -45,6 +48,28 @@ export default function StudentProfilePageComponent() {
     const { data: notes, isLoading: loadingNotes } = useMemberNotes(slug || '', memberId);
     const { data: coupons, isLoading: loadingCoupons } = useMemberCoupons(slug || '', memberId);
     const { data: availablePacks } = usePacks(slug || '');
+
+    const { data: communicationsData } = useQuery({
+        queryKey: ['member-communications', slug, memberId],
+        queryFn: async () => {
+            const token = await getToken();
+            return apiRequest<{ communications: any[] }>(`/members/${memberId}/communications`, token, {
+                headers: { 'X-Tenant-Slug': slug || '' }
+            });
+        },
+        enabled: !!slug && !!memberId
+    });
+
+    const { data: purchasesData } = useQuery({
+        queryKey: ['member-purchases', slug, memberId],
+        queryFn: async () => {
+            const token = await getToken();
+            return apiRequest<{ purchases: any[] }>(`/members/${memberId}/purchases`, token, {
+                headers: { 'X-Tenant-Slug': slug || '' }
+            });
+        },
+        enabled: !!slug && !!memberId
+    });
 
     const [activeTab, setActiveTab] = useState("overview");
     const [isAssigningPack, setIsAssigningPack] = useState(false);
@@ -288,7 +313,7 @@ export default function StudentProfilePageComponent() {
                                         onClick={() => setShowActions(false)}
                                         className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                                     >
-                                        <History className="h-4 w-4" /> View activity
+                                        <Clock className="h-4 w-4" /> View activity
                                     </Link>
                                     <button
                                         onClick={() => { setShowActions(false); setIsSendingEmail(true); }}
@@ -315,6 +340,8 @@ export default function StudentProfilePageComponent() {
                         { id: "memberships", label: "Memberships & Credits" },
                         { id: "coupons", label: "Generated Coupons" },
                         { id: "attendance", label: "Attendance" },
+                        { id: "communications", label: "Communications" },
+                        { id: "purchases", label: "Purchases" },
                         { id: "notes", label: "Staff Notes" },
                     ].map(tab => (
                         <button
@@ -334,6 +361,16 @@ export default function StudentProfilePageComponent() {
                     {activeTab === "overview" && (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div className="md:col-span-2 space-y-6">
+                                {/* Churn Risk Badge */}
+                                {member.churnStatus && member.churnStatus !== 'safe' && (
+                                    <div className={`flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-medium ${member.churnStatus === 'at_risk'
+                                        ? 'bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800'
+                                        : 'bg-red-50 text-red-800 border border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800'
+                                        }`}>
+                                        <AlertTriangle size={16} />
+                                        {member.churnStatus === 'at_risk' ? 'At Risk — This member may churn. Consider reaching out.' : 'Churned — This member has stopped attending.'}
+                                    </div>
+                                )}
                                 <Card>
                                     <CardHeader><CardTitle>Quick Stats</CardTitle></CardHeader>
                                     <CardContent>
@@ -598,6 +635,110 @@ export default function StudentProfilePageComponent() {
                                         </Card>
                                     ))}
                                     {notes?.length === 0 && <div className="text-center py-8 text-zinc-400">No notes yet.</div>}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {activeTab === "communications" && (
+                        <div className="space-y-4">
+                            {(!communicationsData?.communications || communicationsData.communications.length === 0) ? (
+                                <div className="text-center py-12 text-zinc-400">
+                                    <MessageSquare size={40} className="mx-auto mb-3 opacity-40" />
+                                    <p>No communications sent to this member yet.</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {communicationsData.communications.map((item: any, i: number) => (
+                                        <div key={i} className="flex items-start gap-4 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg">
+                                            <div className={`p-2 rounded-lg ${item.type === 'email' ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-purple-100 dark:bg-purple-900/30'}`}>
+                                                {item.type === 'email' ? <Mail size={16} className="text-blue-600" /> : <Send size={16} className="text-purple-600" />}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="font-medium text-sm text-zinc-900 dark:text-zinc-100 truncate">
+                                                        {item.type === 'email' ? item.subject : item.automationName}
+                                                    </span>
+                                                    <span className="text-xs text-zinc-400 ml-2 whitespace-nowrap">
+                                                        {item.date ? safeFormat(item.date, 'MMM d, yyyy h:mm a') : '—'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${item.type === 'email'
+                                                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                                        : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'
+                                                        }`}>
+                                                        {item.type === 'email' ? 'Email' : `Automation (${item.channel})`}
+                                                    </span>
+                                                    {item.type === 'email' && item.status && (
+                                                        <span className={`text-xs ${item.status === 'sent' ? 'text-green-600' : 'text-red-500'}`}>
+                                                            {item.status}
+                                                        </span>
+                                                    )}
+                                                    {item.type === 'automation' && item.openedAt && (
+                                                        <span className="text-xs text-green-600 flex items-center gap-1"><Check size={12} /> Opened</span>
+                                                    )}
+                                                    {item.type === 'automation' && item.clickedAt && (
+                                                        <span className="text-xs text-blue-600 flex items-center gap-1"><Check size={12} /> Clicked</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {activeTab === "purchases" && (
+                        <div className="space-y-4">
+                            {(!purchasesData?.purchases || purchasesData.purchases.length === 0) ? (
+                                <div className="text-center py-12 text-zinc-400">
+                                    <ShoppingBag size={40} className="mx-auto mb-3 opacity-40" />
+                                    <p>No purchase history for this member.</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {purchasesData.purchases.map((item: any, i: number) => (
+                                        <div key={i} className="flex items-start gap-4 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg">
+                                            <div className={`p-2 rounded-lg ${item.type === 'pack' ? 'bg-blue-100 dark:bg-blue-900/30'
+                                                : item.type === 'pos' ? 'bg-green-100 dark:bg-green-900/30'
+                                                    : 'bg-purple-100 dark:bg-purple-900/30'
+                                                }`}>
+                                                {item.type === 'pack' ? <Package size={16} className="text-blue-600" />
+                                                    : item.type === 'pos' ? <ShoppingBag size={16} className="text-green-600" />
+                                                        : <CreditCard size={16} className="text-purple-600" />}
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="font-medium text-sm text-zinc-900 dark:text-zinc-100">
+                                                        {item.type === 'pack' ? item.name
+                                                            : item.type === 'pos' ? 'Retail Purchase'
+                                                                : 'Membership Subscription'}
+                                                    </span>
+                                                    <span className="font-mono text-sm text-zinc-600 dark:text-zinc-400">
+                                                        {item.amount ? `$${item.amount.toFixed(2)}` : '—'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className="text-xs text-zinc-400">
+                                                        {item.date ? safeFormat(item.date, 'MMM d, yyyy') : '—'}
+                                                    </span>
+                                                    {item.type === 'pack' && (
+                                                        <span className="text-xs text-blue-600">
+                                                            {item.creditsRemaining}/{item.creditsTotal} credits remaining
+                                                        </span>
+                                                    )}
+                                                    {item.type === 'subscription' && (
+                                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${item.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'
+                                                            }`}>
+                                                            {item.status}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                         </div>
