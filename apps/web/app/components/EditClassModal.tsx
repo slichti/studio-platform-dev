@@ -61,7 +61,7 @@ export function EditClassModal({ isOpen, onClose, onSuccess, locations = [], ins
     });
 
     // Image state
-    const [showImageSection, setShowImageSection] = useState(!!initialData.thumbnailUrl);
+    const [showImageSection, setShowImageSection] = useState(!!initialData.thumbnailUrl || !!initialData.gradientColor1);
     const [imageBlob, setImageBlob] = useState<Blob | null>(null);
     const [imagePreview, setImagePreview] = useState<string>(initialData.thumbnailUrl || '');
 

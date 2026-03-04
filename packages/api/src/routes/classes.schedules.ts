@@ -462,7 +462,7 @@ app.openapi(createRoute({
     if (!ex) return c.json({ error: "Not found" }, 404);
 
     const up: any = {};
-    const keys = ['title', 'description', 'startTime', 'durationMinutes', 'capacity', 'price', 'memberPrice', 'allowCredits', 'includedPlanIds', 'zoomEnabled', 'status', 'instructorId', 'locationId', 'payrollModel', 'payrollValue', 'isCourse', 'recordingPrice', 'contentCollectionId', 'courseId', 'gradientPreset', 'gradientColor1', 'gradientColor2', 'gradientDirection'];
+    const keys = ['title', 'description', 'startTime', 'durationMinutes', 'capacity', 'price', 'memberPrice', 'allowCredits', 'includedPlanIds', 'zoomEnabled', 'status', 'instructorId', 'locationId', 'payrollModel', 'payrollValue', 'isCourse', 'recordingPrice', 'contentCollectionId', 'courseId', 'gradientPreset', 'gradientColor1', 'gradientColor2', 'gradientDirection', 'thumbnailUrl', 'autoCancelEnabled', 'autoCancelThreshold', 'minStudents', 'type'];
     // Manual mapping or loop, but since we parsed Validated JSON, we can trust keys
     Object.keys(body).forEach(k => {
         if (keys.includes(k)) {
