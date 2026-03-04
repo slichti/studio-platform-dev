@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import React, { Suspense } from 'react';
 const Cropper = React.lazy(() => import('react-easy-crop'));
 import { getCroppedImg } from '../utils/cropImage';
-import { Upload, Wand2, ChevronDown, Trash2, Type } from 'lucide-react';
+import { Upload, Wand2, Loader2, ChevronDown, Trash2, Type } from 'lucide-react';
 
 interface CardCreatorProps {
     initialImage?: string;
@@ -183,6 +183,7 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, initi
     const [fontSizeIndex, setFontSizeIndex] = useState(5); // Default to '2XL' (64px title)
     const currentFontSize = FONT_SIZE_OPTIONS[fontSizeIndex];
     const [applySuccess, setApplySuccess] = useState(false);
+    const [isApplying, setIsApplying] = useState(false);
 
     // --- Upload state ---
     const [imageSrc, setImageSrc] = useState<string | null>(initialImage || null);
@@ -262,29 +263,34 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, initi
 
     // --- Generate handlers ---
     const handleApplyGenerated = async () => {
-        const canvas = exportCanvasRef.current;
-        if (!canvas) return;
-        renderCardToCanvas(canvas, {
-            bgType, color1, color2, direction, title, subtitle,
-            titleFontSize: currentFontSize.titlePx,
-            subtitleFontSize: currentFontSize.subtitlePx,
-        });
-        const blob = await canvasToBlob(canvas);
-        const previewUrl = URL.createObjectURL(blob);
-        onChange({
-            image: blob,
-            title,
-            subtitle,
-            previewUrl,
-            gradient: bgType === 'gradient' ? { preset: activePreset, color1, color2, direction } : undefined
-        });
-        // Switch to upload tab with preview to show the result
-        setImageSrc(previewUrl);
-        setUploadMode('preview');
-        setTab('upload');
-        // Flash success indicator
-        setApplySuccess(true);
-        setTimeout(() => setApplySuccess(false), 2500);
+        setIsApplying(true);
+        try {
+            const canvas = exportCanvasRef.current;
+            if (!canvas) return;
+            renderCardToCanvas(canvas, {
+                bgType, color1, color2, direction, title, subtitle,
+                titleFontSize: currentFontSize.titlePx,
+                subtitleFontSize: currentFontSize.subtitlePx,
+            });
+            const blob = await canvasToBlob(canvas);
+            const previewUrl = URL.createObjectURL(blob);
+            onChange({
+                image: blob,
+                title,
+                subtitle,
+                previewUrl,
+                gradient: bgType === 'gradient' ? { preset: activePreset, color1, color2, direction } : undefined
+            });
+            // Switch to upload tab with preview to show the result
+            setImageSrc(previewUrl);
+            setUploadMode('preview');
+            setTab('upload');
+            // Flash success indicator
+            setApplySuccess(true);
+            setTimeout(() => setApplySuccess(false), 2500);
+        } finally {
+            setIsApplying(false);
+        }
     };
 
     const handlePresetClick = (preset: typeof GRADIENT_PRESETS[0]) => {
@@ -409,12 +415,7 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, initi
                                         alt="Card Background"
                                     />
                                 )}
-                                <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center text-center p-4">
-                                    <div className="bg-white/80 dark:bg-black/60 backdrop-blur-sm p-4 rounded-lg max-w-[80%]">
-                                        <h3 className="text-xl font-bold text-zinc-900 dark:text-white uppercase tracking-wider">{title || "Membership Title"}</h3>
-                                        {subtitle && <p className="text-sm text-zinc-700 dark:text-zinc-300 mt-1">{subtitle}</p>}
-                                    </div>
-                                </div>
+                                {/* Hover overlay with edit/replace actions */}
                                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
                                     <button
                                         type="button"
@@ -619,13 +620,18 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, initi
                     <button
                         type="button"
                         onClick={handleApplyGenerated}
+                        disabled={isApplying}
                         className={`w-full px-4 py-2.5 rounded-lg font-medium transition-colors shadow-sm flex items-center justify-center gap-2 ${applySuccess
-                                ? 'bg-green-600 text-white'
+                            ? 'bg-green-600 text-white'
+                            : isApplying
+                                ? 'bg-indigo-400 text-white cursor-wait'
                                 : 'bg-indigo-600 text-white hover:bg-indigo-700'
                             }`}
                     >
                         {applySuccess ? (
                             <>✓ Card Applied!</>
+                        ) : isApplying ? (
+                            <><Loader2 size={16} className="animate-spin" /> Generating...</>
                         ) : (
                             <><Wand2 size={16} /> Apply Generated Card</>
                         )}
