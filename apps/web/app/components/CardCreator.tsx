@@ -50,6 +50,23 @@ const FONT_SIZE_OPTIONS = [
 ];
 
 // --- Canvas rendering ---
+// Simple seeded pseudo-random for deterministic bokeh
+function seededRandom(seed: number) {
+    let s = seed;
+    return () => {
+        s = (s * 16807 + 0) % 2147483647;
+        return (s - 1) / 2147483646;
+    };
+}
+
+function hashString(str: string): number {
+    let h = 0;
+    for (let i = 0; i < str.length; i++) {
+        h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+    }
+    return Math.abs(h) || 1;
+}
+
 function renderCardToCanvas(
     canvas: HTMLCanvasElement,
     options: {
@@ -88,12 +105,13 @@ function renderCardToCanvas(
     }
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Subtle noise/pattern overlay for depth
+    // Static bokeh overlay — deterministic circles seeded from colors
+    const rand = seededRandom(hashString(options.color1 + options.color2));
     ctx.fillStyle = 'rgba(255,255,255,0.03)';
     for (let i = 0; i < 80; i++) {
-        const x = Math.random() * CANVAS_WIDTH;
-        const y = Math.random() * CANVAS_HEIGHT;
-        const r = Math.random() * 60 + 20;
+        const x = rand() * CANVAS_WIDTH;
+        const y = rand() * CANVAS_HEIGHT;
+        const r = rand() * 60 + 20;
         ctx.beginPath();
         ctx.arc(x, y, r, 0, Math.PI * 2);
         ctx.fill();
@@ -118,7 +136,7 @@ function renderCardToCanvas(
 
         ctx.fillStyle = '#ffffff';
         const titleY = options.subtitle ? CANVAS_HEIGHT / 2 - 20 : CANVAS_HEIGHT / 2;
-        ctx.fillText(options.title.toUpperCase(), CANVAS_WIDTH / 2, titleY, CANVAS_WIDTH - 80);
+        ctx.fillText(options.title, CANVAS_WIDTH / 2, titleY, CANVAS_WIDTH - 80);
         ctx.restore();
     }
 
@@ -193,7 +211,7 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, initi
             subtitleFontSize: currentFontSize.subtitlePx,
         });
 
-        // Auto-export gradient without requiring image generation click
+        // Auto-export gradient metadata (but NOT image, to avoid clobbering Apply's blob)
         onChange({
             title,
             subtitle,
@@ -330,7 +348,7 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, initi
                 <>
                     {uploadMode === 'upload' && (
                         <div className="border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg p-8 text-center bg-zinc-50 dark:bg-zinc-800/50 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800">
-                            <p className="text-zinc-500 dark:text-zinc-400 mb-2 font-medium">Upload a background image for your membership card.</p>
+                            <p className="text-zinc-500 dark:text-zinc-400 mb-2 font-medium">Upload a background image for your class.</p>
                             <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">Recommended: 600×450px (4:3 ratio). Max 5 MB.</p>
                             <input
                                 type="file"

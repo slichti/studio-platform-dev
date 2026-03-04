@@ -1,6 +1,6 @@
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment, useState, useEffect } from 'react';
-import { X, Video, Loader2, Trash2 } from 'lucide-react';
+import { X, Video, Loader2, Trash2, AlertTriangle, RefreshCw, Settings } from 'lucide-react';
 import { ConfirmDialog } from './ui/ConfirmDialog';
 import { apiRequest } from '../utils/api';
 import { useAuth } from '@clerk/react-router'; // Use Clerk hook or pass token
@@ -18,6 +18,7 @@ interface ClassDetailModalProps {
     onSubRequested?: (classId: string) => void;
     onBookRequested?: () => void;
     onEditRequested?: () => void;
+    onClassUpdated?: () => void;
 }
 
 export function ClassDetailModal({
@@ -32,13 +33,21 @@ export function ClassDetailModal({
     tenantSlug,
     onSubRequested,
     onBookRequested,
-    onEditRequested
+    onEditRequested,
+    onClassUpdated
 }: ClassDetailModalProps) {
     const [recordingUrl, setRecordingUrl] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [confirmState, setConfirmState] = useState<{ type: 'delete_recording' | 'request_sub' | 'claim_sub', subId?: string } | null>(null);
+    const [confirmState, setConfirmState] = useState<{ type: 'delete_recording' | 'request_sub' | 'claim_sub' | 'restore', subId?: string } | null>(null);
     const { getToken } = useAuth();
+
+    // Enrollment policy editing
+    const [isEditingPolicies, setIsEditingPolicies] = useState(false);
+    const [policyMinEnrollment, setPolicyMinEnrollment] = useState(1);
+    const [policyAutoCancelThreshold, setPolicyAutoCancelThreshold] = useState(2);
+    const [policyAutoCancelEnabled, setPolicyAutoCancelEnabled] = useState(false);
+    const [isSavingPolicies, setIsSavingPolicies] = useState(false);
 
     // Reset state when opening different class
     useEffect(() => {
@@ -47,7 +56,65 @@ export function ClassDetailModal({
         setIsSubmitting(false);
     }, [classEvent?.id]);
 
+    // Sync enrollment policy state when classEvent changes
+    useEffect(() => {
+        if (classEvent) {
+            setPolicyMinEnrollment(classEvent.minStudents || 1);
+            setPolicyAutoCancelThreshold(classEvent.autoCancelThreshold || 2);
+            setPolicyAutoCancelEnabled(!!classEvent.autoCancelEnabled);
+            setIsEditingPolicies(false);
+        }
+    }, [classEvent?.id]);
+
     if (!classEvent) return null;
+
+    const isAdmin = userRoles?.some((r: string) => ['admin', 'owner'].includes(r));
+    const isCancelled = classEvent.status === 'cancelled';
+
+    const handleSavePolicies = async () => {
+        setIsSavingPolicies(true);
+        try {
+            const token = await getToken();
+            const res: any = await apiRequest(`/classes/${classEvent.id}`, token, {
+                method: 'PATCH',
+                headers: { 'X-Tenant-Slug': tenantSlug! },
+                body: JSON.stringify({
+                    minStudents: policyMinEnrollment,
+                    autoCancelThreshold: policyAutoCancelThreshold,
+                    autoCancelEnabled: policyAutoCancelEnabled
+                })
+            });
+            if (res.error) throw new Error(typeof res.error === 'string' ? res.error : JSON.stringify(res.error));
+            setIsEditingPolicies(false);
+            onClassUpdated?.();
+        } catch (err: any) {
+            alert(err.message || 'Failed to save enrollment policies');
+        } finally {
+            setIsSavingPolicies(false);
+        }
+    };
+
+    const handleRestoreClass = () => {
+        setConfirmState({ type: 'restore' });
+    };
+
+    const executeRestoreClass = async () => {
+        setIsSubmitting(true);
+        try {
+            const token = await getToken();
+            const res: any = await apiRequest(`/classes/${classEvent.id}/restore`, token, {
+                method: 'POST',
+                headers: { 'X-Tenant-Slug': tenantSlug! }
+            });
+            if (res.error) throw new Error(typeof res.error === 'string' ? res.error : JSON.stringify(res.error));
+            onClassUpdated?.();
+            onClose();
+        } catch (err: any) {
+            alert(err.message || 'Failed to restore class');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     // status can be passed in classEvent or we assume 'ready' if streamId exists
     const hasRecording = !!classEvent.cloudflareStreamId;
@@ -235,6 +302,120 @@ export function ClassDetailModal({
                                                 </div>
                                             </div>
                                         </div>
+
+                                        {/* Cancelled Banner + Restore */}
+                                        {isCancelled && (
+                                            <div className="bg-red-50 border border-red-200 p-3 rounded-md">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <AlertTriangle size={16} className="text-red-600" />
+                                                    <span className="text-sm font-semibold text-red-800">This class is cancelled</span>
+                                                </div>
+                                                {isAdmin && (
+                                                    <button
+                                                        onClick={handleRestoreClass}
+                                                        disabled={isSubmitting}
+                                                        className="w-full flex items-center justify-center gap-2 bg-white text-red-700 border border-red-300 py-2 rounded-md text-sm font-medium hover:bg-red-50 disabled:opacity-50"
+                                                    >
+                                                        <RefreshCw size={14} />
+                                                        Restore Class
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Enrollment Policies */}
+                                        {isAdmin && (
+                                            <div className="bg-gray-50 p-3 rounded-md text-sm border border-gray-200">
+                                                <div className="flex justify-between items-center mb-2">
+                                                    <h4 className="font-semibold text-gray-900 flex items-center gap-1.5">
+                                                        <Settings size={14} />
+                                                        Enrollment Policies
+                                                    </h4>
+                                                    {!isEditingPolicies ? (
+                                                        <button
+                                                            onClick={() => setIsEditingPolicies(true)}
+                                                            className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                    ) : (
+                                                        <div className="flex gap-2">
+                                                            <button
+                                                                onClick={() => {
+                                                                    setIsEditingPolicies(false);
+                                                                    setPolicyMinEnrollment(classEvent.minStudents || 1);
+                                                                    setPolicyAutoCancelThreshold(classEvent.autoCancelThreshold || 2);
+                                                                    setPolicyAutoCancelEnabled(!!classEvent.autoCancelEnabled);
+                                                                }}
+                                                                className="text-xs text-gray-500 hover:text-gray-700"
+                                                            >
+                                                                Cancel
+                                                            </button>
+                                                            <button
+                                                                onClick={handleSavePolicies}
+                                                                disabled={isSavingPolicies}
+                                                                className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded hover:bg-blue-700 disabled:opacity-50"
+                                                            >
+                                                                {isSavingPolicies ? 'Saving...' : 'Save'}
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {isEditingPolicies ? (
+                                                    <div className="space-y-3">
+                                                        <div className="grid grid-cols-2 gap-3">
+                                                            <div>
+                                                                <label className="block text-xs text-gray-600 mb-0.5">Min. Enrollment</label>
+                                                                <input
+                                                                    type="number"
+                                                                    min="1"
+                                                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                                                    value={policyMinEnrollment}
+                                                                    onChange={(e) => setPolicyMinEnrollment(Number(e.target.value))}
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="block text-xs text-gray-600 mb-0.5">Auto-Cancel (hrs before)</label>
+                                                                <input
+                                                                    type="number"
+                                                                    min="1"
+                                                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                                                    value={policyAutoCancelThreshold}
+                                                                    onChange={(e) => setPolicyAutoCancelThreshold(Number(e.target.value))}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={policyAutoCancelEnabled}
+                                                                onChange={(e) => setPolicyAutoCancelEnabled(e.target.checked)}
+                                                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                            />
+                                                            Enable automatic cancellation
+                                                        </label>
+                                                    </div>
+                                                ) : (
+                                                    <div className="grid grid-cols-3 gap-2 text-xs text-gray-600">
+                                                        <div className="bg-white p-2 rounded border border-gray-200 text-center">
+                                                            <span className="block text-gray-400">Min. Enrollment</span>
+                                                            <span className="block text-base font-bold text-gray-900">{classEvent.minStudents || 1}</span>
+                                                        </div>
+                                                        <div className="bg-white p-2 rounded border border-gray-200 text-center">
+                                                            <span className="block text-gray-400">Cancel Cutoff</span>
+                                                            <span className="block text-base font-bold text-gray-900">{classEvent.autoCancelThreshold || '—'}h</span>
+                                                        </div>
+                                                        <div className="bg-white p-2 rounded border border-gray-200 text-center">
+                                                            <span className="block text-gray-400">Auto-Cancel</span>
+                                                            <span className={`block text-base font-bold ${classEvent.autoCancelEnabled ? 'text-green-600' : 'text-gray-400'}`}>
+                                                                {classEvent.autoCancelEnabled ? 'ON' : 'OFF'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
 
                                         {/* Zoom Section */}
                                         {(classEvent.myBooking?.zoomMeetingUrl || classEvent.zoomEnabled || classEvent.zoomMeetingUrl) && (
@@ -430,15 +611,18 @@ export function ClassDetailModal({
                     if (confirmState?.type === 'delete_recording') executeDeleteRecording();
                     else if (confirmState?.type === 'request_sub') executeRequestSub();
                     else if (confirmState?.type === 'claim_sub') executeClaimSub();
+                    else if (confirmState?.type === 'restore') executeRestoreClass();
                 }}
                 title={
                     confirmState?.type === 'delete_recording' ? "Delete Recording" :
-                        confirmState?.type === 'request_sub' ? "Request Substitute" : "Claim Shift"
+                        confirmState?.type === 'request_sub' ? "Request Substitute" :
+                            confirmState?.type === 'restore' ? "Restore Class" : "Claim Shift"
                 }
                 description={
                     confirmState?.type === 'delete_recording' ? "Are you sure you want to delete this recording? This cannot be undone." :
                         confirmState?.type === 'request_sub' ? "Are you sure you want to request a substitute? Instructors will be notified." :
-                            "Are you sure you want to claim this shift?"
+                            confirmState?.type === 'restore' ? "Restore this class? All previously cancelled bookings will be re-confirmed and students will be able to attend." :
+                                "Are you sure you want to claim this shift?"
                 }
                 confirmText={confirmState?.type === 'delete_recording' ? "Delete" : "Confirm"}
                 variant={confirmState?.type === 'delete_recording' ? "destructive" : "default"}

@@ -505,4 +505,40 @@ app.openapi(createRoute({
     return c.json({ success: true });
 });
 
+
+// POST /:id/restore — Un-cancel a class
+app.openapi(createRoute({
+    method: 'post',
+    path: '/{id}/restore',
+    tags: ['Classes'],
+    summary: 'Restore a cancelled class',
+    request: {
+        params: z.object({ id: z.string() })
+    },
+    responses: {
+        200: { description: 'Class restored' },
+        404: { description: 'Not found' },
+        400: { description: 'Class is not cancelled' }
+    }
+}), async (c: any) => {
+    if (!c.get('can')('manage_classes')) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const tid = c.get('tenant').id;
+    const { id } = c.req.valid('param');
+
+    const cls = await db.query.classes.findFirst({ where: and(eq(classes.id, id), eq(classes.tenantId, tid)) });
+    if (!cls) return c.json({ error: 'Not found' }, 404);
+    if (cls.status !== 'cancelled') return c.json({ error: 'Class is not cancelled' }, 400);
+
+    // Restore class to active
+    await db.update(classes).set({ status: 'active' }).where(eq(classes.id, id)).run();
+
+    // Re-activate cancelled bookings for this class
+    await db.update(bookings).set({ status: 'confirmed' }).where(
+        and(eq(bookings.classId, id), eq(bookings.status, 'cancelled'))
+    ).run();
+
+    return c.json({ success: true });
+});
+
 export default app;

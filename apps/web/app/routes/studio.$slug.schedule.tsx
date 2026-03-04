@@ -186,6 +186,7 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
                     setIsDetailOpen(false);
                     setIsEditOpen(true);
                 }}
+                onClassUpdated={refreshClasses}
             />
 
             {isEditOpen && selectedClass && (
