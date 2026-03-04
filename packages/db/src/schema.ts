@@ -345,6 +345,13 @@ export const classSeries = sqliteTable('class_series', {
     recurrenceRule: text('recurrence_rule').notNull(), // RRule string e.g. "FREQ=WEEKLY;BYDAY=MO,WE"
     validFrom: integer('valid_from', { mode: 'timestamp' }).notNull(),
     validUntil: integer('valid_until', { mode: 'timestamp' }),
+
+    // Gradient Styling (Phase 9)
+    gradientPreset: text('gradient_preset'),
+    gradientColor1: text('gradient_color1'),
+    gradientColor2: text('gradient_color2'),
+    gradientDirection: integer('gradient_direction'),
+
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
@@ -393,12 +400,13 @@ export const classes = sqliteTable('classes', {
     autoCancelThreshold: integer('auto_cancel_threshold'), // Hours before start
     autoCancelEnabled: integer('auto_cancel_enabled', { mode: 'boolean' }).default(false),
 
-    // VOD Monetization
-    recordingPrice: integer('recording_price'), // Price in cents for standalone purchase
-    isRecordingSellable: integer('is_recording_sellable', { mode: 'boolean' }).default(false),
-    isCourse: integer('is_course', { mode: 'boolean' }).default(false),
-    contentCollectionId: text('content_collection_id').references(() => videoCollections.id),
     courseId: text('course_id').references(() => courses.id), // Link to parent course
+
+    // Gradient Styling (Phase 9)
+    gradientPreset: text('gradient_preset'),
+    gradientColor1: text('gradient_color1'),
+    gradientColor2: text('gradient_color2'),
+    gradientDirection: integer('gradient_direction'),
 
     googleEventId: text('google_event_id'),
 

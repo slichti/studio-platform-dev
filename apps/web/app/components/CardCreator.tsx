@@ -8,7 +8,13 @@ interface CardCreatorProps {
     initialImage?: string;
     initialTitle?: string;
     initialSubtitle?: string;
-    onChange: (data: { image: Blob | null, title: string, subtitle: string, previewUrl: string }) => void;
+    onChange: (data: {
+        image: Blob | null,
+        title: string,
+        subtitle: string,
+        previewUrl: string,
+        gradient?: { preset: string | null, color1: string, color2: string, direction: number }
+    }) => void;
 }
 
 // --- Gradient Presets ---
@@ -202,7 +208,13 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, onCha
             if (!imageSrc || !croppedAreaPixels) return;
             const croppedImageBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
             const previewUrl = URL.createObjectURL(croppedImageBlob);
-            onChange({ image: croppedImageBlob, title, subtitle, previewUrl });
+            onChange({
+                image: croppedImageBlob,
+                title,
+                subtitle,
+                previewUrl,
+                gradient: bgType === 'gradient' ? { preset: activePreset, color1, color2, direction } : undefined
+            });
             setUploadMode('preview');
         } catch (e) {
             console.error(e);
@@ -228,7 +240,13 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, onCha
         });
         const blob = await canvasToBlob(canvas);
         const previewUrl = URL.createObjectURL(blob);
-        onChange({ image: blob, title, subtitle, previewUrl });
+        onChange({
+            image: blob,
+            title,
+            subtitle,
+            previewUrl,
+            gradient: bgType === 'gradient' ? { preset: activePreset, color1, color2, direction } : undefined
+        });
         // Switch upload tab to preview to show the result
         setImageSrc(previewUrl);
         setUploadMode('preview');
@@ -246,14 +264,26 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, onCha
     const handleTitleChange = (val: string) => {
         setTitle(val);
         if (tab === 'upload') {
-            onChange({ image: null, title: val, subtitle, previewUrl: "" });
+            onChange({
+                image: null,
+                title: val,
+                subtitle,
+                previewUrl: "",
+                gradient: bgType === 'gradient' ? { preset: activePreset, color1, color2, direction } : undefined
+            });
         }
     };
 
     const handleSubtitleChange = (val: string) => {
         setSubtitle(val);
         if (tab === 'upload') {
-            onChange({ image: null, title, subtitle: val, previewUrl: "" });
+            onChange({
+                image: null,
+                title,
+                subtitle: val,
+                previewUrl: "",
+                gradient: bgType === 'gradient' ? { preset: activePreset, color1, color2, direction } : undefined
+            });
         }
     };
 

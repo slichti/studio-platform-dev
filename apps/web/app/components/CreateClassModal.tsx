@@ -54,7 +54,8 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
         isCourse: false,
         courseId: "", // Link to standalone course
         recordingPrice: "",
-        contentCollectionId: ""
+        contentCollectionId: "",
+        gradient: undefined as { preset: string | null, color1: string, color2: string, direction: number } | undefined
     });
 
     // Image state
@@ -132,6 +133,10 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                     recordingPrice: (formData.isCourse || formData.courseId) && formData.recordingPrice ? Number(formData.recordingPrice) : null,
                     contentCollectionId: (formData.isCourse || formData.courseId) && formData.contentCollectionId ? formData.contentCollectionId : null,
                     thumbnailUrl,
+                    gradientPreset: formData.gradient?.preset,
+                    gradientColor1: formData.gradient?.color1,
+                    gradientColor2: formData.gradient?.color2,
+                    gradientDirection: formData.gradient?.direction,
                 })
             });
 
@@ -170,7 +175,8 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                     isCourse: false,
                     courseId: "",
                     recordingPrice: "",
-                    contentCollectionId: ""
+                    contentCollectionId: "",
+                    gradient: undefined
                 });
                 setImageBlob(null);
                 setImagePreview('');
@@ -313,9 +319,17 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                         <div className="p-4 border-t border-zinc-200">
                             <CardCreator
                                 initialImage={imagePreview || undefined}
+                                initialTitle={formData.name}
+                                initialSubtitle={formData.description}
                                 onChange={(data) => {
                                     setImageBlob(data.image);
-                                    setImagePreview(data.previewUrl);
+                                    if (data.previewUrl) setImagePreview(data.previewUrl);
+                                    setFormData({
+                                        ...formData,
+                                        name: data.title || formData.name,
+                                        description: data.subtitle || formData.description,
+                                        gradient: data.gradient
+                                    });
                                 }}
                             />
                             <p className="text-xs text-zinc-500 mt-2">

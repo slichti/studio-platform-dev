@@ -151,6 +151,10 @@ export function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDat
 
                                     if (startHour < 6) return null; // Skip early events for now
 
+                                    const gradient = event.resource?.gradientColor1 && event.resource?.gradientColor2
+                                        ? `linear-gradient(${event.resource.gradientDirection || 135}deg, ${event.resource.gradientColor1}, ${event.resource.gradientColor2})`
+                                        : event.resource?.gradientColor1 || 'var(--calendar-event-bg, #eff6ff)';
+
                                     return (
                                         <button
                                             key={event.id}
@@ -162,9 +166,10 @@ export function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDat
                                             style={{
                                                 top: `${startOffset}px`,
                                                 height: `${Math.max(height, 24)}px`, // Min height
-                                                backgroundColor: 'var(--calendar-event-bg, #eff6ff)',
-                                                border: '1px solid var(--calendar-event-border, #bfdbfe)',
-                                                color: 'var(--calendar-event-text, #1e40af)',
+                                                background: gradient,
+                                                border: event.resource?.gradientColor1 ? 'none' : '1px solid var(--calendar-event-border, #bfdbfe)',
+                                                color: event.resource?.gradientColor1 ? '#ffffff' : 'var(--calendar-event-text, #1e40af)',
+                                                textShadow: event.resource?.gradientColor1 ? '0 1px 2px rgba(0,0,0,0.3)' : 'none'
                                             }}
                                             aria-label={`${event.title}, ${format(event.start, 'h:mm a')} to ${format(event.end, 'h:mm a')}`}
                                         >

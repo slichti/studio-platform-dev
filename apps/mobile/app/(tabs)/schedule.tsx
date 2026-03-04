@@ -1,4 +1,5 @@
-import { View, Text, SafeAreaView, SectionList, TouchableOpacity, RefreshControl, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, SafeAreaView, SectionList, TouchableOpacity, RefreshControl, ActivityIndicator, ScrollView, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useState, useEffect, useCallback } from 'react';
 import { apiRequest } from '../../lib/api';
 import { useRouter } from 'expo-router';
@@ -16,6 +17,10 @@ type ClassSession = {
     capacity: number;
     confirmedCount: number;
     userBookingStatus: 'confirmed' | 'waitlisted' | null;
+    gradientPreset?: string | null;
+    gradientColor1?: string | null;
+    gradientColor2?: string | null;
+    gradientDirection?: number | null;
 };
 
 export default function ScheduleScreen() {
@@ -112,30 +117,40 @@ export default function ScheduleScreen() {
         const isBooked = !!item.userBookingStatus;
         const isFull = (item.capacity && item.confirmedCount >= item.capacity);
 
+        const hasGradient = item.gradientColor1 && item.gradientColor2;
+
         return (
             <TouchableOpacity
-                className="bg-white p-4 rounded-xl border border-zinc-100 mb-3 flex-row justify-between items-center shadow-sm"
                 onPress={() => router.push(`/class/${item.id}`)}
+                className="mb-3"
             >
-                <View className="flex-1">
-                    <Text className="text-zinc-500 text-xs mb-1 uppercase font-bold">{time}</Text>
-                    <Text className="text-lg font-bold text-zinc-900 mb-1">{item.title}</Text>
-                    <Text className="text-zinc-500 text-sm">{instructorName}</Text>
-                </View>
+                <LinearGradient
+                    colors={hasGradient ? [item.gradientColor1!, item.gradientColor2!] : ['#ffffff', '#ffffff']}
+                    start={hasGradient ? { x: 0, y: 0 } : undefined}
+                    end={hasGradient ? { x: 1, y: 1 } : undefined}
+                    style={styles.card}
+                    className="p-4 rounded-xl border border-zinc-100 flex-row justify-between items-center shadow-sm"
+                >
+                    <View className="flex-1">
+                        <Text className={`text-xs mb-1 uppercase font-bold ${hasGradient ? 'text-white/80' : 'text-zinc-500'}`}>{time}</Text>
+                        <Text className={`text-lg font-bold mb-1 ${hasGradient ? 'text-white' : 'text-zinc-900'}`}>{item.title}</Text>
+                        <Text className={`${hasGradient ? 'text-white/80' : 'text-zinc-500'} text-sm`}>{instructorName}</Text>
+                    </View>
 
-                <View>
-                    {isBooked ? (
-                        <View className="bg-green-100 px-3 py-1 rounded-full">
-                            <Text className="text-green-700 text-xs font-bold uppercase">{item.userBookingStatus}</Text>
-                        </View>
-                    ) : (
-                        <View className={`px-3 py-1 rounded-full ${isFull ? 'bg-zinc-100' : 'bg-black'}`}>
-                            <Text className={`text-xs font-bold uppercase ${isFull ? 'text-zinc-400' : 'text-white'}`}>
-                                {isFull ? 'Full' : 'Book'}
-                            </Text>
-                        </View>
-                    )}
-                </View>
+                    <View>
+                        {isBooked ? (
+                            <View className="bg-green-100/20 px-3 py-1 rounded-full border border-green-100/30">
+                                <Text className={`text-xs font-bold uppercase ${hasGradient ? 'text-white' : 'text-green-700'}`}>{item.userBookingStatus}</Text>
+                            </View>
+                        ) : (
+                            <View className={`px-3 py-1 rounded-full ${isFull ? (hasGradient ? 'bg-white/20' : 'bg-zinc-100') : (hasGradient ? 'bg-white' : 'bg-black')}`}>
+                                <Text className={`text-xs font-bold uppercase ${isFull ? (hasGradient ? 'text-white/50' : 'text-zinc-400') : (hasGradient ? 'text-zinc-900' : 'text-white')}`}>
+                                    {isFull ? 'Full' : 'Book'}
+                                </Text>
+                            </View>
+                        )}
+                    </View>
+                </LinearGradient>
             </TouchableOpacity>
         );
     };
@@ -226,3 +241,11 @@ export default function ScheduleScreen() {
         </SafeAreaView>
     );
 }
+
+const styles = StyleSheet.create({
+    card: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    }
+});

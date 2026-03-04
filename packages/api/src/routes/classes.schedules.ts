@@ -28,6 +28,11 @@ const ClassSchema = z.object({
     zoomEnabled: z.boolean(),
     status: z.string(),
     type: z.enum(['class', 'workshop', 'event', 'appointment', 'course']).default('class'),
+    // Gradient Styling (Phase 9)
+    gradientPreset: z.string().nullable().optional(),
+    gradientColor1: z.string().nullable().optional(),
+    gradientColor2: z.string().nullable().optional(),
+    gradientDirection: z.number().nullable().optional(),
     // Payroll (Phase 7)
     payrollModel: z.enum(['flat', 'percentage', 'hourly']).optional().nullable(),
     payrollValue: z.number().optional().nullable(),
@@ -76,6 +81,11 @@ const CreateClassSchema = z.object({
     recordingPrice: z.coerce.number().optional().nullable(),
     contentCollectionId: z.string().optional().nullable(),
     courseId: z.string().optional().nullable(),
+    // Gradient Styling (Phase 9)
+    gradientPreset: z.string().optional(),
+    gradientColor1: z.string().optional(),
+    gradientColor2: z.string().optional(),
+    gradientDirection: z.coerce.number().optional(),
     // Recurrence
     isRecurring: z.boolean().optional(),
     recurrenceRule: z.string().optional(),
@@ -310,6 +320,10 @@ app.openapi(createRoute({
             recurrenceRule,
             validFrom: start,
             validUntil: recurrenceEnd ? new Date(recurrenceEnd) : null,
+            gradientPreset: body.gradientPreset,
+            gradientColor1: body.gradientColor1,
+            gradientColor2: body.gradientColor2,
+            gradientDirection: body.gradientDirection,
             createdAt: new Date()
         }).run();
 
@@ -354,6 +368,10 @@ app.openapi(createRoute({
                 recordingPrice: body.recordingPrice || null,
                 contentCollectionId: body.contentCollectionId || null,
                 courseId: body.courseId || null,
+                gradientPreset: body.gradientPreset,
+                gradientColor1: body.gradientColor1,
+                gradientColor2: body.gradientColor2,
+                gradientDirection: body.gradientDirection,
                 createdAt: new Date()
             });
         }
@@ -395,6 +413,10 @@ app.openapi(createRoute({
             recordingPrice: body.recordingPrice || null,
             contentCollectionId: body.contentCollectionId || null,
             courseId: body.courseId || null,
+            gradientPreset: body.gradientPreset,
+            gradientColor1: body.gradientColor1,
+            gradientColor2: body.gradientColor2,
+            gradientDirection: body.gradientDirection,
             createdAt: new Date()
         }).returning();
 
@@ -428,7 +450,7 @@ app.openapi(createRoute({
     if (!ex) return c.json({ error: "Not found" }, 404);
 
     const up: any = {};
-    const keys = ['title', 'description', 'startTime', 'durationMinutes', 'capacity', 'price', 'memberPrice', 'allowCredits', 'includedPlanIds', 'zoomEnabled', 'status', 'instructorId', 'locationId', 'payrollModel', 'payrollValue', 'isCourse', 'recordingPrice', 'contentCollectionId', 'courseId'];
+    const keys = ['title', 'description', 'startTime', 'durationMinutes', 'capacity', 'price', 'memberPrice', 'allowCredits', 'includedPlanIds', 'zoomEnabled', 'status', 'instructorId', 'locationId', 'payrollModel', 'payrollValue', 'isCourse', 'recordingPrice', 'contentCollectionId', 'courseId', 'gradientPreset', 'gradientColor1', 'gradientColor2', 'gradientDirection'];
     // Manual mapping or loop, but since we parsed Validated JSON, we can trust keys
     Object.keys(body).forEach(k => {
         if (keys.includes(k)) {
