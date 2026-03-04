@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { AutomationCard } from "../marketing/AutomationCard";
 import { AutomationCanvas, type AutomationStep } from "../marketing/AutomationCanvas";
 
-const TRIGGERS = [
+export const TRIGGERS = [
     { id: 'new_member', label: 'New Member Signs Up', icon: Users, description: "Send a welcome email when someone joins." },
     { id: 'class_booked', label: 'Class Booked', icon: Calendar, description: "Confirm a booking or send a reminder." },
     { id: 'class_missed', label: 'Class No-Show', icon: Target, description: "Follow up with members who missed class." },
@@ -238,7 +238,7 @@ function StatCard({ label, value, color }: { label: string, value: string | numb
     );
 }
 
-function CreateAutomationModal({ onClose, onSave, initialData }: any) {
+export function CreateAutomationModal({ onClose, onSave, initialData }: any) {
     const [step, setStep] = useState(1);
     const [name, setName] = useState(initialData?.name || "");
     const [trigger, setTrigger] = useState(initialData?.triggerEvent || "new_member");

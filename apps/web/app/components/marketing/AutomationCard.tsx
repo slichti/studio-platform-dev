@@ -18,18 +18,18 @@ export function AutomationCard({ automation, onEdit, onToggle, onDelete, onAdopt
     return (
         <div className="group relative bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col h-full">
             {/* Gradient Header */}
-            <div className={`h-24 w-full bg-gradient-to-r ${automation.isActive ? 'from-violet-500 to-fuchsia-500' : 'from-zinc-200 to-zinc-300 dark:from-zinc-800 dark:to-zinc-700'} relative p-4 flex justify-between items-start`}>
+            <div className={`h-24 w-full bg-gradient-to-r ${automation.isEnabled ? 'from-violet-500 to-fuchsia-500' : 'from-zinc-200 to-zinc-300 dark:from-zinc-800 dark:to-zinc-700'} relative p-4 flex justify-between items-start`}>
                 <div className="bg-white/20 backdrop-blur-md p-2 rounded-xl text-white">
                     <TriggerIcon size={20} />
                 </div>
                 <div className="bg-white/90 dark:bg-black/80 backdrop-blur text-xs font-bold px-2 py-1 rounded-full uppercase tracking-widest text-zinc-900 dark:text-zinc-100">
-                    {automation.isActive ? 'Active' : 'Paused'}
+                    {automation.isEnabled ? 'Active' : 'Paused'}
                 </div>
             </div>
 
             <div className="p-5 flex-1 flex flex-col">
                 <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-1 line-clamp-2 leading-tight">
-                    {automation.name ||
+                    {automation.metadata?.name ||
                         (Array.isArray(automation.steps) && automation.steps.find((s: any) => s.type === 'email')?.subject) ||
                         automation.subject ||
                         "Untitled Automation"}
@@ -69,10 +69,10 @@ export function AutomationCard({ automation, onEdit, onToggle, onDelete, onAdopt
                             </button>
                             <button
                                 onClick={() => onToggle?.(automation.id)}
-                                className={`p-2 rounded-lg transition-colors ${automation.isActive ? 'text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20' : 'text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'}`}
-                                title={automation.isActive ? "Pause" : "Activate"}
+                                className={`p-2 rounded-lg transition-colors ${automation.isEnabled ? 'text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20' : 'text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'}`}
+                                title={automation.isEnabled ? "Pause" : "Activate"}
                             >
-                                {automation.isActive ? <Pause size={16} /> : <Play size={16} />}
+                                {automation.isEnabled ? <Pause size={16} /> : <Play size={16} />}
                             </button>
                             <button
                                 onClick={() => onDelete?.(automation.id)}

@@ -323,6 +323,7 @@ marketing.post('/automations', async (c) => {
             id,
             tenantId: tenant.id,
             triggerEvent: body.triggerEvent,
+            metadata: { name: body.name || "Untitled Automation" },
             steps: body.steps || [],
             isEnabled: true,
             createdAt: new Date(),
@@ -352,6 +353,7 @@ marketing.patch('/automations/:id', async (c) => {
         const updateData: any = { updatedAt: new Date() };
         if (body.isEnabled !== undefined) updateData.isEnabled = body.isEnabled;
         if (body.steps) updateData.steps = body.steps;
+        if (body.name) updateData.metadata = { name: body.name };
 
         await db.update(marketingAutomations)
             .set(updateData)
