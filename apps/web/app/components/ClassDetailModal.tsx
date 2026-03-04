@@ -64,7 +64,7 @@ export function ClassDetailModal({
             setPolicyAutoCancelEnabled(!!classEvent.autoCancelEnabled);
             setIsEditingPolicies(false);
         }
-    }, [classEvent?.id]);
+    }, [classEvent?.id, classEvent?.minStudents, classEvent?.autoCancelThreshold, classEvent?.autoCancelEnabled]);
 
     if (!classEvent) return null;
 
@@ -86,6 +86,12 @@ export function ClassDetailModal({
             });
             if (res.error) throw new Error(typeof res.error === 'string' ? res.error : JSON.stringify(res.error));
             setIsEditingPolicies(false);
+            // Optimistically update display values while waiting for refetch
+            if (classEvent) {
+                classEvent.minStudents = policyMinEnrollment;
+                classEvent.autoCancelThreshold = policyAutoCancelThreshold;
+                classEvent.autoCancelEnabled = policyAutoCancelEnabled;
+            }
             onClassUpdated?.();
         } catch (err: any) {
             alert(err.message || 'Failed to save enrollment policies');
