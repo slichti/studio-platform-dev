@@ -4,14 +4,16 @@ The modern, all-in-one platform for dance, yoga, and fitness studios.
 
 ## Features
 
-*   **Studio Management:** Class scheduling, member management, and point-of-sale.
+*   **Studio Management:** Class scheduling, member management, point-of-sale, and robust Kiosk Mode with walk-in booking support.
 *   **Memberships & Subscriptions:** Self-service membership plans with Stripe billing, free trials, archive/restore lifecycle, and student-facing plan browser. Includes support for **Time-Limited Memberships** (e.g., fixed-duration passes that do not auto-renew) and seamless integration with the Stripe Billing Portal for updating payment methods. Students can cancel subscriptions directly from their profile.
 *   **Course Management (LMS):** Hybrid courses combining live sessions, on-demand VOD, quizzes, assignments, and per-lesson completion tracking with progress percentage. Instructors can grade assignments with feedback.
-*   **Student Portal:** Full self-service portal at `/portal/:slug` — book classes, view attendance history, manage class pack credits, browse and enroll in courses, manage memberships, and edit their profile (name, phone).
+*   **Student Portal:** Full self-service portal at `/portal/:slug` — book classes, join waitlists, view attendance history, manage class pack credits, browse and enroll in courses, manage memberships, and edit their profile (name, phone).
 *   **RBAC & Security:** Comprehensive role-based access control audited across 92+ API routes. Students are precisely scoped to their own data with explicit IDOR guards on tag assignments, custom field values, and booking records.
 *   **Website Builder:** Drag-and-drop website editor with custom domains.
+*   **Public Instructor Profiles:** Shareable instructor pages with detailed schedules and approved student reviews.
 *   **Student App:** Mobile app for students to book classes and manage their accounts.
-*   **Automations & Email Marketing:** Powerful email and SMS marketing automations with trigger events (Birthday, Absent, Trial Ending). Full multi-tenant Email Marketing system allowing studios to attach custom domains, sync newsletter audiences, and send HTML broadcasts.
+*   **Automations & Email Marketing:** Powerful email and SMS marketing automations with trigger events (Waitlist Promoted, Pack Credits Low, Birthday, Absent, Trial Ending). Full multi-tenant Email Marketing system allowing studios to attach custom domains, sync newsletter audiences, and send HTML broadcasts.
+*   **Analytics Dashboards:** Comprehensive reporting with churn-risk modeling, revenue breakdown (subscriptions vs packs vs POS), and automation effectiveness tracking.
 *   **SEO Management:** Automated multi-tenant localized SEO via edge-rendered HTMLRewriter, streaming D1 sitemaps, and dynamic Schema.org injection. Includes Google Business Profile OAuth sync, real-time Google Indexing API integration, and **AI-Powered Local Blogging** via Gemini AI. Now features **Strategic Strategy Guidance**, **Competitive Search Ranking**, **Automated Student Push Notifications**, and **Usage/Cost Tracking** across all AI features.
 *   **QR Codes:** Generate tracking-ready QR codes for check-in, app downloads, and marketing.
 *   **High Performance Edge:** Sub-50ms latency for core operations via Cloudflare Workers and D1 batching.

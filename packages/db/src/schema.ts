@@ -172,6 +172,7 @@ export const tenantMembers = sqliteTable('tenant_members', {
     id: text('id').primaryKey(),
     tenantId: text('tenant_id').notNull().references(() => tenants.id),
     userId: text('user_id').notNull().references(() => users.id),
+    stripeCustomerId: text('stripe_customer_id'), // Tenant-specific Stripe Customer ID
     profile: text('profile', { mode: 'json' }), // Studio-specific profile overrides (e.g. bio for instructors)
     settings: text('settings', { mode: 'json' }), // User's preferences for this studio (notifications etc)
     customFields: text('custom_fields', { mode: 'json' }), // JSON: { tshirt_size: 'L' }

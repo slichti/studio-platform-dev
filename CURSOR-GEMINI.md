@@ -68,6 +68,23 @@
 - **Profile editing**: Inline edit form in `portal.$slug.profile` with save/cancel via `PATCH /users/me`
 - **Portal nav updated**: Added "Class History" and "My Packs" items to sidebar and mobile menu
 
+### Session 4 — Platform Feature Upgrades (March 2026)
+- **Analytics Dashboards**:
+  - `GET /analytics/churn-overview`, `/revenue-breakdown`, `/automation-stats` API routes.
+  - New stacked bar and donut charts (Recharts) integrated into financials and at-risk pages.
+- **Student Profile 360° View**:
+  - Centralized unified timelines for member communications and purchases.
+  - New churn risk prediction badges directly on the overview tab.
+- **Kiosk Walk-In Enhancements**:
+  - Streamlined walk-in booking flow tied into class pack credit deduction.
+  - Implemented dynamic confetti-style success animations upon check-in.
+- **Public Instructor Profiles**:
+  - Custom `tenant.instructors.ts` public API routing.
+  - Searchable instructor grid and detailed profile views with upcoming class schedules and approved student reviews.
+- **Waitlist Automation**:
+  - "Join Waitlist" actions with real-time queue positioning in the student portal classes list.
+  - Automated `waitlist_promoted` trigger firing upon spot openings linked to custom marketing campaigns and push notifications.
+
 ## 🎯 Design Philosophy
 - **Edge Native**: Minimize round-trips via `D1.batch()` and SARGable queries.
 - **Brand Dynamic**: Single mobile binary and web shell that rebrands on-the-fly via tenant metadata.

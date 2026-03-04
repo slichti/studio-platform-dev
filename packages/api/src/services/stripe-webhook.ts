@@ -197,15 +197,22 @@ export class StripeWebhookHandler {
                 const tenant = await this.db.query.tenants.findFirst({ where: eq(schema.tenants.id, metadata.tenantId) });
                 if (tenant) {
                     const { autoService } = await this.getTenantServices(tenant);
-                    let userId = null;
+                    let userId = metadata.userId && metadata.userId !== 'guest' ? metadata.userId : null;
                     const stripeCustomerId = session.customer as string;
                     const email = session.customer_details?.email;
 
-                    if (stripeCustomerId) {
-                        const u = await this.db.query.users.findFirst({ where: eq(schema.users.stripeCustomerId, stripeCustomerId) });
-                        userId = u?.id || (email ? (await this.db.query.users.findFirst({ where: eq(schema.users.email, email) }))?.id : null);
-                    } else if (email) {
-                        userId = (await this.db.query.users.findFirst({ where: eq(schema.users.email, email) }))?.id;
+                    // Sync tenant customer ID if we know the user
+                    if (userId && stripeCustomerId) {
+                        const member = await this.db.query.tenantMembers.findFirst({
+                            where: and(eq(schema.tenantMembers.userId, userId), eq(schema.tenantMembers.tenantId, tenant.id))
+                        });
+                        if (member && !member.stripeCustomerId) {
+                            await this.db.update(schema.tenantMembers)
+                                .set({ stripeCustomerId })
+                                .where(eq(schema.tenantMembers.id, member.id)).run();
+                        }
+                    } else if (!userId && email) {
+                        userId = (await this.db.query.users.findFirst({ where: eq(schema.users.email, email) }))?.id || null;
                     }
 
                     if (userId) {

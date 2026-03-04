@@ -1,0 +1,1 @@
+ALTER TABLE `tenant_members` ADD `stripe_customer_id` text;

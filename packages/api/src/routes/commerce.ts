@@ -482,21 +482,57 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
         const amountWithFee = Math.round((amountToPay + 30) / (1 - 0.029));
         const stripeFee = amountWithFee - amountToPay;
 
-        let customerEmail = undefined, stripeCustomerId = undefined;
-        if (auth.userId) {
-            const userRecord = await db.select({ email: users.email, stripeCustomerId: users.stripeCustomerId }).from(users).where(eq(users.id, auth.userId)).get();
-            if (userRecord) {
-                customerEmail = userRecord.email;
-                stripeCustomerId = userRecord.stripeCustomerId || (await db.query.userRelationships.findFirst({ where: eq(userRelationships.childUserId, auth.userId) }).then(async r => {
-                    if (!r) return undefined;
-                    const p = await db.query.users.findFirst({ where: eq(users.id, r.parentUserId), columns: { stripeCustomerId: true } });
-                    return p?.stripeCustomerId;
-                }));
-            }
-        }
-
         const { StripeService } = await import('../services/stripe');
         const stripeService = new StripeService(c.env.STRIPE_SECRET_KEY || '');
+
+        let customerEmail = undefined, stripeCustomerId = undefined;
+        if (auth.userId) {
+            const userRecord = await db.query.users.findFirst({ where: eq(users.id, auth.userId) });
+            if (userRecord) {
+                customerEmail = userRecord.email;
+
+                // Fetch tenant member to get tenant-scoped Stripe Customer ID
+                const member = await db.query.tenantMembers.findFirst({
+                    where: and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenant.id))
+                });
+
+                if (member && member.stripeCustomerId) {
+                    stripeCustomerId = member.stripeCustomerId;
+                } else if (!member?.stripeCustomerId && tenant.stripeAccountId) {
+                    // Try to fetch parent relationship if this is a child
+                    let parentHasId = false;
+                    const rel = await db.query.userRelationships.findFirst({ where: eq(userRelationships.childUserId, auth.userId) });
+                    if (rel) {
+                        const pMember = await db.query.tenantMembers.findFirst({
+                            where: and(eq(tenantMembers.userId, rel.parentUserId), eq(tenantMembers.tenantId, tenant.id))
+                        });
+                        if (pMember && pMember.stripeCustomerId) {
+                            stripeCustomerId = pMember.stripeCustomerId;
+                            parentHasId = true;
+                        }
+                    }
+
+                    if (!parentHasId) {
+                        try {
+                            const name = userRecord.profile ? `${(userRecord.profile as any).firstName || ''} ${(userRecord.profile as any).lastName || ''}`.trim() : 'Studio Member';
+                            const newCustomer = await stripeService.createCustomer({
+                                email: userRecord.email,
+                                name: name || 'Studio Member',
+                                metadata: { userId: userRecord.id, tenantId: tenant.id }
+                            }, tenant.stripeAccountId);
+
+                            stripeCustomerId = newCustomer.id;
+
+                            if (member) {
+                                await db.update(tenantMembers).set({ stripeCustomerId: newCustomer.id }).where(eq(tenantMembers.id, member.id)).run();
+                            }
+                        } catch (e) {
+                            console.error("[Commerce] Failed to create Stripe customer:", e);
+                        }
+                    }
+                }
+            }
+        }
         const lineItems = [];
         if (taxableAmount > 0) {
             lineItems.push({

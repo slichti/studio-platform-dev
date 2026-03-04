@@ -404,7 +404,7 @@ export class PosService {
             userId: users.id,
             email: users.email,
             profile: users.profile,
-            stripeCustomerId: users.stripeCustomerId
+            stripeCustomerId: tenantMembers.stripeCustomerId
         })
             .from(tenantMembers)
             .innerJoin(users, eq(tenantMembers.userId, users.id))
