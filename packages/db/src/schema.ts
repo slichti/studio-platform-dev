@@ -401,6 +401,10 @@ export const classes = sqliteTable('classes', {
     autoCancelEnabled: integer('auto_cancel_enabled', { mode: 'boolean' }).default(false),
 
     courseId: text('course_id').references(() => courses.id), // Link to parent course
+    isCourse: integer('is_course', { mode: 'boolean' }).default(false), // Flag if this class is actually a full course entry
+    isRecordingSellable: integer('is_recording_sellable', { mode: 'boolean' }).default(false),
+    recordingPrice: integer('recording_price'), // Price for buying access to this specific recording
+    contentCollectionId: text('content_collection_id').references(() => videoCollections.id),
 
     // Gradient Styling (Phase 9)
     gradientPreset: text('gradient_preset'),

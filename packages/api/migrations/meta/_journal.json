@@ -169,6 +169,13 @@
       "when": 1772624691952,
       "tag": "0023_elite_mongu",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1772644949555,
+      "tag": "0024_tearful_rawhide_kid",
+      "breakpoints": true
     }
   ]
 }
