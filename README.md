@@ -215,15 +215,40 @@ This monorepo handles multiple applications and packages. Here are the primary t
     npm install
     ```
 
-2.  **Run Development Server:**
-    ```bash
-    npm run dev
-    ```
+#### Development
+Start the local environment using TurboRepo:
+```bash
+npx turbo run dev
+```
 
-3.  **Deploy Web App:**
-    ```bash
-    npm run deploy -w web
-    ```
+### Stripe Configuration
+
+The platform uses Stripe Connect for multi-tenant billing. To set up your local development sandbox:
+
+1. **API Keys:** Add your Stripe Secret Key to `packages/api/.dev.vars` and Publishable Key to `apps/web/.env`.
+2. **Webhooks (Local):** Run `stripe listen --forward-to localhost:3000/webhooks/stripe` to forward events to your local API. Add the resulting webhook secret (`whsec_...`) to `packages/api/.dev.vars`.
+3. **Webhooks (Preview/Production):** To configure a live webhook for Cloudflare Workers, use the Stripe CLI:
+   ```bash
+   stripe webhook_endpoints create \
+     --url "https://api.studio-platform.dev/webhooks/stripe" \
+     -d "enabled_events[]=checkout.session.completed" \
+     -d "enabled_events[]=invoice.payment_succeeded" \
+     -d "enabled_events[]=invoice.payment_failed" \
+     -d "enabled_events[]=customer.subscription.updated" \
+     -d "enabled_events[]=customer.subscription.deleted" \
+     -d "enabled_events[]=account.updated" \
+     -d "enabled_events[]=capability.updated" \
+     -d "enabled_events[]=charge.refunded"
+   ```
+   Then upload the secrets to Cloudflare using Wrangler:
+   ```bash
+   npx wrangler secret put STRIPE_SECRET_KEY -c packages/api/wrangler.toml
+   npx wrangler secret put STRIPE_WEBHOOK_SECRET -c packages/api/wrangler.toml
+   ```
+
+## License
+
+Copyright © 2026 Studio Platform. All rights reserved.
 
 ## Disaster Recovery
 
