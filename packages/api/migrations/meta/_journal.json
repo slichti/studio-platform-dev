@@ -176,6 +176,13 @@
       "when": 1772644949555,
       "tag": "0024_tearful_rawhide_kid",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1772650171684,
+      "tag": "0025_magical_taskmaster",
+      "breakpoints": true
     }
   ]
 }

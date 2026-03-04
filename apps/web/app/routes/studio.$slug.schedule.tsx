@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { WeeklyCalendar } from "../components/schedule/WeeklyCalendar";
 import { CreateClassModal } from "../components/CreateClassModal";
+import { EditClassModal } from "../components/EditClassModal";
 import { ClassDetailModal } from "../components/ClassDetailModal";
 import { BookingModal } from "../components/BookingModal";
 import { ComponentErrorBoundary } from "~/components/ErrorBoundary";
@@ -43,6 +44,7 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
 
     // Local State
     const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [isEditOpen, setIsEditOpen] = useState(false);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [isBookingOpen, setIsBookingOpen] = useState(false);
     const [selectedClass, setSelectedClass] = useState<any>(null);
@@ -60,6 +62,11 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
     const handleCreateSuccess = () => {
         queryClient.invalidateQueries({ queryKey: ['classes', slug] });
         setIsCreateOpen(false);
+    };
+
+    const handleEditSuccess = () => {
+        queryClient.invalidateQueries({ queryKey: ['classes', slug] });
+        setIsEditOpen(false);
     };
 
     const handleSelectSlot = useCallback(
@@ -166,7 +173,25 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
                     setIsDetailOpen(false);
                     setIsBookingOpen(true);
                 }}
+                onEditRequested={() => {
+                    setIsDetailOpen(false);
+                    setIsEditOpen(true);
+                }}
             />
+
+            {isEditOpen && selectedClass && (
+                <EditClassModal
+                    isOpen={isEditOpen}
+                    onClose={() => setIsEditOpen(false)}
+                    onSuccess={handleEditSuccess}
+                    tenantId={tenant?.id}
+                    locations={locations}
+                    instructors={instructors}
+                    courses={coursesData}
+                    plans={plansData}
+                    initialData={selectedClass}
+                />
+            )}
 
             <BookingModal
                 isOpen={isBookingOpen}

@@ -17,6 +17,7 @@ interface ClassDetailModalProps {
     tenantSlug?: string;
     onSubRequested?: (classId: string) => void;
     onBookRequested?: () => void;
+    onEditRequested?: () => void;
 }
 
 export function ClassDetailModal({
@@ -30,7 +31,8 @@ export function ClassDetailModal({
     userRoles = [],
     tenantSlug,
     onSubRequested,
-    onBookRequested
+    onBookRequested,
+    onEditRequested
 }: ClassDetailModalProps) {
     const [recordingUrl, setRecordingUrl] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -48,8 +50,8 @@ export function ClassDetailModal({
     if (!classEvent) return null;
 
     // status can be passed in classEvent or we assume 'ready' if streamId exists
-    const hasRecording = !!classEvent.resource?.cloudflareStreamId;
-    const streamStatus = classEvent.resource?.recordingStatus;
+    const hasRecording = !!classEvent.cloudflareStreamId;
+    const streamStatus = classEvent.recordingStatus;
 
     const handleAddRecording = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -180,22 +182,29 @@ export function ClassDetailModal({
                                                 {classEvent.title}
                                             </Dialog.Title>
                                             <p className="text-sm text-gray-500 mt-1">
-                                                {new Date(classEvent.start).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                                                {new Date(classEvent.startTime).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
                                             </p>
                                         </div>
-                                        <button onClick={onClose} className="text-gray-400 hover:text-gray-500">
-                                            <X size={20} />
-                                        </button>
+                                        <div className="flex items-center gap-2">
+                                            {onEditRequested && userRoles.includes('admin') && (
+                                                <button onClick={onEditRequested} className="text-zinc-500 hover:text-zinc-700 p-1 text-sm bg-zinc-100 rounded-md">
+                                                    Edit
+                                                </button>
+                                            )}
+                                            <button onClick={onClose} className="text-gray-400 hover:text-gray-500">
+                                                <X size={20} />
+                                            </button>
+                                        </div>
                                     </div>
 
                                     <div className="space-y-6">
                                         {/* Info Section */}
                                         <div className="bg-gray-50 p-3 rounded-md text-sm text-gray-700 space-y-2">
                                             <div className="grid grid-cols-2 gap-2">
-                                                <p><strong>Instructor:</strong> {classEvent.resource?.instructor?.user?.profile?.firstName || 'Unknown'}</p>
-                                                <p><strong>Duration:</strong> {classEvent.resource?.durationMinutes} min</p>
+                                                <p><strong>Instructor:</strong> {classEvent.instructor?.user?.profile?.firstName || 'Unknown'}</p>
+                                                <p><strong>Duration:</strong> {classEvent.durationMinutes} min</p>
                                             </div>
-                                            {classEvent.resource?.location && <p><strong>Location:</strong> {classEvent.resource.location.name}</p>}
+                                            {classEvent.location && <p><strong>Location:</strong> {classEvent.location.name}</p>}
 
                                             <div className="mt-2 pt-2 border-t border-gray-200">
                                                 <div className="flex justify-between items-center mb-2">
@@ -211,16 +220,16 @@ export function ClassDetailModal({
                                                     <div className="bg-white p-2 rounded border border-gray-200">
                                                         <span className="block text-gray-500">Confirmed</span>
                                                         <span className="block text-lg font-bold text-gray-900">
-                                                            {classEvent.resource?.confirmedCount || 0}
+                                                            {classEvent.bookingCount || 0}
                                                             <span className="text-gray-400 font-normal text-xs ml-1">
-                                                                / {classEvent.resource?.capacity || '∞'}
+                                                                / {classEvent.capacity || '∞'}
                                                             </span>
                                                         </span>
                                                     </div>
                                                     <div className="bg-white p-2 rounded border border-gray-200">
                                                         <span className="block text-gray-500">Waitlist</span>
-                                                        <span className={`block text-lg font-bold ${classEvent.resource?.waitlistCount > 0 ? 'text-amber-600' : 'text-gray-900'}`}>
-                                                            {classEvent.resource?.waitlistCount || 0}
+                                                        <span className={`block text-lg font-bold ${classEvent.waitlistCount > 0 ? 'text-amber-600' : 'text-gray-900'}`}>
+                                                            {classEvent.waitlistCount || 0}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -228,17 +237,17 @@ export function ClassDetailModal({
                                         </div>
 
                                         {/* Zoom Section */}
-                                        {(classEvent.resource?.myBooking?.zoomMeetingUrl || classEvent.resource?.zoomEnabled || classEvent.resource?.zoomMeetingUrl) && (
+                                        {(classEvent.myBooking?.zoomMeetingUrl || classEvent.zoomEnabled || classEvent.zoomMeetingUrl) && (
                                             <div className="bg-blue-50 p-3 rounded-md text-sm border border-blue-100">
                                                 <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
                                                     <Video size={16} />
                                                     Virtual Class Access
                                                 </h4>
 
-                                                {(classEvent.resource?.myBooking?.zoomMeetingUrl || classEvent.resource?.zoomMeetingUrl) ? (
+                                                {(classEvent.myBooking?.zoomMeetingUrl || classEvent.zoomMeetingUrl) ? (
                                                     <div className="space-y-2">
                                                         <a
-                                                            href={classEvent.resource?.myBooking?.zoomMeetingUrl || classEvent.resource.zoomMeetingUrl}
+                                                            href={classEvent.myBooking?.zoomMeetingUrl || classEvent.zoomMeetingUrl}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="block w-full text-center bg-blue-600 text-white py-2 rounded-md font-medium hover:bg-blue-700 transition"
@@ -246,18 +255,18 @@ export function ClassDetailModal({
                                                             Launch Zoom Meeting
                                                         </a>
 
-                                                        {(classEvent.resource?.myBooking?.zoomPassword || classEvent.resource?.zoomMeetingId) && (
+                                                        {(classEvent.myBooking?.zoomPassword || classEvent.zoomMeetingId) && (
                                                             <div className="text-xs text-blue-800 space-y-1 mt-2 pt-2 border-t border-blue-200">
-                                                                {classEvent.resource?.zoomMeetingId && (
+                                                                {classEvent.zoomMeetingId && (
                                                                     <div className="flex justify-between">
                                                                         <span className="font-medium">Meeting ID:</span>
-                                                                        <span className="font-mono select-all">{classEvent.resource.zoomMeetingId}</span>
+                                                                        <span className="font-mono select-all">{classEvent.zoomMeetingId}</span>
                                                                     </div>
                                                                 )}
-                                                                {(classEvent.resource?.myBooking?.zoomPassword || classEvent.resource?.zoomPassword) && (
+                                                                {(classEvent.myBooking?.zoomPassword || classEvent.zoomPassword) && (
                                                                     <div className="flex justify-between">
                                                                         <span className="font-medium">Passcode:</span>
-                                                                        <span className="font-mono select-all">{classEvent.resource?.myBooking?.zoomPassword || classEvent.resource?.zoomPassword}</span>
+                                                                        <span className="font-mono select-all">{classEvent.myBooking?.zoomPassword || classEvent.zoomPassword}</span>
                                                                     </div>
                                                                 )}
                                                             </div>
@@ -265,7 +274,7 @@ export function ClassDetailModal({
                                                     </div>
                                                 ) : (
                                                     <div className="text-blue-700 text-xs italic">
-                                                        {classEvent.resource?.myBooking ? "Zoom link will be available here." : "Book this class to access the Zoom link."}
+                                                        {classEvent.myBooking ? "Zoom link will be available here." : "Book this class to access the Zoom link."}
                                                     </div>
                                                 )}
                                             </div>
@@ -273,7 +282,7 @@ export function ClassDetailModal({
 
 
                                         {/* Student Booking Section */}
-                                        {onBookRequested && !userRoles.includes('instructor') && (
+                                        {onBookRequested && !userRoles.includes('instructor') && !classEvent.myBooking && (
                                             <div className="border-t pt-4">
                                                 <button
                                                     onClick={onBookRequested}
@@ -283,31 +292,38 @@ export function ClassDetailModal({
                                                 </button>
                                             </div>
                                         )}
+                                        {classEvent.myBooking && (
+                                            <div className="border-t pt-4">
+                                                <div className="bg-green-50 text-green-800 p-3 rounded-md text-sm text-center font-medium border border-green-200">
+                                                    {classEvent.myBooking.status === 'waitlisted' ? 'On Waitlist for this Class' : 'You are booked for this class!'}
+                                                </div>
+                                            </div>
+                                        )}
 
                                         {/* Substitution Section */}
                                         <div className="border-t pt-4">
                                             <div className="flex justify-between items-center mb-3">
                                                 <h4 className="text-sm font-semibold text-gray-900">Shift Coverage</h4>
-                                                {classEvent.resource?.substitutions?.length > 0 && (
-                                                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${classEvent.resource.substitutions[0].status === 'approved' ? 'bg-green-100 text-green-700' :
-                                                        classEvent.resource.substitutions[0].status === 'claimed' ? 'bg-blue-100 text-blue-700' :
+                                                {classEvent.substitutions?.length > 0 && (
+                                                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${classEvent.substitutions[0].status === 'approved' ? 'bg-green-100 text-green-700' :
+                                                        classEvent.substitutions[0].status === 'claimed' ? 'bg-blue-100 text-blue-700' :
                                                             'bg-amber-100 text-amber-700'
                                                         }`}>
-                                                        Sub: {classEvent.resource.substitutions[0].status}
+                                                        Sub: {classEvent.substitutions[0].status}
                                                     </span>
                                                 )}
                                             </div>
 
-                                            {classEvent.resource?.substitutions?.length > 0 ? (
+                                            {classEvent.substitutions?.length > 0 ? (
                                                 <div className="bg-zinc-50 p-4 rounded-lg text-sm border border-zinc-200">
                                                     <p className="text-zinc-600">
-                                                        {classEvent.resource.substitutions[0].status === 'pending' ? 'Seeking coverage...' :
-                                                            classEvent.resource.substitutions[0].status === 'claimed' ? 'Claimed - Awaiting approval' :
+                                                        {classEvent.substitutions[0].status === 'pending' ? 'Seeking coverage...' :
+                                                            classEvent.substitutions[0].status === 'claimed' ? 'Claimed - Awaiting approval' :
                                                                 'Substitution approved'}
                                                     </p>
-                                                    {classEvent.resource.substitutions[0].status === 'pending' && currentUserMemberId !== classEvent.resource?.instructorId && (
+                                                    {classEvent.substitutions[0].status === 'pending' && currentUserMemberId !== classEvent.instructorId && (
                                                         <button
-                                                            onClick={() => handleClaimSub(classEvent.resource.substitutions[0].id)}
+                                                            onClick={() => handleClaimSub(classEvent.substitutions[0].id)}
                                                             className="mt-3 w-full bg-blue-600 text-white py-2 rounded-md font-medium text-xs hover:bg-blue-700"
                                                         >
                                                             Claim this shift
@@ -316,7 +332,7 @@ export function ClassDetailModal({
                                                 </div>
                                             ) : (
                                                 <>
-                                                    {currentUserMemberId === classEvent.resource?.instructorId && (
+                                                    {currentUserMemberId === classEvent.instructorId && (
                                                         <button
                                                             onClick={handleRequestSub}
                                                             disabled={isSubmitting}
@@ -358,7 +374,7 @@ export function ClassDetailModal({
                                                         {/* Player */}
                                                         <div className="aspect-video bg-black rounded-lg overflow-hidden relative">
                                                             <iframe
-                                                                src={`https://iframe.videodelivery.net/${classEvent.resource.cloudflareStreamId}`}
+                                                                src={`https://iframe.videodelivery.net/${classEvent.cloudflareStreamId}`}
                                                                 className="border-none absolute top-0 left-0 w-full h-full"
                                                                 allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
                                                                 allowFullScreen={true}

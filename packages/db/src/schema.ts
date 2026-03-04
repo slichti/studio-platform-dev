@@ -346,6 +346,8 @@ export const classSeries = sqliteTable('class_series', {
     validFrom: integer('valid_from', { mode: 'timestamp' }).notNull(),
     validUntil: integer('valid_until', { mode: 'timestamp' }),
 
+    thumbnailUrl: text('thumbnail_url'),
+
     // Gradient Styling (Phase 9)
     gradientPreset: text('gradient_preset'),
     gradientColor1: text('gradient_color1'),

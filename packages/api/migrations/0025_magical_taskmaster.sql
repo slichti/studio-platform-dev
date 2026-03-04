@@ -1,0 +1,1 @@
+ALTER TABLE `class_series` ADD `thumbnail_url` text;

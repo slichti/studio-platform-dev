@@ -41,6 +41,7 @@ const ClassSchema = z.object({
     recordingPrice: z.number().nullable().optional(),
     contentCollectionId: z.string().nullable().optional(),
     courseId: z.string().nullable().optional(),
+    thumbnailUrl: z.string().nullable().optional(),
     // Augmented fields
     bookingCount: z.number().optional(),
     waitlistCount: z.number().optional(),
@@ -81,6 +82,7 @@ const CreateClassSchema = z.object({
     recordingPrice: z.coerce.number().optional().nullable(),
     contentCollectionId: z.string().optional().nullable(),
     courseId: z.string().optional().nullable(),
+    thumbnailUrl: z.string().optional().nullable(),
     // Gradient Styling (Phase 9)
     gradientPreset: z.string().optional(),
     gradientColor1: z.string().optional(),
@@ -177,7 +179,7 @@ app.openapi(createRoute({
         const member = c.get('member');
         if (member) {
             const myBookings = await db.query.bookings.findMany({
-                where: and(inArray(bookings.classId, classIds), eq(bookings.memberId, member.id))
+                where: and(inArray(bookings.classId, classIds), eq(bookings.memberId, member.id), inArray(bookings.status, ['confirmed', 'waitlisted']))
             });
             myBookings.forEach((b: any) => myBookingsMap.set(b.classId, b));
         }
@@ -320,6 +322,7 @@ app.openapi(createRoute({
             recurrenceRule,
             validFrom: start,
             validUntil: recurrenceEnd ? new Date(recurrenceEnd) : null,
+            thumbnailUrl: body.thumbnailUrl || null,
             gradientPreset: body.gradientPreset,
             gradientColor1: body.gradientColor1,
             gradientColor2: body.gradientColor2,
@@ -368,6 +371,7 @@ app.openapi(createRoute({
                 recordingPrice: body.recordingPrice || null,
                 contentCollectionId: body.contentCollectionId || null,
                 courseId: body.courseId || null,
+                thumbnailUrl: body.thumbnailUrl || null,
                 gradientPreset: body.gradientPreset,
                 gradientColor1: body.gradientColor1,
                 gradientColor2: body.gradientColor2,
@@ -413,6 +417,7 @@ app.openapi(createRoute({
             recordingPrice: body.recordingPrice || null,
             contentCollectionId: body.contentCollectionId || null,
             courseId: body.courseId || null,
+            thumbnailUrl: body.thumbnailUrl || null,
             gradientPreset: body.gradientPreset,
             gradientColor1: body.gradientColor1,
             gradientColor2: body.gradientColor2,
