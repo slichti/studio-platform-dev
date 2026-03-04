@@ -123,7 +123,7 @@ export default function AdminBookingsPage() {
                                         <TableCell className="font-medium text-xs whitespace-nowrap">
                                             <div className="flex flex-col">
                                                 <span>{format(new Date(booking.class.startTime), 'MMM d, h:mm a')}</span>
-                                                <span className="text-[10px] text-zinc-400">{format(new Date(booking.createdAt), 'Booked MMM d')}</span>
+                                                <span className="text-[10px] text-zinc-400">Booked {format(new Date(booking.createdAt), 'MMM d')}</span>
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-sm">

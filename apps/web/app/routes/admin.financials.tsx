@@ -59,7 +59,7 @@ export default function AdminFinancials() {
     };
 
     const tenants = preview?.tenants || [];
-    const totalRevenue = tenants.reduce((acc: number, t: any) => acc + t.total, 0).toFixed(2);
+    const totalRevenue = tenants.reduce((acc: number, t: any) => acc + (t.total || 0), 0).toFixed(2);
     const fees = preview?.fees || { sms: 0.0075, email: 0.0006, streaming: 0.05, storage: 0.02 };
 
     if (loadError) return <div className="p-8 text-red-600">Error loading billing data: {loadError}</div>;
@@ -154,7 +154,7 @@ export default function AdminFinancials() {
                                         {d.error ? (
                                             <span className="text-red-600 font-medium">Failed: {d.tenantId} - {d.error}</span>
                                         ) : (
-                                            <span>Charged {d.name}: ${d.total.toFixed(2)} ({d.items.length} items)</span>
+                                            <span>Charged {d.name}: ${(d.total || 0).toFixed(2)} ({d.items?.length || 0} items)</span>
                                         )}
                                     </li>
                                 ))}
@@ -216,7 +216,7 @@ export default function AdminFinancials() {
                                         {t.subscription && (
                                             <div>
                                                 <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{t.subscription.name}</div>
-                                                <div className="text-xs text-zinc-500 dark:text-zinc-400">${t.subscription.amount.toFixed(2)}/mo</div>
+                                                <div className="text-xs text-zinc-500 dark:text-zinc-400">${(t.subscription.amount || 0).toFixed(2)}/mo</div>
                                             </div>
                                         )}
                                     </td>
@@ -229,7 +229,7 @@ export default function AdminFinancials() {
                                                     <div key={key} className="flex justify-between max-w-[200px]">
                                                         <span className="text-zinc-600 dark:text-zinc-400 capitalize">{key}:</span>
                                                         <span className="font-mono text-zinc-700 dark:text-zinc-300">
-                                                            {Math.round(val.quantity).toLocaleString()} units (${val.amount.toFixed(2)})
+                                                            {Math.round(val.quantity || 0).toLocaleString()} units (${(val.amount || 0).toFixed(2)})
                                                         </span>
                                                     </div>
                                                 ))}
@@ -237,7 +237,7 @@ export default function AdminFinancials() {
                                         )}
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        <div className="font-bold text-zinc-900 dark:text-zinc-100">${t.total.toFixed(2)}</div>
+                                        <div className="font-bold text-zinc-900 dark:text-zinc-100">${(t.total || 0).toFixed(2)}</div>
                                     </td>
                                 </tr>
                             ))}
