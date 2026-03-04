@@ -5,7 +5,7 @@ import { useAuth } from "@clerk/react-router";
 import { format } from "date-fns";
 import {
     User, Mail, Calendar, CreditCard, FileText,
-    Edit, Shield, Camera, Package, Trash2,
+    Edit, Shield, Camera, Package, Trash2, Pencil,
     Check, AlertTriangle, X, MoreVertical,
     Send, Clock, ShoppingBag, MessageSquare,
     MoreHorizontal, Plus
@@ -83,6 +83,8 @@ export default function StudentProfilePageComponent() {
     const [emailBody, setEmailBody] = useState("");
     const [selectedPackId, setSelectedPackId] = useState("");
     const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
+    const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+    const [editNoteText, setEditNoteText] = useState("");
 
     const userProfile = member?.user?.profile || {};
     const fullName = [userProfile.firstName, userProfile.lastName].filter(Boolean).join(" ") || member?.user?.email || "Unknown";
@@ -134,6 +136,25 @@ export default function StudentProfilePageComponent() {
             queryClient.invalidateQueries({ queryKey: ['member-notes', slug, memberId] });
             setNoteToDelete(null);
             toast.success("Note deleted");
+        },
+        onError: (e: any) => toast.error(e.message)
+    });
+
+    const editNoteMutation = useMutation({
+        mutationFn: async ({ noteId, note }: { noteId: string, note: string }) => {
+            const token = await getToken();
+            const res = await apiRequest(`/members/${memberId}/notes/${noteId}`, token, {
+                method: "PATCH",
+                headers: { 'X-Tenant-Slug': slug! },
+                body: JSON.stringify({ note })
+            });
+            if ((res as any).error) throw new Error((res as any).error);
+            return res;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['member-notes', slug, memberId] });
+            setEditingNoteId(null);
+            toast.success("Note updated");
         },
         onError: (e: any) => toast.error(e.message)
     });
@@ -620,18 +641,43 @@ export default function StudentProfilePageComponent() {
                                 <div className="space-y-4">
                                     {(notes || []).map((note: any) => (
                                         <Card key={note.id} className="p-4">
-                                            <div className="flex justify-between items-start">
-                                                <p className="text-sm text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap">{note.note}</p>
-                                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-zinc-400 hover:text-red-600" onClick={() => setNoteToDelete(note.id)}>
-                                                    <Trash2 className="h-3 w-3" />
-                                                </Button>
-                                            </div>
-                                            <div className="mt-2 flex items-center gap-2 text-xs text-zinc-500">
-                                                <User className="h-3 w-3" />
-                                                <span>{note.author?.user?.profile?.firstName || note.author?.user?.email || "Unknown Staff"}</span>
-                                                <span>•</span>
-                                                <span>{safeFormat(note.createdAt, "MMM d, yyyy h:mm a")}</span>
-                                            </div>
+                                            {editingNoteId === note.id ? (
+                                                <div className="space-y-3">
+                                                    <textarea
+                                                        value={editNoteText}
+                                                        onChange={(e) => setEditNoteText(e.target.value)}
+                                                        className="w-full p-2 border rounded text-sm text-zinc-800 dark:text-zinc-200 dark:bg-zinc-800 dark:border-zinc-700"
+                                                        rows={3}
+                                                        autoFocus
+                                                    />
+                                                    <div className="flex gap-2 justify-end">
+                                                        <Button variant="outline" size="sm" onClick={() => setEditingNoteId(null)}>Cancel</Button>
+                                                        <Button size="sm" onClick={() => editNoteMutation.mutate({ noteId: note.id, note: editNoteText })} disabled={editNoteMutation.isPending}>
+                                                            {editNoteMutation.isPending ? "Saving..." : "Save"}
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <div className="flex justify-between items-start">
+                                                        <p className="text-sm text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap">{note.note}</p>
+                                                        <div className="flex gap-1 ml-2 shrink-0">
+                                                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-zinc-400 hover:text-zinc-700" onClick={() => { setEditingNoteId(note.id); setEditNoteText(note.note); }}>
+                                                                <Pencil className="h-3 w-3" />
+                                                            </Button>
+                                                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-zinc-400 hover:text-red-600" onClick={() => setNoteToDelete(note.id)}>
+                                                                <Trash2 className="h-3 w-3" />
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                    <div className="mt-2 flex items-center gap-2 text-xs text-zinc-500">
+                                                        <User className="h-3 w-3" />
+                                                        <span>{note.author?.user?.profile?.firstName || note.author?.user?.email || "Unknown Staff"}</span>
+                                                        <span>•</span>
+                                                        <span>{safeFormat(note.createdAt, "MMM d, yyyy h:mm a")}</span>
+                                                    </div>
+                                                </>
+                                            )}
                                         </Card>
                                     ))}
                                     {notes?.length === 0 && <div className="text-center py-8 text-zinc-400">No notes yet.</div>}

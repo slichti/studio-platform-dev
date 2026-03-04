@@ -235,14 +235,21 @@ function NotesModal({ memberId, studentName, onClose, slug, revalidator }: { mem
     const [notes, setNotes] = useState<Note[]>([]);
     const [loading, setLoading] = useState(true);
     const [newNote, setNewNote] = useState("");
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editText, setEditText] = useState("");
+
+    const refreshNotes = async () => {
+        try {
+            const token = await (window as any).Clerk?.session?.getToken();
+            const res = await apiRequest(`/members/${memberId}/notes`, token, { headers: { 'X-Tenant-Slug': slug } }) as any;
+            setNotes(res.notes || []);
+        } catch { }
+    };
 
     useEffect(() => {
         (async () => {
-            try {
-                const token = await (window as any).Clerk?.session?.getToken();
-                const res = await apiRequest(`/members/${memberId}/notes`, token, { headers: { 'X-Tenant-Slug': slug } }) as any;
-                setNotes(res.notes || []);
-            } finally { setLoading(false); }
+            await refreshNotes();
+            setLoading(false);
         })();
     }, [memberId]);
 
@@ -252,11 +259,28 @@ function NotesModal({ memberId, studentName, onClose, slug, revalidator }: { mem
             const token = await (window as any).Clerk?.session?.getToken();
             await apiRequest(`/members/${memberId}/notes`, token, { method: "POST", headers: { 'X-Tenant-Slug': slug }, body: JSON.stringify({ note: newNote }) });
             setNewNote("");
-            // Refresh notes list
-            const res = await apiRequest(`/members/${memberId}/notes`, token, { headers: { 'X-Tenant-Slug': slug } }) as any;
-            setNotes(res.notes || []);
+            await refreshNotes();
             revalidator.revalidate();
         } catch (e) { alert("Error adding note"); }
+    };
+
+    const handleEditNote = async (noteId: string) => {
+        try {
+            const token = await (window as any).Clerk?.session?.getToken();
+            await apiRequest(`/members/${memberId}/notes/${noteId}`, token, { method: "PATCH", headers: { 'X-Tenant-Slug': slug }, body: JSON.stringify({ note: editText }) });
+            setEditingId(null);
+            await refreshNotes();
+        } catch (e) { alert("Error updating note"); }
+    };
+
+    const handleDeleteNote = async (noteId: string) => {
+        if (!confirm("Delete this note?")) return;
+        try {
+            const token = await (window as any).Clerk?.session?.getToken();
+            await apiRequest(`/members/${memberId}/notes/${noteId}`, token, { method: "DELETE", headers: { 'X-Tenant-Slug': slug } });
+            await refreshNotes();
+            revalidator.revalidate();
+        } catch (e) { alert("Error deleting note"); }
     };
 
     return (
@@ -268,9 +292,45 @@ function NotesModal({ memberId, studentName, onClose, slug, revalidator }: { mem
                 </div>
                 <div className="flex-1 overflow-y-auto space-y-3 mb-4">
                     {loading ? "Loading..." : notes.map(n => (
-                        <div key={n.id} className="p-3 bg-yellow-50 border rounded-lg text-sm text-zinc-800">
-                            {n.note}
-                            <div className="mt-1 text-[10px] text-zinc-500">{new Date(n.createdAt).toLocaleDateString()} by staff</div>
+                        <div key={n.id} className="p-3 bg-yellow-50 border rounded-lg text-sm text-zinc-800 group relative">
+                            {editingId === n.id ? (
+                                <div className="space-y-2">
+                                    <textarea
+                                        value={editText}
+                                        onChange={e => setEditText(e.target.value)}
+                                        className="w-full p-2 border rounded text-sm"
+                                        rows={3}
+                                        autoFocus
+                                    />
+                                    <div className="flex gap-2 justify-end">
+                                        <button onClick={() => setEditingId(null)} className="px-3 py-1 text-xs border rounded hover:bg-zinc-100">Cancel</button>
+                                        <button onClick={() => handleEditNote(n.id)} className="px-3 py-1 text-xs bg-zinc-900 text-white rounded hover:bg-zinc-800">Save</button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    {n.note}
+                                    <div className="mt-1 flex items-center justify-between">
+                                        <span className="text-[10px] text-zinc-500">{new Date(n.createdAt).toLocaleDateString()} by staff</span>
+                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={() => { setEditingId(n.id); setEditText(n.note); }}
+                                                className="p-1 rounded hover:bg-yellow-100 text-zinc-400 hover:text-zinc-700"
+                                                title="Edit note"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></svg>
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteNote(n.id)}
+                                                className="p-1 rounded hover:bg-red-100 text-zinc-400 hover:text-red-600"
+                                                title="Delete note"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     ))}
                 </div>

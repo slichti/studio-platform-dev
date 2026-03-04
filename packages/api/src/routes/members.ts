@@ -718,6 +718,91 @@ app.openapi(createMemberNoteRoute, async (c) => {
     return c.json({ note: { id, note } }, 200);
 });
 
+// PATCH /members/:id/notes/:noteId
+const updateMemberNoteRoute = createRoute({
+    method: 'patch',
+    path: '/{id}/notes/{noteId}',
+    tags: ['Members'],
+    summary: 'Update member note',
+    request: {
+        params: z.object({ id: z.string(), noteId: z.string() }),
+        body: {
+            content: { 'application/json': { schema: z.object({ note: z.string() }) } }
+        }
+    },
+    responses: {
+        200: { content: { 'application/json': { schema: z.object({ success: z.boolean() }) } }, description: 'Note updated' },
+        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' },
+        404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Note not found' }
+    }
+});
+
+app.openapi(updateMemberNoteRoute, async (c) => {
+    if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant')!;
+    const { noteId } = c.req.valid('param');
+    const { note } = c.req.valid('json');
+
+    const existing = await db.query.studentNotes.findFirst({
+        where: and(
+            eq(studentNotes.id, noteId),
+            eq(studentNotes.tenantId, tenant.id)
+        )
+    });
+    if (!existing) return c.json({ error: 'Note not found' }, 404);
+
+    await db.update(studentNotes)
+        .set({ note })
+        .where(and(
+            eq(studentNotes.id, noteId),
+            eq(studentNotes.tenantId, tenant.id)
+        ))
+        .run();
+
+    return c.json({ success: true }, 200);
+});
+
+// DELETE /members/:id/notes/:noteId
+const deleteMemberNoteRoute = createRoute({
+    method: 'delete',
+    path: '/{id}/notes/{noteId}',
+    tags: ['Members'],
+    summary: 'Delete member note',
+    request: {
+        params: z.object({ id: z.string(), noteId: z.string() })
+    },
+    responses: {
+        200: { content: { 'application/json': { schema: z.object({ success: z.boolean() }) } }, description: 'Note deleted' },
+        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' },
+        404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Note not found' }
+    }
+});
+
+app.openapi(deleteMemberNoteRoute, async (c) => {
+    if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant')!;
+    const { noteId } = c.req.valid('param');
+
+    const existing = await db.query.studentNotes.findFirst({
+        where: and(
+            eq(studentNotes.id, noteId),
+            eq(studentNotes.tenantId, tenant.id)
+        )
+    });
+    if (!existing) return c.json({ error: 'Note not found' }, 404);
+
+    await db.delete(studentNotes)
+        .where(and(
+            eq(studentNotes.id, noteId),
+            eq(studentNotes.tenantId, tenant.id)
+        ))
+        .run();
+
+    return c.json({ success: true }, 200);
+});
+
 // PATCH /members/:id/status
 const updateMemberStatusRoute = createRoute({
     method: 'patch',
