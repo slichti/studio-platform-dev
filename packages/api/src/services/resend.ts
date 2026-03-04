@@ -180,4 +180,20 @@ export class ResendManagementService {
 
         return response.data;
     }
+
+    async listAudiences() {
+        const response = await this.resend.audiences.list();
+        if (response.error) {
+            throw new Error(`Failed to fetch audiences: ${response.error.message}`);
+        }
+        return response.data?.data || [];
+    }
+
+    async createAudience(name: string) {
+        const response = await this.resend.audiences.create({ name });
+        if (response.error) {
+            throw new Error(`Failed to create audience: ${response.error.message}`);
+        }
+        return response.data;
+    }
 }

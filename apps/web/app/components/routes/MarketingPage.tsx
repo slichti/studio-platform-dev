@@ -1,6 +1,6 @@
 
 import { useAuth } from "@clerk/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useOutletContext } from "react-router";
 import {
     Mail, Plus, Trash2, Save, Send, Settings, Sparkles, Clock, AlertCircle, ChevronRight, Check, X, Pencil, Filter, ChevronDown, CheckCircle, AlertTriangle, Zap, Calendar, Users, GripVertical
@@ -46,6 +46,10 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
         email: ""
     });
     const [isSendingTest, setIsSendingTest] = useState(false);
+    const [audiences, setAudiences] = useState<any[]>([]);
+    const [fetchingAudiences, setFetchingAudiences] = useState(false);
+    const [creatingAudience, setCreatingAudience] = useState(false);
+    const [newAudienceName, setNewAudienceName] = useState("");
 
     // Helper for notifications
     const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
@@ -58,6 +62,13 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
     const [replyTo, setReplyTo] = useState(tenant?.branding?.emailReplyTo || '');
     const [footerText, setFooterText] = useState(tenant?.branding?.emailFooterText || '');
     const [savingSettings, setSavingSettings] = useState(false);
+
+    useEffect(() => {
+        const activeStep = activeStepIndex !== null ? editForm.steps[activeStepIndex] : null;
+        if (activeStep?.type === 'resend_list' && audiences.length === 0 && !fetchingAudiences) {
+            fetchAudiences();
+        }
+    }, [activeStepIndex, editForm.steps, audiences.length, fetchingAudiences]);
 
     async function handleSendBroadcast(e: React.FormEvent) {
         e.preventDefault();
@@ -230,6 +241,55 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
             showNotification("Failed to test: " + e.message, 'error');
         } finally {
             setIsSendingTest(false);
+        }
+    }
+
+    async function fetchAudiences() {
+        setFetchingAudiences(true);
+        try {
+            const token = await getToken();
+            const res: any = await apiRequest("/marketing/audiences", token, {
+                headers: { 'X-Tenant-Slug': slug }
+            });
+            setAudiences(res.audiences || []);
+        } catch (e: any) {
+            console.error("Failed to fetch audiences:", e);
+        } finally {
+            setFetchingAudiences(false);
+        }
+    }
+
+    async function handleCreateAudience(e: React.FormEvent) {
+        e.preventDefault();
+        if (!newAudienceName.trim()) return;
+
+        setCreatingAudience(true);
+        try {
+            const token = await getToken();
+            const res: any = await apiRequest("/marketing/audiences", token, {
+                method: "POST",
+                headers: { 'X-Tenant-Slug': slug },
+                body: JSON.stringify({ name: newAudienceName })
+            });
+
+            if (res.error) {
+                showNotification(res.error, 'error');
+            } else {
+                showNotification("List created successfully!");
+                setAudiences([...audiences, res.audience]);
+                setNewAudienceName("");
+
+                // Automatically select this new list for the active step
+                if (activeStepIndex !== null) {
+                    const n = [...editForm.steps];
+                    n[activeStepIndex].listId = res.audience.id;
+                    setEditForm({ ...editForm, steps: n });
+                }
+            }
+        } catch (e: any) {
+            showNotification("Failed to create list: " + e.message, 'error');
+        } finally {
+            setCreatingAudience(false);
         }
     }
 
@@ -1013,11 +1073,11 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                                             )}
 
                                             {editForm.steps[activeStepIndex].type === 'resend_list' && (
-                                                <div className="max-w-md space-y-4">
+                                                <div className="max-w-md space-y-6">
                                                     <div>
-                                                        <label className="block text-sm font-medium text-zinc-700 mb-1">Action</label>
+                                                        <label className="block text-sm font-medium text-zinc-700 mb-2">Action</label>
                                                         <div className="flex gap-4">
-                                                            <label className="flex items-center gap-2 cursor-pointer">
+                                                            <label className="flex items-center gap-2 cursor-pointer group">
                                                                 <input
                                                                     type="radio"
                                                                     name="list_action"
@@ -1028,11 +1088,11 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                                                                         n[activeStepIndex].action = 'add';
                                                                         setEditForm({ ...editForm, steps: n });
                                                                     }}
-                                                                    className="text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                                                    className="text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                                                                 />
-                                                                <span className="text-sm font-medium text-zinc-800">Add to List</span>
+                                                                <span className="text-sm font-medium text-zinc-800 group-hover:text-emerald-700 transition-colors">Add to List</span>
                                                             </label>
-                                                            <label className="flex items-center gap-2 cursor-pointer">
+                                                            <label className="flex items-center gap-2 cursor-pointer group">
                                                                 <input
                                                                     type="radio"
                                                                     name="list_action"
@@ -1043,27 +1103,86 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
                                                                         n[activeStepIndex].action = 'remove';
                                                                         setEditForm({ ...editForm, steps: n });
                                                                     }}
-                                                                    className="text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                                                    className="text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                                                                 />
-                                                                <span className="text-sm font-medium text-zinc-800">Remove from List</span>
+                                                                <span className="text-sm font-medium text-zinc-800 group-hover:text-emerald-700 transition-colors">Remove from List</span>
                                                             </label>
                                                         </div>
                                                     </div>
-                                                    <div>
-                                                        <label className="block text-sm font-medium text-zinc-700 mb-1">Resend Audience ID</label>
-                                                        <input
-                                                            type="text"
-                                                            value={editForm.steps[activeStepIndex].listId || ''}
-                                                            onChange={e => {
-                                                                const n = [...editForm.steps];
-                                                                n[activeStepIndex].listId = e.target.value;
-                                                                setEditForm({ ...editForm, steps: n });
-                                                            }}
-                                                            className="w-full border border-zinc-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-                                                            placeholder="e.g. 78241a2e-4321-4d32-9029..."
-                                                        />
+
+                                                    <div className="space-y-3">
+                                                        <div className="flex items-center justify-between">
+                                                            <label className="block text-sm font-medium text-zinc-700">Resend Audience</label>
+                                                            {fetchingAudiences && <span className="text-xs text-zinc-400 animate-pulse">Refreshing lists...</span>}
+                                                        </div>
+
+                                                        {audiences.length > 0 ? (
+                                                            <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1">
+                                                                {audiences.map((aud) => (
+                                                                    <button
+                                                                        key={aud.id}
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            const n = [...editForm.steps];
+                                                                            n[activeStepIndex].listId = aud.id;
+                                                                            setEditForm({ ...editForm, steps: n });
+                                                                        }}
+                                                                        className={`flex items-center justify-between p-3 rounded-lg border text-left transition-all ${editForm.steps[activeStepIndex].listId === aud.id
+                                                                            ? 'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500'
+                                                                            : 'border-zinc-200 hover:border-zinc-300 bg-white'
+                                                                            }`}
+                                                                    >
+                                                                        <div className="min-w-0">
+                                                                            <p className={`text-sm font-medium ${editForm.steps[activeStepIndex].listId === aud.id ? 'text-emerald-900' : 'text-zinc-900'}`}>{aud.name}</p>
+                                                                            <p className="text-xs text-zinc-500 font-mono truncate">{aud.id}</p>
+                                                                        </div>
+                                                                        {editForm.steps[activeStepIndex].listId === aud.id && (
+                                                                            <CheckCircle className="h-4 w-4 text-emerald-500 flex-shrink-0" />
+                                                                        )}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="bg-zinc-50 border border-dashed border-zinc-200 rounded-lg p-6 text-center">
+                                                                <Users className="h-8 w-8 text-zinc-300 mx-auto mb-2" />
+                                                                <p className="text-sm text-zinc-500">No audiences found in Resend.</p>
+                                                            </div>
+                                                        )}
+
+                                                        <div className="pt-2 border-t border-zinc-100">
+                                                            <form onSubmit={handleCreateAudience} className="flex gap-2">
+                                                                <div className="relative flex-1">
+                                                                    <input
+                                                                        type="text"
+                                                                        value={newAudienceName}
+                                                                        onChange={(e) => setNewAudienceName(e.target.value)}
+                                                                        disabled={creatingAudience}
+                                                                        placeholder="New list name (e.g. Summer Leads)"
+                                                                        className="w-full border border-zinc-300 rounded-lg pl-3 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
+                                                                    />
+                                                                </div>
+                                                                <button
+                                                                    type="submit"
+                                                                    disabled={creatingAudience || !newAudienceName.trim()}
+                                                                    className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-300 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 whitespace-nowrap"
+                                                                >
+                                                                    {creatingAudience ? (
+                                                                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                                    ) : (
+                                                                        <Plus className="h-4 w-4" />
+                                                                    )}
+                                                                    Create List
+                                                                </button>
+                                                            </form>
+                                                        </div>
                                                     </div>
-                                                    <p className="text-xs text-zinc-500">Provide the Resend Audience ID you want the student added or removed from. This must be configured in your Resend account.</p>
+
+                                                    <div className="flex gap-2 p-3 bg-amber-50 rounded-lg border border-amber-100 italic">
+                                                        <AlertCircle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                                                        <p className="text-xs text-amber-700">
+                                                            Contacts must be managed in Resend. This automation will trigger the add/remove action based on the student's email.
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             )}
 

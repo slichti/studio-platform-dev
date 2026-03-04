@@ -63,6 +63,36 @@ marketing.get('/audiences', async (c) => {
 });
 
 /**
+ * [POST] /audiences
+ * Create a new audience in Resend
+ */
+marketing.post('/audiences', async (c) => {
+    const can = c.get('can');
+    if (!can('manage_marketing' as Permission)) {
+        return c.json({ error: 'Unauthorized' }, 403);
+    }
+
+    const emailService = c.get('email');
+    const { name } = await c.req.json();
+
+    if (!name) {
+        return c.json({ error: 'Name is required' }, 400);
+    }
+
+    try {
+        const { data, error } = await emailService.resendClient.audiences.create({ name });
+
+        if (error) {
+            return c.json({ error: 'Resend Error', message: error.message }, 400);
+        }
+
+        return c.json({ audience: data });
+    } catch (e: any) {
+        return c.json({ error: 'Server Error', message: e.message }, 500);
+    }
+});
+
+/**
  * [POST] /broadcast
  * Send an email to an audience
  */
