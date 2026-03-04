@@ -247,6 +247,12 @@ The platform provides a unified multi-step automation builder for Email and SMS 
 - **Tenant Inheritance**: Tenants can browse a curated store of global platform automations and adopt (clone) them into their local studios. Upon import, the multi-step JSON array is seamlessly duplicated.
 - **Trigger Events**: Sequences are automatically initiated by standardized business events like `new_student`, `class_attended`, `subscription_canceled`, or `birthday`.
 
+### 12. Memberships & Billing Management
+The platform provides a comprehensive membership system integrated tightly with Stripe Billing:
+- **Flexible Billing Cycles**: Supports standard recurring intervals (e.g., monthly, annual) alongside custom interval lengths natively via `intervalCount`.
+- **Time-Limited Passes**: Studio owners can disable auto-renewal, creating fixed-duration passes. Webhooks instantly intercept `checkout.session.completed` events for these plans to reliably mark them for cancellation at the period end in Stripe.
+- **Self-Service Portal**: Authenticated students manage their lifecycle directly within the portal. They can cancel, pause for a fixed number of months, resume, and jump directly into the Stripe Customer Portal to securely update their payment methods.
+
 ## Security Implementation
 
 ### Authentication Strategy

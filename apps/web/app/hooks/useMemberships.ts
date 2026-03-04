@@ -8,6 +8,8 @@ export type Plan = {
     price: number;
     interval: 'month' | 'year' | 'week' | 'one_time';
     description?: string;
+    intervalCount?: number;
+    autoRenew?: boolean;
     imageUrl?: string;
     overlayTitle?: string;
     overlaySubtitle?: string;

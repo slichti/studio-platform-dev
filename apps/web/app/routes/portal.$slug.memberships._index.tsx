@@ -1,4 +1,4 @@
-import { useLoaderData, useOutletContext, Link, useFetcher } from "react-router";
+import { useLoaderData, useOutletContext, Link, useFetcher, redirect, useNavigation } from "react-router";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { getAuth } from "../utils/auth-wrapper.server";
 import { apiRequest } from "~/utils/api";
@@ -60,6 +60,14 @@ export const action = async (args: ActionFunctionArgs) => {
                 headers,
             });
             return { success: true, intent: "cancel" };
+        }
+        if (intent === "billing") {
+            const res = await apiRequest(`/memberships/billing-portal`, token, {
+                method: "POST",
+                headers,
+            });
+            if (res?.url) throw redirect(res.url);
+            return { error: "Failed to create billing session", intent: "billing" };
         }
     } catch (e: any) {
         return { error: e.message || "Action failed", intent };
@@ -212,6 +220,7 @@ function ActiveSubscriptionCard({ sub }: { sub: any }) {
 export default function PortalMembershipsPage() {
     const { tenant } = useOutletContext<any>();
     const { plans, myActive, invoices } = useLoaderData<typeof loader>();
+    const fetcher = useFetcher<typeof action>();
 
     const activeIds = new Set((myActive as any[]).map((s: any) => s.plan?.id));
 
@@ -228,9 +237,21 @@ export default function PortalMembershipsPage() {
             {/* Active memberships */}
             {(myActive as any[]).length > 0 && (
                 <section>
-                    <h2 className="font-semibold text-zinc-700 dark:text-zinc-300 mb-3 flex items-center gap-2 text-sm uppercase tracking-wide">
-                        <Check size={14} className="text-emerald-600" /> Your Active Plans
-                    </h2>
+                    <div className="flex items-center justify-between mb-3">
+                        <h2 className="font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-2 text-sm uppercase tracking-wide">
+                            <Check size={14} className="text-emerald-600" /> Your Active Plans
+                        </h2>
+                        <fetcher.Form method="post">
+                            <input type="hidden" name="intent" value="billing" />
+                            <button
+                                type="submit"
+                                disabled={fetcher.state !== "idle"}
+                                className="text-sm border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 px-3 py-1.5 rounded-lg transition-colors font-medium flex items-center gap-2 disabled:opacity-50"
+                            >
+                                <CreditCard size={14} /> Manage Billing
+                            </button>
+                        </fetcher.Form>
+                    </div>
                     <div className="space-y-3">
                         {(myActive as any[]).map((sub: any) => (
                             <ActiveSubscriptionCard key={sub.id} sub={sub} />

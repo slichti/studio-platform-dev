@@ -5,7 +5,7 @@ The modern, all-in-one platform for dance, yoga, and fitness studios.
 ## Features
 
 *   **Studio Management:** Class scheduling, member management, and point-of-sale.
-*   **Memberships & Subscriptions:** Self-service membership plans with Stripe billing, free trials, archive/restore lifecycle, and student-facing plan browser. Students can cancel subscriptions directly from their profile.
+*   **Memberships & Subscriptions:** Self-service membership plans with Stripe billing, free trials, archive/restore lifecycle, and student-facing plan browser. Includes support for **Time-Limited Memberships** (e.g., fixed-duration passes that do not auto-renew) and seamless integration with the Stripe Billing Portal for updating payment methods. Students can cancel subscriptions directly from their profile.
 *   **Course Management (LMS):** Hybrid courses combining live sessions, on-demand VOD, quizzes, assignments, and per-lesson completion tracking with progress percentage. Instructors can grade assignments with feedback.
 *   **Student Portal:** Full self-service portal at `/portal/:slug` — book classes, view attendance history, manage class pack credits, browse and enroll in courses, manage memberships, and edit their profile (name, phone).
 *   **RBAC & Security:** Comprehensive role-based access control audited across 92+ API routes. Students are precisely scoped to their own data with explicit IDOR guards on tag assignments, custom field values, and booking records.

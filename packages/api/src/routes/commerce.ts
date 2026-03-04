@@ -504,7 +504,7 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
                     currency: tenant.currency || 'usd',
                     product_data: { name: pack ? pack.name : (plan ? plan.name : (recording ? `Access: ${recording.title}` : 'Gift Card Credit')), tax_code: 'txcd_00000000' },
                     unit_amount: Math.max(0, taxableAmount - creditApplied),
-                    ...(stripeMode === 'subscription' && plan ? { recurring: { interval: plan.interval as any, interval_count: 1 } } : {})
+                    ...(stripeMode === 'subscription' && plan ? { recurring: { interval: plan.interval as any, interval_count: plan.intervalCount || 1 } } : {})
                 },
                 quantity: 1
             });
@@ -523,7 +523,8 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
             packId: pack?.id || '', planId: plan?.id || '', recordingId: recording?.id || '', tenantId: tenant.id, userId: auth.userId || 'guest',
             couponId: appliedCouponId || '', recipientEmail, recipientName, senderName, message,
             productName: pack ? pack.name : (plan ? plan.name : (recording ? recording.title : 'Gift Card')), totalCharge: String(amountWithFee),
-            usedGiftCardId: appliedGiftCardId || ''
+            usedGiftCardId: appliedGiftCardId || '',
+            autoRenew: plan ? String(plan.autoRenew) : ''
         };
 
         if (platform === 'mobile') {

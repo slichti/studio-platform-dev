@@ -708,6 +708,8 @@ export const membershipPlans = sqliteTable('membership_plans', {
     price: integer('price').default(0), // in cents
     currency: text('currency').default('usd'),
     interval: text('interval', { enum: ['month', 'year', 'week', 'one_time'] }).default('month'),
+    intervalCount: integer('interval_count').default(1),
+    autoRenew: integer('auto_renew', { mode: 'boolean' }).default(true),
     imageUrl: text('image_url'),
     imageLibrary: text('image_library', { mode: 'json' }), // JSON array of { id, url, label, isActive, activeFrom, activeUntil }
     overlayTitle: text('overlay_title'),

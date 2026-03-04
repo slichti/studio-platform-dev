@@ -519,11 +519,12 @@ export class StripeService {
     /**
      * Create Billing Portal Session
      */
-    async createBillingPortalSession(customerId: string, returnUrl: string) {
-        return this.stripe.billingPortal.sessions.create({
+    async createBillingPortalSession(customerId: string, returnUrl: string, connectedAccountId?: string) {
+        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+        return client.billingPortal.sessions.create({
             customer: customerId,
             return_url: returnUrl,
-        });
+        }, options);
     }
 
     /**

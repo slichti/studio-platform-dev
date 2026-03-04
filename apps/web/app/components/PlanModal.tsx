@@ -26,6 +26,8 @@ export function PlanModal({ isOpen, plan, onClose, onSave, isSubmitting, tenantS
     const [name, setName] = useState("");
     const [price, setPrice] = useState("");
     const [interval, setInterval] = useState("month");
+    const [intervalCount, setIntervalCount] = useState(1);
+    const [autoRenew, setAutoRenew] = useState(true);
     const [description, setDescription] = useState("");
     const [vodEnabled, setVodEnabled] = useState(false);
     const [trialDays, setTrialDays] = useState(0);
@@ -40,6 +42,8 @@ export function PlanModal({ isOpen, plan, onClose, onSave, isSubmitting, tenantS
             setName(plan?.name || "");
             setPrice(plan ? (plan.price / 100).toFixed(2) : "");
             setInterval(plan?.interval || "month");
+            setIntervalCount(plan?.intervalCount || 1);
+            setAutoRenew(plan?.autoRenew ?? true);
             setDescription(plan?.description || "");
             setVodEnabled(plan?.vodEnabled || false);
             setTrialDays(plan?.trialDays || 0);
@@ -84,6 +88,8 @@ export function PlanModal({ isOpen, plan, onClose, onSave, isSubmitting, tenantS
                     name,
                     price: Number(price) * 100,
                     interval,
+                    intervalCount: Number(intervalCount),
+                    autoRenew,
                     description,
                     imageUrl,
                     overlayTitle: cardData.title,
@@ -133,19 +139,45 @@ export function PlanModal({ isOpen, plan, onClose, onSave, isSubmitting, tenantS
                                 <Input type="number" step="0.01" required value={price} onChange={e => setPrice(e.target.value)} />
                             </div>
                             <div className="space-y-2">
-                                <Label>Interval</Label>
+                                <Label>Interval Type</Label>
                                 <select
                                     className="flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:focus-visible:ring-zinc-300"
                                     value={interval}
                                     onChange={e => setInterval(e.target.value)}
                                 >
-                                    <option value="month">Monthly</option>
-                                    <option value="week">Weekly</option>
-                                    <option value="year">Yearly</option>
+                                    <option value="month">Month</option>
+                                    <option value="week">Week</option>
+                                    <option value="year">Year</option>
                                     <option value="one_time">One Time</option>
                                 </select>
                             </div>
                         </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Interval Count</Label>
+                                <Input type="number" min="1" required value={intervalCount} onChange={e => setIntervalCount(Number(e.target.value))} />
+                                <p className="text-xs text-zinc-500">e.g. 3 for "3 Months"</p>
+                            </div>
+                        </div>
+
+                        {interval !== 'one_time' && (
+                            <div className="flex items-center space-x-2 pt-2">
+                                <input
+                                    type="checkbox"
+                                    id="autoRenew"
+                                    checked={autoRenew}
+                                    onChange={e => setAutoRenew(e.target.checked)}
+                                    className="rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
+                                />
+                                <div className="grid gap-1.5 leading-none">
+                                    <label htmlFor="autoRenew" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                        Auto-Renew Subscription
+                                    </label>
+                                    <p className="text-xs text-zinc-500">Renews automatically. Uncheck for fixed-duration passes.</p>
+                                </div>
+                            </div>
+                        )}
 
                         <div className="space-y-2">
                             <Label>Description</Label>

@@ -177,6 +177,15 @@ export class StripeWebhookHandler {
                     await fulfillment.fulfillMembershipPurchase(metadata, subscriptionId, customerId);
                     const hook = new WebhookService(this.db, this.env.SVIX_AUTH_TOKEN);
                     await hook.dispatch(metadata.tenantId, 'subscription.created', { planId: metadata.planId, subscriptionId, customerId, userId: metadata.userId });
+
+                    if (metadata.autoRenew === 'false') {
+                        const tenant = await this.db.query.tenants.findFirst({ where: eq(schema.tenants.id, metadata.tenantId) });
+                        if (tenant?.stripeAccountId) {
+                            const { StripeService } = await import('./stripe');
+                            const stripeSvc = new StripeService(this.env.STRIPE_SECRET_KEY as string);
+                            await stripeSvc.cancelSubscription(subscriptionId, true, tenant.stripeAccountId);
+                        }
+                    }
                 }
             }
 

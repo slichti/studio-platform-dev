@@ -29,7 +29,7 @@ app.post('/plans', async (c) => {
     if (!c.get('can')('manage_commerce')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant')!;
-    const { name, description, price, interval, currency, imageUrl, overlayTitle, overlaySubtitle, vodEnabled, trialDays } = await c.req.json();
+    const { name, description, price, interval, intervalCount, autoRenew, currency, imageUrl, overlayTitle, overlaySubtitle, vodEnabled, trialDays } = await c.req.json();
     if (!name || price === undefined) return c.json({ error: 'name and price are required' }, 400);
 
     const id = crypto.randomUUID();
@@ -40,6 +40,8 @@ app.post('/plans', async (c) => {
         description,
         price,
         interval: interval || 'month',
+        intervalCount: intervalCount ? Number(intervalCount) : 1,
+        autoRenew: autoRenew !== undefined ? Boolean(autoRenew) : true,
         currency: currency || tenant.currency || 'usd',
         imageUrl,
         overlayTitle,
@@ -66,7 +68,7 @@ app.patch('/plans/:id', async (c) => {
 
     const body = await c.req.json();
     const patch: Record<string, any> = { updatedAt: new Date() };
-    const allowed = ['name', 'description', 'price', 'interval', 'imageUrl', 'overlayTitle', 'overlaySubtitle', 'vodEnabled', 'trialDays'];
+    const allowed = ['name', 'description', 'price', 'interval', 'intervalCount', 'autoRenew', 'imageUrl', 'overlayTitle', 'overlaySubtitle', 'vodEnabled', 'trialDays'];
     for (const key of allowed) {
         if (body[key] !== undefined) patch[key] = body[key];
     }
@@ -348,6 +350,53 @@ app.post('/subscriptions/:id/resume', async (c) => {
         .run();
 
     return c.json({ success: true });
+});
+
+/**
+ * Launch the Stripe Billing Portal to update payment methods/billing info.
+ */
+app.post('/billing-portal', async (c) => {
+    if (!c.get('auth')?.userId) return c.json({ error: 'Unauthorized' }, 401);
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant')!;
+    const userId = c.get('auth')!.userId;
+
+    if (!tenant.stripeAccountId) return c.json({ error: 'Payments not enabled.' }, 400);
+
+    const sub = await db.select({ stripeSubscriptionId: subscriptions.stripeSubscriptionId })
+        .from(subscriptions)
+        .where(and(
+            eq(subscriptions.tenantId, tenant.id),
+            eq(subscriptions.userId, userId),
+            inArray(subscriptions.status, ['active', 'trialing', 'past_due'])
+        ))
+        .limit(1)
+        .get();
+
+    if (!sub?.stripeSubscriptionId) {
+        return c.json({ error: 'No active subscription found to manage billing' }, 404);
+    }
+
+    try {
+        const { StripeService } = await import('../services/stripe');
+        const stripe = new StripeService(c.env.STRIPE_SECRET_KEY as string);
+
+        const stripeSub = await stripe.getSubscription(sub.stripeSubscriptionId, tenant.stripeAccountId);
+        if (!stripeSub.customer) return c.json({ error: 'Customer not found' }, 404);
+
+        const customerId = typeof stripeSub.customer === 'string' ? stripeSub.customer : stripeSub.customer.id;
+        // Construct the return URL for the portal
+        const returnUrl = `${new URL(c.req.url).origin}/portal/${tenant.slug}/memberships`;
+
+        // createBillingPortalSession needs to support Connected Accounts, so we should update it
+        // and pass tenant.stripeAccountId
+        const session = await stripe.createBillingPortalSession(customerId, returnUrl, tenant.stripeAccountId);
+
+        return c.json({ url: session.url });
+    } catch (e: any) {
+        console.error('Error creating billing portal session:', e);
+        return c.json({ error: e.message }, 500);
+    }
 });
 
 export default app;
