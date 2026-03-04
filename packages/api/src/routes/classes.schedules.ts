@@ -337,13 +337,25 @@ app.openapi(createRoute({
             createdAt: new Date()
         }).run();
 
-        const ruleStrings = recurrenceRule.split(';');
-        const options = RRule.parseString(recurrenceRule);
-        options.dtstart = start;
-        if (recurrenceEnd) options.until = new Date(recurrenceEnd);
+        let occurrences: Date[];
+        try {
+            const options = RRule.parseString(recurrenceRule);
+            options.dtstart = start;
+            if (recurrenceEnd) options.until = new Date(recurrenceEnd);
+            const rule = new RRule(options);
+            occurrences = rule.all();
+        } catch (rruleErr: any) {
+            console.error('[CLASSES] RRule parsing failed:', rruleErr);
+            return c.json({ error: `Failed to parse recurrence rule: ${rruleErr.message || 'Unknown error'}` }, 400);
+        }
 
-        const rule = new RRule(options);
-        const occurrences = rule.all();
+        if (occurrences.length === 0) {
+            return c.json({ error: 'Recurrence rule produced no dates. Check your start time and end date.' }, 400);
+        }
+
+        if (occurrences.length > 365) {
+            return c.json({ error: `Too many occurrences (${occurrences.length}). Limit to 365 or set a closer end date.` }, 400);
+        }
 
         const classData = [];
         for (const occ of occurrences) {
@@ -352,7 +364,7 @@ app.openapi(createRoute({
                 id: crypto.randomUUID(),
                 tenantId: tenant.id,
                 instructorId: instructorId || null,
-                locationId,
+                locationId: locationId || null,
                 seriesId,
                 title,
                 description: body.description,
@@ -387,8 +399,10 @@ app.openapi(createRoute({
             });
         }
 
-        if (classData.length > 0) {
-            await db.insert(classes).values(classData).run();
+        // D1 has a max 100-row batch limit — insert in chunks
+        for (let i = 0; i < classData.length; i += 50) {
+            const chunk = classData.slice(i, i + 50);
+            await db.insert(classes).values(chunk).run();
         }
         return c.json({ seriesId, classes: classData.length }, 201);
     } else {
@@ -399,7 +413,7 @@ app.openapi(createRoute({
             id,
             tenantId: tenant.id,
             instructorId: instructorId || null,
-            locationId,
+            locationId: locationId || null,
             title,
             description: body.description,
             startTime: start,
