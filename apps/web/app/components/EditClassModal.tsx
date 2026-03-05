@@ -70,6 +70,7 @@ export function EditClassModal({ isOpen, onClose, onSuccess, locations = [], ins
     const [recurringDays, setRecurringDays] = useState<string[]>([]);
     const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
     const [recurrenceLoading, setRecurrenceLoading] = useState(false);
+    const [showEndSeriesConfirm, setShowEndSeriesConfirm] = useState(false);
     const [seriesInfo, setSeriesInfo] = useState<{
         recurrenceRule: string; validFrom: string; validUntil: string | null;
         totalActive: number; futureActive: number;
@@ -932,11 +933,7 @@ export function EditClassModal({ isOpen, onClose, onSuccess, locations = [], ins
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => {
-                                        if (confirm('This will cancel all future events in this series. Continue?')) {
-                                            handleRemoveRecurrence(true);
-                                        }
-                                    }}
+                                    onClick={() => setShowEndSeriesConfirm(true)}
                                     disabled={recurrenceLoading}
                                     className="flex-1 px-3 py-2 text-xs font-medium text-red-700 bg-white border border-red-300 rounded-md hover:bg-red-50 disabled:opacity-50 flex items-center justify-center gap-1"
                                 >
@@ -944,6 +941,35 @@ export function EditClassModal({ isOpen, onClose, onSuccess, locations = [], ins
                                     {recurrenceLoading ? 'Working...' : 'End series (cancel future)'}
                                 </button>
                             </div>
+
+                            {/* End Series Confirmation Modal */}
+                            {showEndSeriesConfirm && (
+                                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+                                    <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 space-y-4">
+                                        <h3 className="text-lg font-semibold text-zinc-900">End Series?</h3>
+                                        <p className="text-sm text-zinc-500">This will cancel all future events in this series. This action cannot be undone.</p>
+                                        <div className="flex justify-end gap-3 pt-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowEndSeriesConfirm(false)}
+                                                className="px-4 py-2 text-sm font-medium text-zinc-700 bg-white border border-zinc-300 rounded-md hover:bg-zinc-50"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setShowEndSeriesConfirm(false);
+                                                    handleRemoveRecurrence(true);
+                                                }}
+                                                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+                                            >
+                                                End Series
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
