@@ -10,7 +10,8 @@ import {
     couponRedemptions,
     membershipPlans,
     tenantInvitations,
-    tenantRoles
+    tenantRoles,
+    tenants
 } from '@studio/db/src/schema'; // Ensure correct imports
 import { eq, and, desc, like, or, sql, isNull } from 'drizzle-orm';
 import { StripeService } from './stripe';
@@ -336,6 +337,7 @@ export class PosService {
         // 0. Recalculate Total from DB (Security Fix)
         let calculatedTotal = 0;
         const itemInserts = [];
+        const itemDetails: { name: string; quantity: number }[] = [];
 
         for (const item of items) {
             const product = await this.db.select().from(products)
@@ -351,6 +353,8 @@ export class PosService {
 
             const lineTotal = product.price * item.quantity;
             calculatedTotal += lineTotal;
+
+            itemDetails.push({ name: product.name, quantity: item.quantity });
 
             itemInserts.push({
                 id: crypto.randomUUID(),
@@ -405,7 +409,7 @@ export class PosService {
                 await this.stripeService.updatePaymentIntent(stripePaymentIntentId, {
                     metadata,
                     description: `${tenant?.name || 'Studio'} POS Sale - ${orderId}`
-                }, tenant?.stripeAccountId);
+                }, tenant?.stripeAccountId || undefined);
             } catch (e: any) {
                 console.error("[PosService] Failed to update Stripe metadata", e.message);
             }
