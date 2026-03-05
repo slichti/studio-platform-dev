@@ -9,7 +9,7 @@ import {
     coupons,
     couponRedemptions
 } from '@studio/db/src/schema'; // Ensure correct imports
-import { eq, and, desc, like, or, sql } from 'drizzle-orm';
+import { eq, and, desc, like, or, sql, isNull } from 'drizzle-orm';
 import { StripeService } from './stripe';
 import { WebhookService } from './webhooks';
 import { FulfillmentService } from './fulfillment';
@@ -116,6 +116,7 @@ export class PosService {
         // Stripe Sync
         if (this.stripeService) {
             try {
+                console.log(`[PosService] Syncing product to Stripe for tenant ${this.tenantId}: ${data.name}`);
                 const prod = await this.stripeService.createProduct({
                     name: tenantName ? `${tenantName} - ${data.name}` : data.name,
                     description: data.description,
@@ -123,6 +124,7 @@ export class PosService {
                     metadata: { tenantId: this.tenantId, localId: id }
                 }, tenantStripeAccountId || undefined);
                 stripeProductId = prod.id;
+                console.log(`[PosService] Successfully created Stripe product: ${stripeProductId}`);
 
                 if (data.price > 0) {
                     const price = await this.stripeService.createPrice({
@@ -131,10 +133,14 @@ export class PosService {
                         currency: currency
                     }, tenantStripeAccountId || undefined);
                     stripePriceId = price.id;
+                    console.log(`[PosService] Successfully created Stripe price: ${stripePriceId}`);
                 }
-            } catch (e) {
-                console.error("Stripe Product Sync Failed", e);
+            } catch (e: any) {
+                console.error(`[PosService] Stripe Product Sync Failed for tenant ${this.tenantId}:`, e.message || e);
+                // We continue so the product is at least created locally
             }
+        } else {
+            console.warn(`[PosService] No StripeService available for tenant ${this.tenantId}, skipping sync.`);
         }
 
         await this.db.insert(products).values({
@@ -156,6 +162,64 @@ export class PosService {
         }).run();
 
         return id;
+    }
+
+    async repairMissingStripeIds(tenantStripeAccountId?: string | null, tenantName?: string) {
+        if (!this.stripeService) return;
+
+        try {
+            // Find active products for this tenant that lack a stripeProductId
+            const orphanedProducts = await this.db.select().from(products)
+                .where(and(
+                    eq(products.tenantId, this.tenantId),
+                    eq(products.isActive, true),
+                    isNull(products.stripeProductId)
+                ))
+                .all();
+
+            if (orphanedProducts.length === 0) return;
+
+            console.log(`[PosService] Found ${orphanedProducts.length} orphaned products for tenant ${this.tenantId}. Attempting repair...`);
+
+            for (const prod of orphanedProducts) {
+                try {
+                    console.log(`[PosService] Repairing sync for product: ${prod.name} (${prod.id})`);
+
+                    const stripeProd = await this.stripeService.createProduct({
+                        name: tenantName ? `${tenantName} - ${prod.name}` : prod.name,
+                        description: prod.description || undefined,
+                        images: prod.imageUrl ? [prod.imageUrl] : [],
+                        metadata: { tenantId: this.tenantId, localId: prod.id }
+                    }, tenantStripeAccountId || undefined);
+
+                    let stripePriceId = undefined;
+                    if (prod.price > 0) {
+                        const priceObj = await this.stripeService.createPrice({
+                            productId: stripeProd.id,
+                            unitAmount: prod.price,
+                            currency: prod.currency || 'usd'
+                        }, tenantStripeAccountId || undefined);
+                        stripePriceId = priceObj.id;
+                    }
+
+                    // Update local record
+                    await this.db.update(products)
+                        .set({
+                            stripeProductId: stripeProd.id,
+                            stripePriceId: stripePriceId,
+                            updatedAt: new Date()
+                        })
+                        .where(eq(products.id, prod.id))
+                        .run();
+
+                    console.log(`[PosService] Successfully repaired product ${prod.id}. Stripe ID: ${stripeProd.id}`);
+                } catch (err: any) {
+                    console.error(`[PosService] Failed to repair product ${prod.id}:`, err.message || err);
+                }
+            }
+        } catch (e: any) {
+            console.error(`[PosService] Error during repairMissingStripeIds:`, e.message || e);
+        }
     }
 
     async updateProduct(id: string, data: {

@@ -34,11 +34,15 @@ export class StripeService {
         return response.stripe_user_id;
     }
 
-    private getClient(accountIdOrKey: string) {
+    private getClient(accountIdOrKey?: string | null): { client: Stripe; options?: Stripe.RequestOptions } {
+        if (!accountIdOrKey) {
+            return { client: this.stripe, options: undefined };
+        }
+
         if (accountIdOrKey.startsWith('sk_') || accountIdOrKey.startsWith('rk_')) {
             return {
                 client: new Stripe(accountIdOrKey, { apiVersion: '2026-01-28.clover' as any }),
-                options: {}
+                options: undefined
             };
         }
         return {
@@ -144,10 +148,10 @@ export class StripeService {
      * Create Embedded Checkout Session
      */
     async createEmbeddedCheckoutSession(
-        connectedAccountId: string,
+        connectedAccountId: string | null,
         params: {
-            title?: string; // Optional if lineItems used
-            amount?: number; // Optional if lineItems used
+            title?: string;
+            amount?: number; // cents
             currency: string;
             returnUrl: string;
             metadata: Record<string, string>;
@@ -157,6 +161,8 @@ export class StripeService {
             mode?: 'payment' | 'subscription';
             applicationFeeAmount?: number;
             applicationFeePercent?: number;
+            statementDescriptorSuffix?: string;
+            description?: string;
             automaticTax?: boolean;
         }
     ) {
@@ -383,8 +389,8 @@ export class StripeService {
     /**
      * Product Management
      */
-    async createProduct(params: { name: string; description?: string; images?: string[]; active?: boolean; metadata?: Record<string, string>; taxCode?: string }, connectedAccountId?: string) {
-        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+    async createProduct(params: { name: string; description?: string; images?: string[]; active?: boolean; metadata?: Record<string, string>; taxCode?: string }, connectedAccountId?: string | null) {
+        const { client, options } = this.getClient(connectedAccountId);
         const payload = Object.fromEntries(
             Object.entries({
                 name: params.name,
@@ -398,8 +404,8 @@ export class StripeService {
         return client.products.create(payload, options);
     }
 
-    async createPrice(params: { productId: string; unitAmount: number; currency: string; recurring?: Stripe.PriceCreateParams.Recurring }, connectedAccountId?: string) {
-        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+    async createPrice(params: { productId: string; unitAmount: number; currency: string; recurring?: Stripe.PriceCreateParams.Recurring }, connectedAccountId?: string | null) {
+        const { client, options } = this.getClient(connectedAccountId);
         const payload = Object.fromEntries(
             Object.entries({
                 product: params.productId,
@@ -454,14 +460,14 @@ export class StripeService {
     async updateCustomer(
         customerId: string,
         params: { email?: string; name?: string; phone?: string; address?: Stripe.AddressParam },
-        connectedAccountId?: string
+        connectedAccountId?: string | null
     ) {
-        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+        const { client, options } = this.getClient(connectedAccountId);
         return client.customers.update(customerId, params as Stripe.CustomerUpdateParams, options);
     }
 
-    async searchCustomers(query: string, connectedAccountId?: string) {
-        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+    async searchCustomers(query: string, connectedAccountId?: string | null) {
+        const { client, options } = this.getClient(connectedAccountId);
         // Sanitize query to prevent injection into Stripe search syntax.
         // Stripe search uses Lucene-like operators; strip quotes and backslashes.
         const safe = query.replace(/["\\]/g, '').trim().slice(0, 200);
@@ -472,8 +478,8 @@ export class StripeService {
         }, options);
     }
 
-    async searchProductsByTenant(tenantId: string, connectedAccountId?: string) {
-        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+    async searchProductsByTenant(tenantId: string, connectedAccountId?: string | null) {
+        const { client, options } = this.getClient(connectedAccountId);
         const safe = tenantId.replace(/["\\]/g, '').trim();
         return client.products.search({
             query: `active:'true' AND metadata['tenantId']:'${safe}'`,
