@@ -761,6 +761,52 @@ app.openapi(createRoute({
     return c.json({ success: true, cancelledFuture: cancelledCount });
 });
 
+// GET /:id/series — Get series info for a class
+app.openapi(createRoute({
+    method: 'get',
+    path: '/{id}/series',
+    tags: ['Classes'],
+    summary: 'Get series info for a class',
+    request: {
+        params: z.object({ id: z.string() })
+    },
+    responses: {
+        200: { description: 'Series info' },
+        404: { description: 'Not found or not part of a series' }
+    }
+}), async (c: any) => {
+    if (!c.get('can')('manage_classes')) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const tid = c.get('tenant').id;
+    const { id } = c.req.valid('param');
+
+    const cls = await db.query.classes.findFirst({ where: and(eq(classes.id, id), eq(classes.tenantId, tid)) });
+    if (!cls || !cls.seriesId) return c.json({ error: 'Not part of a series' }, 404);
+
+    const series = await db.query.classSeries.findFirst({ where: eq(classSeries.id, cls.seriesId) });
+    if (!series) return c.json({ error: 'Series not found' }, 404);
+
+    // Count active + future classes in this series
+    const countResult = await db.select({ count: sql<number>`count(*)` })
+        .from(classes)
+        .where(and(eq(classes.seriesId, cls.seriesId), eq(classes.tenantId, tid), eq(classes.status, 'active')))
+        .get();
+
+    const futureCount = await db.select({ count: sql<number>`count(*)` })
+        .from(classes)
+        .where(and(eq(classes.seriesId, cls.seriesId), eq(classes.tenantId, tid), eq(classes.status, 'active'), gte(classes.startTime, new Date())))
+        .get();
+
+    return c.json({
+        seriesId: series.id,
+        recurrenceRule: series.recurrenceRule,
+        validFrom: series.validFrom instanceof Date ? series.validFrom.toISOString() : series.validFrom,
+        validUntil: series.validUntil ? (series.validUntil instanceof Date ? series.validUntil.toISOString() : series.validUntil) : null,
+        totalActive: countResult?.count || 0,
+        futureActive: futureCount?.count || 0,
+    });
+});
+
 // DELETE /:id
 app.openapi(createRoute({
     method: 'delete',

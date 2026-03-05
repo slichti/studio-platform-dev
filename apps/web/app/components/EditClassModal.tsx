@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Modal } from "./Modal";
 import { apiRequest } from "../utils/api";
 import { useAuth } from "@clerk/react-router";
@@ -65,10 +65,48 @@ export function EditClassModal({ isOpen, onClose, onSuccess, locations = [], ins
     const [showScopeDialog, setShowScopeDialog] = useState(false);
     const [pendingScope, setPendingScope] = useState<'single' | 'future' | 'all'>('single');
     const [makeRecurring, setMakeRecurring] = useState(false);
+    const [editingRecurrence, setEditingRecurrence] = useState(false);
     const [recurrencePattern, setRecurrencePattern] = useState('weekly');
     const [recurringDays, setRecurringDays] = useState<string[]>([]);
     const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
     const [recurrenceLoading, setRecurrenceLoading] = useState(false);
+    const [seriesInfo, setSeriesInfo] = useState<{
+        recurrenceRule: string; validFrom: string; validUntil: string | null;
+        totalActive: number; futureActive: number;
+    } | null>(null);
+
+    // Fetch series info when the modal opens for a series class
+    useEffect(() => {
+        if (!isSeries || !initialData.id) return;
+        const fetchSeriesInfo = async () => {
+            try {
+                const token = await getToken();
+                const res = await apiRequest(`/classes/${initialData.id}/series`, token, {
+                    headers: { 'X-Tenant-Slug': slug! }
+                });
+                if (res && !res.error) setSeriesInfo(res as any);
+            } catch { /* ignore */ }
+        };
+        fetchSeriesInfo();
+    }, [isSeries, initialData.id]);
+
+    // Parse RRule into human-readable text
+    const formatRecurrenceRule = (rule: string): string => {
+        if (!rule) return 'Unknown pattern';
+        const parts = rule.split(';');
+        let freq = '', days = '';
+        for (const p of parts) {
+            if (p.startsWith('FREQ=')) freq = p.replace('FREQ=', '');
+            if (p.startsWith('BYDAY=')) {
+                const dayMap: Record<string, string> = { MO: 'Mon', TU: 'Tue', WE: 'Wed', TH: 'Thu', FR: 'Fri', SA: 'Sat', SU: 'Sun' };
+                days = p.replace('BYDAY=', '').split(',').map(d => dayMap[d] || d).join(', ');
+            }
+        }
+        if (freq === 'DAILY') return 'Daily';
+        if (freq === 'WEEKLY' && days) return `Weekly on ${days}`;
+        if (freq === 'WEEKLY') return 'Weekly';
+        return rule;
+    };
 
     // Resolve relative /uploads/ paths to full API URLs
     const resolveImageUrl = (url: string | null | undefined): string => {
@@ -281,12 +319,27 @@ export function EditClassModal({ isOpen, onClose, onSuccess, locations = [], ins
             <form onSubmit={onFormSubmit} className="space-y-4">
                 {error && <div className="p-3 bg-red-50 text-red-600 rounded text-sm">{error}</div>}
 
-                {/* Series indicator */}
+                {/* Series indicator with info */}
                 {isSeries && (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
-                        <Repeat size={16} />
-                        <span className="font-medium">Part of recurring series</span>
-                        <span className="text-blue-500 text-xs">— Changes can be applied to this event, future events, or all events</span>
+                    <div className="px-3 py-3 bg-blue-50 border border-blue-200 rounded-lg text-sm space-y-1">
+                        <div className="flex items-center gap-2 text-blue-700">
+                            <Repeat size={16} />
+                            <span className="font-medium">Part of recurring series</span>
+                        </div>
+                        {seriesInfo ? (
+                            <div className="text-xs text-blue-600 space-y-0.5 ml-6">
+                                <p><span className="font-medium">Pattern:</span> {formatRecurrenceRule(seriesInfo.recurrenceRule)}</p>
+                                {seriesInfo.validUntil && (
+                                    <p><span className="font-medium">Until:</span> {new Date(seriesInfo.validUntil).toLocaleDateString()}</p>
+                                )}
+                                <p><span className="font-medium">Classes:</span> {seriesInfo.totalActive} total ({seriesInfo.futureActive} upcoming)</p>
+                                {seriesInfo.futureActive <= 1 && (
+                                    <p className="text-amber-600 font-medium mt-1">⚠ No future events in series — recurrence may not have been created properly. Try editing the recurrence below.</p>
+                                )}
+                            </div>
+                        ) : (
+                            <p className="text-xs text-blue-500 ml-6">Loading series info...</p>
+                        )}
                     </div>
                 )}
 
@@ -735,9 +788,138 @@ export function EditClassModal({ isOpen, onClose, onSuccess, locations = [], ins
                             )}
                         </>
                     ) : (
-                        /* Remove from Series for series classes */
-                        <div className="space-y-2">
+                        /* Series management for series classes */
+                        <div className="space-y-3">
                             <p className="text-xs font-medium text-zinc-600">Series Management</p>
+
+                            {/* Edit Recurrence controls */}
+                            {!editingRecurrence ? (
+                                <button
+                                    type="button"
+                                    onClick={() => setEditingRecurrence(true)}
+                                    className="w-full px-3 py-2 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 flex items-center justify-center gap-1"
+                                >
+                                    <Repeat size={12} />
+                                    Edit Recurrence
+                                </button>
+                            ) : (
+                                <div className="p-3 bg-zinc-50 rounded border border-zinc-200 space-y-3">
+                                    <p className="text-xs text-zinc-500">This will cancel existing future events and create new ones with the updated pattern.</p>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-medium text-zinc-600 mb-1">Frequency</label>
+                                            <select
+                                                className="w-full px-2 py-1.5 text-sm border border-zinc-300 rounded focus:ring-blue-500 outline-none"
+                                                value={recurrencePattern}
+                                                onChange={(e) => setRecurrencePattern(e.target.value)}
+                                            >
+                                                <option value="weekly">Weekly</option>
+                                                <option value="daily">Daily</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-zinc-600 mb-1">End Date</label>
+                                            <input
+                                                type="date"
+                                                className="w-full px-2 py-1.5 text-sm border border-zinc-300 rounded focus:ring-blue-500 outline-none"
+                                                value={recurrenceEndDate}
+                                                onChange={(e) => setRecurrenceEndDate(e.target.value)}
+                                                min={formData.startTime ? new Date(formData.startTime).toISOString().split('T')[0] : undefined}
+                                            />
+                                        </div>
+                                    </div>
+                                    {recurrencePattern === 'weekly' && (
+                                        <div>
+                                            <label className="block text-xs font-medium text-zinc-600 mb-2">Repeat On</label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {[
+                                                    { label: 'Mon', value: 'MO' },
+                                                    { label: 'Tue', value: 'TU' },
+                                                    { label: 'Wed', value: 'WE' },
+                                                    { label: 'Thu', value: 'TH' },
+                                                    { label: 'Fri', value: 'FR' },
+                                                    { label: 'Sat', value: 'SA' },
+                                                    { label: 'Sun', value: 'SU' }
+                                                ].map((day) => (
+                                                    <label key={day.value} className={`
+                                                        flex items-center justify-center w-8 h-8 rounded-full text-xs font-medium cursor-pointer transition-colors border
+                                                        ${recurringDays.includes(day.value)
+                                                            ? 'bg-blue-600 text-white border-blue-600'
+                                                            : 'bg-white text-zinc-600 border-zinc-200 hover:border-blue-300'
+                                                        }
+                                                    `}>
+                                                        <input
+                                                            type="checkbox"
+                                                            className="hidden"
+                                                            checked={recurringDays.includes(day.value)}
+                                                            onChange={(e) => {
+                                                                const newDays = e.target.checked
+                                                                    ? [...recurringDays, day.value]
+                                                                    : recurringDays.filter(d => d !== day.value);
+                                                                setRecurringDays(newDays);
+                                                            }}
+                                                        />
+                                                        {day.label}
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className="flex gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={async () => {
+                                                // First remove old recurrence (cancel future), then make recurring with new pattern
+                                                setRecurrenceLoading(true);
+                                                try {
+                                                    const token = await getToken();
+                                                    // Remove current recurrence and cancel future
+                                                    await apiRequest(`/classes/${initialData.id}/remove-recurrence`, token, {
+                                                        method: 'POST',
+                                                        headers: { 'X-Tenant-Slug': slug! },
+                                                        body: JSON.stringify({ cancelFuture: true })
+                                                    });
+                                                    // Now create new recurrence
+                                                    let rule = recurrencePattern === 'weekly' ? 'FREQ=WEEKLY' : 'FREQ=DAILY';
+                                                    if (recurrencePattern === 'weekly' && recurringDays.length > 0) {
+                                                        rule += `;BYDAY=${recurringDays.join(',')}`;
+                                                    }
+                                                    const res: any = await apiRequest(`/classes/${initialData.id}/make-recurring`, token, {
+                                                        method: 'POST',
+                                                        headers: { 'X-Tenant-Slug': slug! },
+                                                        body: JSON.stringify({
+                                                            recurrenceRule: rule,
+                                                            recurrenceEnd: new Date(recurrenceEndDate).toISOString()
+                                                        })
+                                                    });
+                                                    if (res.error) {
+                                                        setError(typeof res.error === 'string' ? res.error : JSON.stringify(res.error));
+                                                    } else {
+                                                        onSuccess(res);
+                                                        onClose();
+                                                    }
+                                                } catch (e: any) {
+                                                    setError(e.message || 'Failed to update recurrence');
+                                                } finally {
+                                                    setRecurrenceLoading(false);
+                                                }
+                                            }}
+                                            disabled={recurrenceLoading || !recurrenceEndDate}
+                                            className="flex-1 px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                                        >
+                                            {recurrenceLoading ? 'Updating...' : <><Repeat size={14} /> Update Recurrence</>}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setEditingRecurrence(false)}
+                                            className="px-3 py-2 text-sm font-medium text-zinc-600 border border-zinc-300 rounded-md hover:bg-zinc-50"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="flex gap-2">
                                 <button
                                     type="button"
