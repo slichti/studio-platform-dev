@@ -400,10 +400,9 @@ app.openapi(createRoute({
             });
         }
 
-        // D1 has a max 100-row batch limit — insert in chunks
-        for (let i = 0; i < classData.length; i += 50) {
-            const chunk = classData.slice(i, i + 50);
-            await db.insert(classes).values(chunk).run();
+        // Insert one row at a time (D1 has a 100 bind parameter limit per statement)
+        for (const cls of classData) {
+            await db.insert(classes).values(cls).run();
         }
         return c.json({ seriesId, classes: classData.length }, 201);
     } else {
@@ -674,8 +673,9 @@ app.openapi(createRoute({
         }));
 
         // Batch insert (D1 limit ~50 rows per statement)
-        for (let i = 0; i < classData.length; i += 50) {
-            await db.insert(classes).values(classData.slice(i, i + 50)).run();
+        // Insert one row at a time (D1 has a 100 bind parameter limit per statement)
+        for (const cls of classData) {
+            await db.insert(classes).values(cls).run();
         }
 
         console.log('[MAKE-RECURRING] Created series', seriesId, 'with', classData.length, 'classes');
