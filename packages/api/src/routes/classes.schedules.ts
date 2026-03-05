@@ -13,6 +13,40 @@ import { quotaMiddleware } from '../middleware/quota';
 
 const app = createOpenAPIApp<StudioVariables>();
 
+/**
+ * Adjust RRule-generated UTC dates to preserve the original local time of day.
+ * RRule generates dates aligned to the UTC time of dtstart, which causes local
+ * times to shift when DST boundaries are crossed. This function corrects each
+ * occurrence so the local time stays the same as the original.
+ *
+ * Example: 6:00 AM EST (UTC-5) = 11:00 UTC. After DST, 11:00 UTC = 7:00 AM EDT.
+ * This function adjusts to 10:00 UTC = 6:00 AM EDT.
+ */
+function adjustForDST(occurrences: Date[], originalDate: Date, timezone: string): Date[] {
+    // Get the original local hour and minute using Intl
+    const fmt = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        hour: 'numeric', minute: 'numeric', hour12: false
+    });
+    const origParts = fmt.formatToParts(originalDate);
+    const origHour = parseInt(origParts.find(p => p.type === 'hour')?.value || '0');
+    const origMinute = parseInt(origParts.find(p => p.type === 'minute')?.value || '0');
+
+    return occurrences.map(occ => {
+        const occParts = fmt.formatToParts(occ);
+        const occHour = parseInt(occParts.find(p => p.type === 'hour')?.value || '0');
+        const occMinute = parseInt(occParts.find(p => p.type === 'minute')?.value || '0');
+
+        // If local time differs from original, adjust the UTC time
+        const hourDiff = origHour - occHour;
+        const minDiff = origMinute - occMinute;
+        if (hourDiff !== 0 || minDiff !== 0) {
+            return new Date(occ.getTime() + (hourDiff * 60 + minDiff) * 60000);
+        }
+        return occ;
+    });
+}
+
 // Schemas
 const ClassSchema = z.object({
     id: z.string(),
@@ -350,6 +384,10 @@ app.openapi(createRoute({
             return c.json({ error: `Failed to parse recurrence rule: ${rruleErr.message || 'Unknown error'}` }, 400);
         }
 
+        // Adjust for DST — preserve local time across timezone changes
+        const tz = tenant.timezone || 'America/New_York';
+        occurrences = adjustForDST(occurrences, start, tz);
+
         if (occurrences.length === 0) {
             return c.json({ error: 'Recurrence rule produced no dates. Check your start time and end date.' }, 400);
         }
@@ -598,6 +636,11 @@ app.openapi(createRoute({
             console.error('[MAKE-RECURRING] RRule parsing failed:', rruleErr);
             return c.json({ error: `Failed to parse recurrence rule: ${rruleErr.message}` }, 400);
         }
+
+        // Adjust for DST — preserve local time across timezone changes
+        const tenantData = c.get('tenant');
+        const tz = tenantData.timezone || 'America/New_York';
+        occurrences = adjustForDST(occurrences, startDate, tz);
 
         // Remove the first occurrence if it matches the existing class time (within 1 min)
         occurrences = occurrences.filter(occ =>
