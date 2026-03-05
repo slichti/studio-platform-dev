@@ -221,19 +221,22 @@ app.get('/customers', async (c) => {
 // POST /customers
 app.post('/customers', async (c) => {
     if (!c.get('can')('manage_pos')) throw new UnauthorizedError('Access Denied');
+    const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
-    const { email, name, phone } = await c.req.json();
-    let stripeCustomerId = null;
-    if (c.env.STRIPE_SECRET_KEY && tenant.stripeAccountId) {
-        const stripe = new StripeService(c.env.STRIPE_SECRET_KEY as string);
-        try {
-            const cus = await stripe.createCustomer({ email, name, phone, metadata: { tenantId: tenant.id } }, tenant.stripeAccountId);
-            stripeCustomerId = cus.id;
-        } catch (e) { console.error(e); }
+    const body = await c.req.json();
+    let stripeService: StripeService | undefined;
+    if (c.env.STRIPE_SECRET_KEY) stripeService = new StripeService(c.env.STRIPE_SECRET_KEY as string);
+
+    const service = new PosService(db, tenant.id, c.env, stripeService);
+    try {
+        const { customer, sendInvite } = await service.createCustomer(body, tenant.stripeAccountId, tenant.name);
+        if (sendInvite) c.executionCtx.waitUntil(sendInvite());
+        return c.json({ success: true, customer });
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
     }
-    return c.json({ success: true, customer: { id: stripeCustomerId, email, name, isStripeGuest: true } });
 });
 
 // PUT /products/:id

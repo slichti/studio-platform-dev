@@ -30,6 +30,7 @@ type Product = {
     imageUrl?: string;
     isActive: boolean;
     stripeProductId?: string;
+    type: 'product' | 'membership';
 };
 
 type CartItem = {
@@ -44,6 +45,7 @@ type Customer = {
     email: string;
     profile?: { firstName: string; lastName: string };
     name?: string; // For stripe guests
+    phone?: string;
     isStripeGuest?: boolean;
     stripeCustomerId?: string;
 };
@@ -91,7 +93,7 @@ export default function POSPageComponent() {
         try {
             const res = await apiRequest('/pos/products', token, { headers: { 'X-Tenant-Slug': tenantSlug } });
             if (res.products) {
-                setProducts(res.products.filter((p: Product) => p.isActive));
+                setProducts(res.products);
             }
         } catch (err) {
             console.error(err);
@@ -309,9 +311,11 @@ export default function POSPageComponent() {
                     {products.map(product => (
                         <div key={product.id} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow group relative">
                             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                                <button onClick={() => { setEditingProduct(product); setShowProductModal(true); }} className="p-1.5 bg-zinc-100 rounded text-zinc-600 hover:text-blue-600">
-                                    <Edit size={14} />
-                                </button>
+                                {product.type === 'product' && (
+                                    <button onClick={() => { setEditingProduct(product); setShowProductModal(true); }} className="p-1.5 bg-zinc-100 rounded text-zinc-600 hover:text-blue-600">
+                                        <Edit size={14} />
+                                    </button>
+                                )}
                             </div>
 
                             <div className="aspect-square bg-zinc-100 dark:bg-zinc-800 rounded-lg flex items-center justify-center text-zinc-300">
@@ -322,11 +326,16 @@ export default function POSPageComponent() {
                                     <h3 className="font-medium text-zinc-900 dark:text-zinc-100 truncate">{product.name}</h3>
                                     <span className="text-xs font-bold bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-600">${(product.price / 100).toFixed(2)}</span>
                                 </div>
-                                <p className="text-xs text-zinc-500 truncate">{product.category || 'General'}</p>
+                                <div className="flex items-center gap-2">
+                                    <p className="text-xs text-zinc-500 truncate">{product.category || 'General'}</p>
+                                    {product.type === 'membership' && (
+                                        <span className="text-[10px] uppercase font-bold text-purple-600 bg-purple-50 px-1 rounded">Membership</span>
+                                    )}
+                                </div>
                             </div>
                             <div className="mt-auto pt-2 flex items-center justify-between">
-                                <span className={`text-xs ${product.stockQuantity > 0 ? 'text-green-600' : 'text-red-500'} font-medium`}>
-                                    {product.stockQuantity} in stock
+                                <span className={`text-xs ${product.type === 'membership' ? 'text-zinc-400' : (product.stockQuantity > 0 ? 'text-green-600' : 'text-red-500')} font-medium`}>
+                                    {product.type === 'membership' ? 'Plan' : `${product.stockQuantity} in stock`}
                                 </span>
                                 <button
                                     onClick={() => addToCart(product)}
@@ -387,8 +396,11 @@ export default function POSPageComponent() {
                                                 onClick={() => { setSelectedCustomer(c); setShowCustomerSearch(false); setCustomerQuery(""); }}
                                                 className="w-full text-left p-2 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded text-sm group"
                                             >
-                                                <div className="font-medium">{c.profile ? `${c.profile.firstName} ${c.profile.lastName}` : c.name}</div>
-                                                <div className="text-xs text-zinc-500">{c.email}</div>
+                                                <div className="font-medium">{c.profile ? `${c.profile.firstName} ${c.profile.lastName}` : (c.name || 'Unknown')}</div>
+                                                <div className="text-xs text-zinc-500 flex justify-between items-center">
+                                                    <span>{c.email}</span>
+                                                    {c.phone && <span className="text-[10px] bg-zinc-100 dark:bg-zinc-800 px-1 rounded">{c.phone}</span>}
+                                                </div>
                                             </button>
                                         ))}
                                         <button
@@ -590,13 +602,36 @@ function CustomerForm({ token, tenantSlug, onSuccess, onCancel }: any) {
             setSubmitting(true);
             const fd = new FormData(e.currentTarget);
             const data = Object.fromEntries(fd);
-            const res = await apiRequest('/pos/customers', token, { method: 'POST', headers: { 'X-Tenant-Slug': tenantSlug }, body: JSON.stringify(data) });
+            const payload = {
+                email: data.email,
+                name: data.name,
+                phone: data.phone,
+                address: {
+                    line1: data.line1,
+                    city: data.city,
+                    state: data.state,
+                    postal_code: data.postal_code,
+                    country: 'US'
+                }
+            };
+            const res = await apiRequest('/pos/customers', token, { method: 'POST', headers: { 'X-Tenant-Slug': tenantSlug }, body: JSON.stringify(payload) });
             setSubmitting(false);
             if (res.customer) onSuccess(res.customer);
         }}>
-            <input name="name" required className="w-full p-2 border rounded dark:bg-zinc-800" placeholder="Jane Doe" />
-            <input name="email" type="email" required className="w-full p-2 border rounded dark:bg-zinc-800" placeholder="jane@example.com" />
-            <div className="flex gap-2 justify-end">
+            <input name="name" required className="w-full p-2 border rounded dark:bg-zinc-800 dark:text-zinc-100" placeholder="Full Name" />
+            <div className="grid grid-cols-2 gap-4">
+                <input name="email" type="email" required className="w-full p-2 border rounded dark:bg-zinc-800 dark:text-zinc-100" placeholder="Email" />
+                <input name="phone" className="w-full p-2 border rounded dark:bg-zinc-800 dark:text-zinc-100" placeholder="Phone" />
+            </div>
+            <div className="space-y-2">
+                <input name="line1" className="w-full p-2 border rounded dark:bg-zinc-800 dark:text-zinc-100 text-sm" placeholder="Street Address" />
+                <div className="grid grid-cols-3 gap-2">
+                    <input name="city" className="p-2 border rounded dark:bg-zinc-800 dark:text-zinc-100 text-sm" placeholder="City" />
+                    <input name="state" className="p-2 border rounded dark:bg-zinc-800 dark:text-zinc-100 text-sm" placeholder="State (e.g. TX)" />
+                    <input name="postal_code" className="p-2 border rounded dark:bg-zinc-800 dark:text-zinc-100 text-sm" placeholder="ZIP" />
+                </div>
+            </div>
+            <div className="flex gap-2 justify-end pt-2">
                 <button type="button" onClick={onCancel} className="px-4 py-2 border rounded text-zinc-900 dark:text-zinc-100">Cancel</button>
                 <button type="submit" disabled={submitting} className="px-4 py-2 bg-blue-600 text-white rounded">
                     {submitting ? 'Creating...' : 'Create Customer'}

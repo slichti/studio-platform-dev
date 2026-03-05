@@ -210,7 +210,7 @@ export const tenantInvitations = sqliteTable('tenant_invitations', {
     invitedBy: text('invited_by').notNull(), // User ID
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
-    tenantEmailIdx: index('invitation_tenant_email_idx').on(table.tenantId, table.email),
+    tenantEmailIdx: uniqueIndex('invitation_tenant_email_idx').on(table.tenantId, table.email),
     tokenIdx: uniqueIndex('invitation_token_idx').on(table.token),
 }));
 

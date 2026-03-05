@@ -593,17 +593,18 @@ These endpoints serve booking widgets and checkout flows embedded in public stud
 *   **Coupons**:
     *   Coupon system (`coupons` table) with usage limits and expiry.
     *   Auto-applied or code-based.
-*   **POS**:
-    *   Retail interface for in-person sales.
-    *   Stripe Terminal integration for card presence.
-    *   `stripePaymentIntentId` persisted on `pos_orders` to enable terminal refunds.
-    *   Transaction history via `GET /pos/transactions` with per-transaction refund status.
-    *   Customer update via `PUT /pos/customers/:id` (Stripe Connect).
-    *   Refund-by-PaymentIntent via `POST /pos/refund` (full or partial).
-    *   Product price changes create a new Stripe Price object (immutable price pattern).
-    *   All POS and Inventory API calls include `X-Tenant-Slug` for tenant resolution.
-    *   **Tenant Branding**: Stripe products are prefixed with `"${tenantName} - "`, and checkout sessions/PaymentIntents use tenant-specific statement descriptors and descriptions for billing clarity.
-    *   **Stripe Sync**: Bi-directional product synchronization via metadata filtering (`tenantId`) ensures Stripe-native inventory management.
+    *   **POS**:
+        *   Retail interface for in-person sales with **Membership Integration** for on-site sign-ups.
+        *   Stripe Terminal integration for card presence.
+        *   **Automatic Account Creation**: Seamless global `User` and `TenantMember` creation for new POS customers, including automatic email invitations via `EmailService`.
+        *   **Sales Tax**: Integrated `TaxService` for automated state-based sales tax calculation during checkout.
+        *   `stripePaymentIntentId` persisted on `pos_orders` to enable terminal refunds.
+        *   Transaction history via `GET /pos/transactions` with per-transaction refund status.
+        *   Customer update via `PUT /pos/customers/:id` (Stripe Connect).
+        *   **Robust Refunds**: Full and partial refund tracking with reasoning and admin audit trail synchronized with Stripe.
+        *   **Tenant Branding**: Stripe products are prefixed with `"${tenantName} - "`, and checkout sessions/PaymentIntents use tenant-specific statement descriptors and descriptions for billing clarity.
+        *   **Rich Metadata**: Every PaymentIntent is enriched with metadata (tenant name, customer details, itemized summary) for robust accounting and transparency.
+        *   **Stripe Sync**: Bi-directional product synchronization via metadata filtering (`tenantId`) ensures Stripe-native inventory management.
 
 ## Compliance & Data Minimization
 *   **Financial System of Record**: Stripe is treated as the sole system of record for financial data. The platform does **not** store sensitive cardholder data (PAN, CVV) or bank account numbers.

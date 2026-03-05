@@ -2,6 +2,16 @@
 
 This document tracks the iterative development of features and capabilities over time, generated from the project commit history.
 
+## 2026-03-05
+
+- **🚀 Feature:** feat(pos): implement comprehensive POS retail enhancements:
+    - [x] Product archiving and Membership integration in POS display.
+    - [x] Automatic global Account Creation and Stripe Sync for new POS customers.
+    - [x] Automated Email Invitations for POS-created users.
+    - [x] State-based Sales Tax calculation via new `TaxService`.
+    - [x] Rich Transaction Metadata (tenant, customer, items) for Stripe PaymentIntents.
+    - [x] Robust Full & Partial Refund tracking in DB and Stripe.
+
 ## 2025-12-18
 
 - Initial commit `(a42b22a4)`

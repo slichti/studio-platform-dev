@@ -4,7 +4,7 @@ The modern, all-in-one platform for dance, yoga, and fitness studios.
 
 ## Features
 
-*   **Studio Management:** Class scheduling, member management, point-of-sale (including direct internal assignments for Memberships and Class Packs bypassing Stripe), and robust Kiosk Mode with walk-in booking support.
+*   **Studio Management:** Class scheduling, member management, point-of-sale (with automatic sales tax, rich transaction metadata, and robust refund tracking), and Kiosk Mode with walk-in booking support. POS now supports seamless membership sign-ups and auto-account creation for new customers.
 *   **Memberships & Subscriptions:** Self-service membership plans with Stripe billing, free trials, archive/restore lifecycle, and student-facing plan browser. Includes support for **Time-Limited Memberships** (e.g., fixed-duration passes that do not auto-renew) and seamless integration with the Stripe Billing Portal for updating payment methods. Students can cancel subscriptions directly from their profile.
 *   **Brand & Customization:** Includes a custom Card Creator engine enabling studios to generate and auto-export dynamic gradient backgrounds with multi-line typography alignments tailored for class packs and membership previews.
 *   **Course Management (LMS):** Hybrid courses combining live sessions, on-demand VOD, quizzes, assignments, and per-lesson completion tracking with progress percentage. Instructors can grade assignments with feedback.
@@ -241,7 +241,7 @@ The platform uses Stripe Connect for multi-tenant billing. To set up your local 
      -d "enabled_events[]=capability.updated" \
      -d "enabled_events[]=charge.refunded"
    ```
-4. **Tenant Branding & Sync:** The platform automatically prefixes Stripe products with the tenant name and synchronizes inventory via metadata filtering (`tenantId`). Transaction descriptors and payment descriptions incorporate the tenant name for billing clarity on shared platform accounts.
+4. **Tenant Branding & Sync:** The platform automatically prefixes Stripe products with the tenant name and synchronizes inventory via metadata filtering (`tenantId`). Transaction descriptors and PaymentIntent metadata incorporate the tenant name, customer details, and itemized summaries for billing clarity and robust accounting.
    Then upload the secrets to Cloudflare using Wrangler:
    ```bash
    npx wrangler secret put STRIPE_SECRET_KEY -c packages/api/wrangler.toml

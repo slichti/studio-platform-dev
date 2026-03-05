@@ -7,7 +7,10 @@ import {
     tenantMembers,
     giftCards,
     coupons,
-    couponRedemptions
+    couponRedemptions,
+    membershipPlans,
+    tenantInvitations,
+    tenantRoles
 } from '@studio/db/src/schema'; // Ensure correct imports
 import { eq, and, desc, like, or, sql, isNull } from 'drizzle-orm';
 import { StripeService } from './stripe';
@@ -18,6 +21,7 @@ import { EmailService } from './email';
 import { SmsService } from './sms';
 import { UsageService } from './pricing';
 import { InventoryService } from './inventory';
+import { TaxService } from './tax';
 import { AuditService } from './audit';
 import { PushService } from './push';
 
@@ -46,10 +50,41 @@ export class PosService {
 
     async listProducts(tenantStripeAccountId?: string | null) {
         await this.syncProductsFromStripe(tenantStripeAccountId);
-        return this.db.select().from(products)
-            .where(eq(products.tenantId, this.tenantId))
+
+        const dbProducts = await this.db.select().from(products)
+            .where(and(eq(products.tenantId, this.tenantId), eq(products.isActive, true)))
             .orderBy(desc(products.createdAt))
             .all();
+
+        const dbMemberships = await this.db.select().from(membershipPlans)
+            .where(and(eq(membershipPlans.tenantId, this.tenantId), eq(membershipPlans.active, true)))
+            .all();
+
+        const formattedProducts = dbProducts.map(p => ({
+            ...p,
+            type: 'product' as const
+        }));
+
+        const formattedMemberships = dbMemberships.map(m => ({
+            id: m.id,
+            tenantId: m.tenantId,
+            name: m.name,
+            description: m.description,
+            price: m.price || 0,
+            currency: m.currency || 'usd',
+            stockQuantity: 9999, // Memberships don't have stock limits usually
+            isActive: m.active,
+            stripeProductId: m.stripeProductId,
+            stripePriceId: m.stripePriceId,
+            createdAt: m.createdAt,
+            updatedAt: m.updatedAt,
+            imageUrl: m.imageUrl,
+            category: 'Membership',
+            sku: `MEM-${m.id.substring(0, 8)}`,
+            type: 'membership' as const
+        }));
+
+        return [...formattedProducts, ...formattedMemberships];
     }
 
     async syncProductsFromStripe(tenantStripeAccountId?: string | null) {
@@ -341,6 +376,41 @@ export class PosService {
             }
         }
 
+        // 1b. Tax Calculation
+        const taxService = new TaxService(this.db, this.tenantId);
+        const { taxAmount, rate, state: taxState } = await taxService.calculateTax(finalTotal);
+        finalTotal += taxAmount;
+
+        // 1c. Detailed Metadata for Stripe (if applicable)
+        if (stripePaymentIntentId && this.stripeService) {
+            try {
+                const tenant = await this.db.select().from(tenants).where(eq(tenants.id, this.tenantId)).get();
+                const member = memberId ? await this.db.query.tenantMembers.findFirst({
+                    where: (tm, { eq }) => eq(tm.id, memberId),
+                    with: { user: true }
+                }) : null;
+
+                const metadata: Record<string, string> = {
+                    tenantId: this.tenantId,
+                    tenantName: tenant?.name || 'Unknown',
+                    orderId: orderId,
+                    customerName: member?.user ? `${(member.user.profile as any)?.firstName} ${(member.user.profile as any)?.lastName}` : 'Guest',
+                    customerEmail: member?.user?.email || 'Guest',
+                    taxRate: (rate * 100).toFixed(2) + '%',
+                    taxState: taxState,
+                    summary: itemDetails.map((i: any) => `${i.quantity}x ${i.name}`).join(', ').substring(0, 450)
+                };
+
+                // Apply metadata to PaymentIntent
+                await this.stripeService.updatePaymentIntent(stripePaymentIntentId, {
+                    metadata,
+                    description: `${tenant?.name || 'Studio'} POS Sale - ${orderId}`
+                }, tenant?.stripeAccountId);
+            } catch (e: any) {
+                console.error("[PosService] Failed to update Stripe metadata", e.message);
+            }
+        }
+
         // 2. Gift Card Redemption
         if (redeemGiftCardCode && redeemAmount && redeemAmount > 0) {
             const fulfillment = new FulfillmentService(this.db, this.env.RESEND_API_KEY);
@@ -364,6 +434,7 @@ export class PosService {
             memberId: memberId || null,
             staffId: staffId || null,
             totalAmount: finalTotal,
+            taxAmount: taxAmount,
             status: 'completed' as const,
             paymentMethod: paymentMethod as "card" | "cash" | "account" | "other",
             stripePaymentIntentId: stripePaymentIntentId || null,
@@ -516,15 +587,20 @@ export class PosService {
             userId: users.id,
             email: users.email,
             profile: users.profile,
+            phone: users.phone,
             stripeCustomerId: tenantMembers.stripeCustomerId
         })
             .from(tenantMembers)
             .innerJoin(users, eq(tenantMembers.userId, users.id))
             .where(and(
                 eq(tenantMembers.tenantId, this.tenantId),
-                or(like(users.email, `%${query}%`))
+                or(
+                    like(users.email, `%${query}%`),
+                    sql`json_extract(${users.profile}, '$.firstName') LIKE ${`%${query}%`}`,
+                    sql`json_extract(${users.profile}, '$.lastName') LIKE ${`%${query}%`}`
+                )
             ))
-            .limit(5)
+            .limit(10)
             .all();
 
         // Stripe Match
@@ -532,17 +608,142 @@ export class PosService {
         if (this.stripeService && tenantStripeAccountId) {
             try {
                 const result = await this.stripeService.searchCustomers(query, tenantStripeAccountId);
-                stripeMatches = result.data.map((cus) => ({
-                    id: 'stripe_guest',
-                    stripeCustomerId: cus.id,
-                    email: cus.email,
-                    profile: { firstName: cus.name || 'Guest', lastName: '' },
-                    isStripeGuest: true
-                }));
+                stripeMatches = result.data.map((cus) => {
+                    // Avoid duplicating if email already in localMatches
+                    if (localMatches.find(m => m.email.toLowerCase() === cus.email?.toLowerCase())) return null;
+
+                    return {
+                        id: 'stripe_guest',
+                        stripeCustomerId: cus.id,
+                        email: cus.email,
+                        profile: { firstName: cus.name || 'Guest', lastName: '' },
+                        phone: cus.phone,
+                        isStripeGuest: true
+                    };
+                }).filter(Boolean);
             } catch (e) { console.error("Stripe Search Error", e); }
         }
 
         return [...localMatches, ...stripeMatches];
+    }
+
+    async createCustomer(data: {
+        email: string;
+        name: string;
+        phone?: string;
+        address?: any;
+    }, tenantStripeAccountId?: string | null, tenantName?: string) {
+        const { email, name, phone, address } = data;
+        const [firstName = '', ...lastNameParts] = name.split(' ');
+        const lastName = lastNameParts.join(' ');
+
+        // 1. Ensure Global User
+        let user = await this.db.select().from(users).where(eq(users.email, email)).get();
+        if (!user) {
+            const userId = crypto.randomUUID();
+            await this.db.insert(users).values({
+                id: userId,
+                email: email.toLowerCase(),
+                phone: phone || null,
+                profile: { firstName, lastName },
+                createdAt: new Date()
+            }).run();
+            user = await this.db.select().from(users).where(eq(users.id, userId)).get();
+        }
+
+        if (!user) throw new Error("Failed to create user");
+
+        // 2. Ensure Tenant Member
+        let member = await this.db.select().from(tenantMembers)
+            .where(and(eq(tenantMembers.userId, user.id), eq(tenantMembers.tenantId, this.tenantId)))
+            .get();
+
+        if (!member) {
+            const memberId = crypto.randomUUID();
+            await this.db.insert(tenantMembers).values({
+                id: memberId,
+                tenantId: this.tenantId,
+                userId: user.id,
+                joinedAt: new Date(),
+                status: 'active'
+            }).run();
+
+            // Default student role
+            await this.db.insert(tenantRoles).values({
+                id: crypto.randomUUID(),
+                memberId: memberId,
+                role: 'student',
+                createdAt: new Date()
+            }).run();
+
+            member = await this.db.select().from(tenantMembers).where(eq(tenantMembers.id, memberId)).get();
+        }
+
+        if (!member) throw new Error("Failed to create member");
+
+        // 3. Stripe Sync
+        let stripeCustomerId = member.stripeCustomerId;
+        if (!stripeCustomerId && this.stripeService && tenantStripeAccountId) {
+            try {
+                const cus = await this.stripeService.createCustomer({
+                    email,
+                    name,
+                    phone: phone || undefined,
+                    address: address || undefined,
+                    metadata: { tenantId: this.tenantId, userId: user.id, memberId: member.id }
+                }, tenantStripeAccountId);
+                stripeCustomerId = cus.id;
+
+                await this.db.update(tenantMembers)
+                    .set({ stripeCustomerId })
+                    .where(eq(tenantMembers.id, member.id))
+                    .run();
+            } catch (e: any) {
+                console.error("[PosService] Stripe customer creation failed", e.message);
+            }
+        }
+
+        // 4. Send Invitation if new user or no invitation accepted
+        const existingInvite = await this.db.select().from(tenantInvitations)
+            .where(and(eq(tenantInvitations.tenantId, this.tenantId), eq(tenantInvitations.email, email)))
+            .get();
+
+        if (!existingInvite || !existingInvite.acceptedAt) {
+            const inviteId = crypto.randomUUID();
+            const token = crypto.randomUUID();
+            const expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + 7);
+
+            await this.db.insert(tenantInvitations).values({
+                id: inviteId,
+                tenantId: this.tenantId,
+                email: email.toLowerCase(),
+                role: 'student',
+                token,
+                expiresAt,
+                invitedBy: 'SYSTEM_POS',
+                createdAt: new Date()
+            }).onConflictDoUpdate({
+                target: [tenantInvitations.tenantId, tenantInvitations.email],
+                set: { token, expiresAt, createdAt: new Date() }
+            }).run();
+
+            // Send Email (Async)
+            if (this.env.RESEND_API_KEY) {
+                const usageService = new UsageService(this.db, this.tenantId);
+                const emailService = new EmailService(this.env.RESEND_API_KEY, {}, { name: tenantName }, usageService, false, this.db, this.tenantId);
+                const inviteUrl = `https://${this.tenantId}.studio-platform.com/join?token=${token}`;
+                // We'll return the logic to be executed in waitUntil
+                return {
+                    customer: { ...member, email, profile: { firstName, lastName }, phone, stripeCustomerId },
+                    sendInvite: async () => {
+                        await emailService.sendInvitation(email, inviteUrl);
+                    }
+                };
+            }
+        }
+
+        return { customer: { ...member, email, profile: { firstName, lastName }, phone, stripeCustomerId } };
     }
 
     async validateCoupon(code: string, cartTotal: number) {

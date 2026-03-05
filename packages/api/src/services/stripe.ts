@@ -447,12 +447,13 @@ export class StripeService {
     /**
      * Customer Management
      */
-    async createCustomer(params: { email: string; name: string; phone?: string; metadata?: Record<string, string> }, connectedAccountId?: string) {
+    async createCustomer(params: { email: string; name: string; phone?: string; address?: any; metadata?: Record<string, string> }, connectedAccountId?: string) {
         const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
         return client.customers.create({
             email: params.email,
             name: params.name,
             phone: params.phone,
+            address: params.address,
             metadata: params.metadata
         }, options);
     }
@@ -679,6 +680,13 @@ export class StripeService {
                 type: 'application/octet-stream',
             },
             purpose,
+        }, options);
+    }
+    async updatePaymentIntent(paymentIntentId: string, params: { metadata?: Record<string, string>; description?: string }, connectedAccountId?: string) {
+        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+        return client.paymentIntents.update(paymentIntentId, {
+            metadata: params.metadata,
+            description: params.description
         }, options);
     }
 }
