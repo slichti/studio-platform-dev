@@ -722,8 +722,8 @@ app.openapi(createRoute({
 
     const seriesId = ex.seriesId;
 
-    // Detach THIS class from the series
-    await db.update(classes).set({ seriesId: null }).where(eq(classes.id, id)).run();
+    // Detach THIS class from the series and ensure it stays active
+    await db.update(classes).set({ seriesId: null, status: 'active' }).where(eq(classes.id, id)).run();
 
     let cancelledCount = 0;
     if (cancelFuture) {
