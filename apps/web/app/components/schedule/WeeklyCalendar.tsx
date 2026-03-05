@@ -86,7 +86,7 @@ export function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDat
             </div>
 
             {/* Calendar Grid */}
-            <div className="flex-1 overflow-auto min-h-[600px]" role="grid" tabIndex={0} aria-label="Calendar Grid">
+            <div className="flex-1 overflow-auto" role="grid" tabIndex={0} aria-label="Calendar Grid">
                 {/* Header Row */}
                 <div className="grid grid-cols-8 border-b border-zinc-200 dark:border-zinc-800 sticky top-0 bg-white dark:bg-zinc-900 z-10" role="row">
                     <div className="p-2 border-r border-zinc-100 dark:border-zinc-800 w-16" role="columnheader">
@@ -113,7 +113,7 @@ export function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDat
                 </div>
 
                 {/* Body - Single Row containing Columns as Cells */}
-                <div className="relative grid grid-cols-8" role="row">
+                <div className="relative grid grid-cols-8 pb-20" role="row">
                     {/* Time Column (Row Header) */}
                     <div className="w-16 flex-shrink-0 border-r border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50" role="rowheader">
                         {timeSlots.map(hour => (
