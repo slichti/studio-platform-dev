@@ -378,16 +378,41 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                         />
                     </div>
                     <div>
-                        <label htmlFor="duration" className="block text-sm font-medium text-zinc-700 mb-1">Duration (min)</label>
-                        <input
-                            id="duration"
-                            type="number"
-                            required
-                            min="15"
-                            className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-                            value={formData.durationMinutes}
-                            onChange={(e) => setFormData({ ...formData, durationMinutes: Number(e.target.value) })}
-                        />
+                        <label className="block text-sm font-medium text-zinc-700 mb-1">Duration</label>
+                        <div className="flex gap-2">
+                            <div className="flex-1">
+                                <select
+                                    id="duration-hours"
+                                    className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                                    value={Math.floor(formData.durationMinutes / 60)}
+                                    onChange={(e) => {
+                                        const hrs = Number(e.target.value);
+                                        const mins = formData.durationMinutes % 60;
+                                        setFormData({ ...formData, durationMinutes: hrs * 60 + mins });
+                                    }}
+                                >
+                                    {[0, 1, 2, 3, 4, 5, 6, 7, 8].map(h => (
+                                        <option key={h} value={h}>{h} hr{h !== 1 ? 's' : ''}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="flex-1">
+                                <select
+                                    id="duration-minutes"
+                                    className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                                    value={formData.durationMinutes % 60}
+                                    onChange={(e) => {
+                                        const hrs = Math.floor(formData.durationMinutes / 60);
+                                        const mins = Number(e.target.value);
+                                        setFormData({ ...formData, durationMinutes: hrs * 60 + mins });
+                                    }}
+                                >
+                                    {[0, 15, 30, 45].map(m => (
+                                        <option key={m} value={m}>{m} min</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

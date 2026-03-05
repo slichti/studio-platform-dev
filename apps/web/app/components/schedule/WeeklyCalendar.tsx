@@ -43,7 +43,7 @@ export function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDat
     const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 }); // Sunday start
     const weekDays = Array.from({ length: 7 }).map((_, i) => addDays(weekStart, i));
 
-    const timeSlots = Array.from({ length: 14 }).map((_, i) => i + 6); // 6 AM to 8 PM (approx)
+    const timeSlots = Array.from({ length: 18 }).map((_, i) => i + 5); // 5 AM to 10 PM
 
     const navigate = (direction: 'prev' | 'next' | 'today') => {
         if (direction === 'today') setCurrentDate(new Date());
@@ -115,7 +115,7 @@ export function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDat
                     <div className="w-16 flex-shrink-0 border-r border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50" role="rowheader">
                         {timeSlots.map(hour => (
                             <div key={hour} className="h-20 border-b border-zinc-100 dark:border-zinc-800 text-xs text-zinc-400 p-1 text-right pr-2 sticky left-0">
-                                {hour > 12 ? `${hour - 12} PM` : `${hour} AM`}
+                                {hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}
                             </div>
                         ))}
                     </div>
@@ -145,11 +145,11 @@ export function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDat
                                     const endHour = event.end.getHours();
                                     const endMin = event.end.getMinutes();
 
-                                    const startOffset = (startHour - 6) * 80 + (startMin / 60) * 80; // 80px per hour
+                                    const startOffset = (startHour - 5) * 80 + (startMin / 60) * 80; // 80px per hour, base at 5 AM
                                     const durationMins = (event.end.getTime() - event.start.getTime()) / 60000;
                                     const height = (durationMins / 60) * 80;
 
-                                    if (startHour < 6) return null; // Skip early events for now
+                                    if (startHour < 5) return null; // Skip very early events
 
                                     const gradient = event.resource?.gradientColor1 && event.resource?.gradientColor2
                                         ? `linear-gradient(${event.resource.gradientDirection || 135}deg, ${event.resource.gradientColor1}, ${event.resource.gradientColor2})`
