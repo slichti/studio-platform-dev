@@ -8,8 +8,9 @@ import { Input } from "~/components/ui/input";
 import { Textarea } from "~/components/ui/textarea";
 import { Label } from "~/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "~/components/ui/dialog";
-import { CardCreator } from "./CardCreator";
+import { CardCreator, type CardCreatorRef } from "./CardCreator";
 import type { Plan } from "~/hooks/useMemberships";
+import { useRef } from "react";
 
 interface PlanModalProps {
     isOpen: boolean;
@@ -32,10 +33,11 @@ export function PlanModal({ isOpen, plan, onClose, onSave, isSubmitting, tenantS
     const [vodEnabled, setVodEnabled] = useState(false);
     const [trialDays, setTrialDays] = useState(0);
 
-    const [cardData, setCardData] = useState<{ image: Blob | null; title: string; subtitle: string; previewUrl: string }>({
+    const [cardData, setCardData] = useState<{ image: Blob | null; title: string; subtitle: string; previewUrl: string; gradient?: any }>({
         image: null, title: "", subtitle: "", previewUrl: ""
     });
     const [uploading, setUploading] = useState(false);
+    const cardCreatorRef = useRef<CardCreatorRef>(null);
 
     useEffect(() => {
         if (isOpen) {
@@ -62,10 +64,16 @@ export function PlanModal({ isOpen, plan, onClose, onSave, isSubmitting, tenantS
         try {
             let imageUrl = plan?.imageUrl;
 
-            if (cardData.image) {
+            let finalBlob = cardData.image;
+            if (!finalBlob && cardData.gradient && cardCreatorRef.current) {
+                const generated = await cardCreatorRef.current.exportGeneratedCard();
+                if (generated?.blob) finalBlob = generated.blob;
+            }
+
+            if (finalBlob) {
                 const token = await getToken();
                 const uploadFormData = new FormData();
-                const file = new File([cardData.image], "card.jpg", { type: "image/jpeg" });
+                const file = new File([finalBlob], "card.jpg", { type: "image/jpeg" });
                 uploadFormData.append("file", file);
 
                 const apiUrl = import.meta.env.VITE_API_URL || "https://studio-platform-api.slichti.workers.dev";
@@ -117,6 +125,7 @@ export function PlanModal({ isOpen, plan, onClose, onSave, isSubmitting, tenantS
                     <div className="space-y-4">
                         <Label>Card Appearance</Label>
                         <CardCreator
+                            ref={cardCreatorRef}
                             initialImage={plan?.imageUrl}
                             initialTitle={cardData.title}
                             initialSubtitle={cardData.subtitle}

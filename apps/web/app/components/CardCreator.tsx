@@ -1,20 +1,33 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
 import React, { Suspense } from 'react';
 const Cropper = React.lazy(() => import('react-easy-crop'));
 import { getCroppedImg } from '../utils/cropImage';
-import { Upload, Wand2, Loader2, ChevronDown, Trash2, Type } from 'lucide-react';
+import { Upload, Wand2, Loader2, ChevronDown, Trash2, Type, AlignLeft, AlignCenter, AlignRight, ArrowUpToLine, ArrowDownToLine, FoldVertical } from 'lucide-react';
+
+export interface CardCreatorRef {
+    exportGeneratedCard: () => Promise<{ blob: Blob | null, dataUrl: string | null }>;
+}
+
+export interface GradientOptions {
+    preset: string | null;
+    color1: string;
+    color2: string;
+    direction: number;
+    textAlign?: 'left' | 'center' | 'right';
+    textPosition?: 'top' | 'middle' | 'bottom';
+}
 
 interface CardCreatorProps {
     initialImage?: string;
     initialTitle?: string;
     initialSubtitle?: string;
-    initialGradient?: { preset: string | null, color1: string, color2: string, direction: number };
+    initialGradient?: GradientOptions;
     onChange: (data: {
         image?: Blob | null,
         title: string,
         subtitle: string,
         previewUrl?: string,
-        gradient?: { preset: string | null, color1: string, color2: string, direction: number }
+        gradient?: GradientOptions
     }) => void;
 }
 
@@ -41,16 +54,15 @@ const CANVAS_WIDTH = 600;
 const CANVAS_HEIGHT = 450;
 
 const FONT_SIZE_OPTIONS = [
-    { label: 'XS', titlePx: 20, subtitlePx: 12 },
-    { label: 'S', titlePx: 28, subtitlePx: 14 },
-    { label: 'M', titlePx: 36, subtitlePx: 16 },
-    { label: 'L', titlePx: 42, subtitlePx: 18 },
-    { label: 'XL', titlePx: 52, subtitlePx: 22 },
-    { label: '2XL', titlePx: 64, subtitlePx: 26 },
+    { label: 'XS', titlePx: 20, subtitlePx: 12, lineHeight: 24 },
+    { label: 'S', titlePx: 28, subtitlePx: 14, lineHeight: 32 },
+    { label: 'M', titlePx: 36, subtitlePx: 16, lineHeight: 40 },
+    { label: 'L', titlePx: 42, subtitlePx: 18, lineHeight: 48 },
+    { label: 'XL', titlePx: 52, subtitlePx: 22, lineHeight: 56 },
+    { label: '2XL', titlePx: 64, subtitlePx: 26, lineHeight: 70 },
 ];
 
 // --- Canvas rendering ---
-// Simple seeded pseudo-random for deterministic bokeh
 function seededRandom(seed: number) {
     let s = seed;
     return () => {
@@ -67,6 +79,39 @@ function hashString(str: string): number {
     return Math.abs(h) || 1;
 }
 
+function wrapText(
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    x: number,
+    y: number,
+    maxWidth: number,
+    lineHeight: number
+): number {
+    const words = text.split(' ');
+    let line = '';
+    const lines = [];
+
+    for (let n = 0; n < words.length; n++) {
+        const testLine = line + words[n] + ' ';
+        const metrics = ctx.measureText(testLine);
+        const testWidth = metrics.width;
+        if (testWidth > maxWidth && n > 0) {
+            lines.push(line);
+            line = words[n] + ' ';
+        } else {
+            line = testLine;
+        }
+    }
+    lines.push(line);
+
+    let currentY = y;
+    for (let k = 0; k < lines.length; k++) {
+        ctx.fillText(lines[k].trim(), x, currentY);
+        currentY += lineHeight;
+    }
+    return lines.length * lineHeight; // total height used
+}
+
 function renderCardToCanvas(
     canvas: HTMLCanvasElement,
     options: {
@@ -78,6 +123,9 @@ function renderCardToCanvas(
         subtitle: string;
         titleFontSize: number;
         subtitleFontSize: number;
+        titleLineHeight: number;
+        textAlign: 'left' | 'center' | 'right';
+        textPosition: 'top' | 'middle' | 'bottom';
     }
 ) {
     const ctx = canvas.getContext('2d');
@@ -105,7 +153,7 @@ function renderCardToCanvas(
     }
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Static bokeh overlay — deterministic circles seeded from colors
+    // Static bokeh overlay
     const rand = seededRandom(hashString(options.color1 + options.color2));
     ctx.fillStyle = 'rgba(255,255,255,0.03)';
     for (let i = 0; i < 80; i++) {
@@ -117,43 +165,80 @@ function renderCardToCanvas(
         ctx.fill();
     }
 
-    // Title
+    const paddingX = 40;
+    const maxWidth = CANVAS_WIDTH - paddingX * 2;
+    
+    let x = CANVAS_WIDTH / 2;
+    if (options.textAlign === 'left') x = paddingX;
+    if (options.textAlign === 'right') x = CANVAS_WIDTH - paddingX;
+
+    // Pre-calculate heights to figure out vertical positioning
+    let totalHeight = 0;
+    
+    // Measure title height
+    ctx.save();
+    ctx.font = `bold ${options.titleFontSize}px "Inter", "Segoe UI", system-ui, sans-serif`;
+    const titleWords = options.title ? options.title.split(' ') : [];
+    let titleLinesCount = 0;
+    let tempLine = '';
+    for (let n = 0; n < titleWords.length; n++) {
+        const testLine = tempLine + titleWords[n] + ' ';
+        const metrics = ctx.measureText(testLine);
+        if (metrics.width > maxWidth && n > 0) {
+            titleLinesCount++;
+            tempLine = titleWords[n] + ' ';
+        } else {
+            tempLine = testLine;
+        }
+    }
+    if (tempLine.length > 0) titleLinesCount++;
+    totalHeight += titleLinesCount * options.titleLineHeight;
+    ctx.restore();
+
+    // Measure subtitle height
+    if (options.subtitle) {
+        totalHeight += options.subtitleFontSize * 1.5; // Approx height for 1 line of subtitle
+        totalHeight += 16; // spacing
+    }
+
+    // Determine Y start position
+    let currentY = CANVAS_HEIGHT / 2 - (totalHeight / 2) + (options.titleLineHeight / 2);
+    if (options.textPosition === 'top') {
+        currentY = 60;
+    } else if (options.textPosition === 'bottom') {
+        currentY = CANVAS_HEIGHT - totalHeight + (options.titleLineHeight / 2) - 30; // 30px bottom padding
+    }
+
+    // Draw Title
     if (options.title) {
         ctx.save();
-        ctx.textAlign = 'center';
+        ctx.textAlign = options.textAlign;
         ctx.textBaseline = 'middle';
-
-        // Use the user-selected font size, but clamp to fit width
-        const maxFontSize = options.titleFontSize;
-        const fontSize = Math.min(maxFontSize, CANVAS_WIDTH / (options.title.length * 0.55));
-        ctx.font = `bold ${fontSize}px "Inter", "Segoe UI", system-ui, sans-serif`;
-
-        // Text shadow
+        ctx.font = `bold ${options.titleFontSize}px "Inter", "Segoe UI", system-ui, sans-serif`;
         ctx.shadowColor = 'rgba(0,0,0,0.5)';
         ctx.shadowBlur = 12;
         ctx.shadowOffsetX = 0;
         ctx.shadowOffsetY = 4;
-
         ctx.fillStyle = '#ffffff';
-        const titleY = options.subtitle ? CANVAS_HEIGHT / 2 - 20 : CANVAS_HEIGHT / 2;
-        ctx.fillText(options.title, CANVAS_WIDTH / 2, titleY, CANVAS_WIDTH - 80);
+        
+        const titleHeightUsed = wrapText(ctx, options.title, x, currentY, maxWidth, options.titleLineHeight);
+        currentY += titleHeightUsed - (options.titleLineHeight / 2) + 16; 
         ctx.restore();
     }
 
-    // Subtitle
+    // Draw Subtitle
     if (options.subtitle) {
         ctx.save();
-        ctx.textAlign = 'center';
+        ctx.textAlign = options.textAlign;
         ctx.textBaseline = 'middle';
         ctx.font = `400 ${options.subtitleFontSize}px "Inter", "Segoe UI", system-ui, sans-serif`;
-
         ctx.shadowColor = 'rgba(0,0,0,0.4)';
         ctx.shadowBlur = 8;
         ctx.shadowOffsetX = 0;
         ctx.shadowOffsetY = 2;
-
         ctx.fillStyle = 'rgba(255,255,255,0.85)';
-        ctx.fillText(options.subtitle, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 24, CANVAS_WIDTH - 80);
+        
+        wrapText(ctx, options.subtitle, x, currentY + (options.subtitleFontSize / 2), maxWidth, options.subtitleFontSize * 1.5);
         ctx.restore();
     }
 }
@@ -168,8 +253,11 @@ function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
     });
 }
 
+function canvasToDataURL(canvas: HTMLCanvasElement): string {
+    return canvas.toDataURL('image/jpeg', 0.92);
+}
 
-export function CardCreator({ initialImage, initialTitle, initialSubtitle, initialGradient, onChange }: CardCreatorProps) {
+export const CardCreator = forwardRef<CardCreatorRef, CardCreatorProps>(({ initialImage, initialTitle, initialSubtitle, initialGradient, onChange }, ref) => {
     // --- Shared state ---
     const [title, setTitle] = useState(initialTitle || "");
     const [subtitle, setSubtitle] = useState(initialSubtitle || "");
@@ -184,6 +272,10 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, initi
     const currentFontSize = FONT_SIZE_OPTIONS[fontSizeIndex];
     const [applySuccess, setApplySuccess] = useState(false);
     const [isApplying, setIsApplying] = useState(false);
+
+    // --- Text Alignment & Position ---
+    const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right'>(initialGradient?.textAlign || 'center');
+    const [textPosition, setTextPosition] = useState<'top' | 'middle' | 'bottom'>(initialGradient?.textPosition || 'middle');
 
     // --- Upload state ---
     const [imageSrc, setImageSrc] = useState<string | null>(initialImage || null);
@@ -202,6 +294,26 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, initi
     const previewCanvasRef = useRef<HTMLCanvasElement>(null);
     const exportCanvasRef = useRef<HTMLCanvasElement>(null);
 
+    // Provide imperative handle to parent (e.g. to get latest generated blob)
+    useImperativeHandle(ref, () => ({
+        exportGeneratedCard: async () => {
+            if (tab === 'generate' && exportCanvasRef.current) {
+               // Make sure hidden canvas is up to date
+               renderCardToCanvas(exportCanvasRef.current, {
+                    bgType, color1, color2, direction, title, subtitle,
+                    titleFontSize: currentFontSize.titlePx,
+                    subtitleFontSize: currentFontSize.subtitlePx,
+                    titleLineHeight: currentFontSize.lineHeight,
+                    textAlign, textPosition
+                });
+               const blob = await canvasToBlob(exportCanvasRef.current);
+               const dataUrl = canvasToDataURL(exportCanvasRef.current);
+               return { blob, dataUrl };
+            }
+            return { blob: null, dataUrl: null };
+        }
+    }), [tab, bgType, color1, color2, direction, title, subtitle, currentFontSize, textAlign, textPosition]);
+
     // --- Repaint canvas preview ---
     useEffect(() => {
         if (tab !== 'generate') return;
@@ -211,15 +323,18 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, initi
             bgType, color1, color2, direction, title, subtitle,
             titleFontSize: currentFontSize.titlePx,
             subtitleFontSize: currentFontSize.subtitlePx,
+            titleLineHeight: currentFontSize.lineHeight,
+            textAlign,
+            textPosition
         });
 
         // Auto-export gradient metadata (but NOT image, to avoid clobbering Apply's blob)
         onChange({
             title,
             subtitle,
-            gradient: bgType === 'gradient' ? { preset: activePreset, color1, color2, direction } : undefined
+            gradient: bgType === 'gradient' ? { preset: activePreset, color1, color2, direction, textAlign, textPosition } : undefined
         });
-    }, [tab, bgType, color1, color2, direction, title, subtitle, fontSizeIndex, activePreset, onChange]);
+    }, [tab, bgType, color1, color2, direction, title, subtitle, fontSizeIndex, activePreset, textAlign, textPosition, onChange]);
 
     // --- Upload handlers ---
     const onCropComplete = useCallback((_croppedArea: any, croppedAreaPixels: any) => {
@@ -245,7 +360,7 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, initi
                 title,
                 subtitle,
                 previewUrl,
-                gradient: bgType === 'gradient' ? { preset: activePreset, color1, color2, direction } : undefined
+                gradient: bgType === 'gradient' ? { preset: activePreset, color1, color2, direction, textAlign, textPosition } : undefined
             });
             setUploadMode('preview');
         } catch (e) {
@@ -271,6 +386,9 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, initi
                 bgType, color1, color2, direction, title, subtitle,
                 titleFontSize: currentFontSize.titlePx,
                 subtitleFontSize: currentFontSize.subtitlePx,
+                titleLineHeight: currentFontSize.lineHeight,
+                textAlign,
+                textPosition
             });
             const blob = await canvasToBlob(canvas);
             const previewUrl = URL.createObjectURL(blob);
@@ -279,7 +397,7 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, initi
                 title,
                 subtitle,
                 previewUrl,
-                gradient: bgType === 'gradient' ? { preset: activePreset, color1, color2, direction } : undefined
+                gradient: bgType === 'gradient' ? { preset: activePreset, color1, color2, direction, textAlign, textPosition } : undefined
             });
             // Switch to upload tab with preview to show the result
             setImageSrc(previewUrl);
@@ -308,7 +426,7 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, initi
             onChange({
                 title: val,
                 subtitle,
-                gradient: bgType === 'gradient' ? { preset: activePreset, color1, color2, direction } : undefined
+                gradient: bgType === 'gradient' ? { preset: activePreset, color1, color2, direction, textAlign, textPosition } : undefined
             });
         }
     };
@@ -319,7 +437,7 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, initi
             onChange({
                 title,
                 subtitle: val,
-                gradient: bgType === 'gradient' ? { preset: activePreset, color1, color2, direction } : undefined
+                gradient: bgType === 'gradient' ? { preset: activePreset, color1, color2, direction, textAlign, textPosition } : undefined
             });
         }
     };
@@ -480,24 +598,44 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, initi
                                 placeholder="Unlimited Yoga"
                             />
                         </div>
-                        {/* Font size selector */}
-                        <div>
-                            <label className="block text-xs font-medium mb-1.5 text-zinc-500 dark:text-zinc-400">Font Size</label>
-                            <div className="flex rounded-md bg-zinc-100 dark:bg-zinc-800 p-0.5 gap-0.5">
-                                {FONT_SIZE_OPTIONS.map((opt, idx) => (
-                                    <button
-                                        key={opt.label}
-                                        type="button"
-                                        onClick={() => setFontSizeIndex(idx)}
-                                        className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-all ${fontSizeIndex === idx
-                                            ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
-                                            : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
-                                            }`}
-                                        title={`Title: ${opt.titlePx}px, Subtitle: ${opt.subtitlePx}px`}
-                                    >
-                                        {opt.label}
-                                    </button>
-                                ))}
+                        {/* Font size selector & Alignment */}
+                        <div className="flex flex-wrap gap-3">
+                            <div className="flex-1 min-w-[200px]">
+                                <label className="block text-xs font-medium mb-1.5 text-zinc-500 dark:text-zinc-400">Font Size</label>
+                                <div className="flex rounded-md bg-zinc-100 dark:bg-zinc-800 p-0.5 gap-0.5">
+                                    {FONT_SIZE_OPTIONS.map((opt, idx) => (
+                                        <button
+                                            key={opt.label}
+                                            type="button"
+                                            onClick={() => setFontSizeIndex(idx)}
+                                            className={`flex-1 px-1 py-1.5 rounded text-xs font-medium transition-all ${fontSizeIndex === idx
+                                                ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
+                                                : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                                                }`}
+                                            title={`Title: ${opt.titlePx}px, Subtitle: ${opt.subtitlePx}px`}
+                                        >
+                                            {opt.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label className="block text-xs font-medium mb-1.5 text-zinc-500 dark:text-zinc-400">Align</label>
+                                <div className="flex rounded-md bg-zinc-100 dark:bg-zinc-800 p-0.5 gap-0.5 h-[32px]">
+                                    <button type="button" onClick={() => setTextAlign('left')} className={`px-2 rounded transition-all ${textAlign === 'left' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500 hover:text-zinc-700'}`}><AlignLeft size={14}/></button>
+                                    <button type="button" onClick={() => setTextAlign('center')} className={`px-2 rounded transition-all ${textAlign === 'center' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500 hover:text-zinc-700'}`}><AlignCenter size={14}/></button>
+                                    <button type="button" onClick={() => setTextAlign('right')} className={`px-2 rounded transition-all ${textAlign === 'right' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500 hover:text-zinc-700'}`}><AlignRight size={14}/></button>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-medium mb-1.5 text-zinc-500 dark:text-zinc-400">Position</label>
+                                <div className="flex rounded-md bg-zinc-100 dark:bg-zinc-800 p-0.5 gap-0.5 h-[32px]">
+                                    <button type="button" onClick={() => setTextPosition('top')} className={`px-2 rounded transition-all ${textPosition === 'top' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500 hover:text-zinc-700'}`}><ArrowUpToLine size={14}/></button>
+                                    <button type="button" onClick={() => setTextPosition('middle')} className={`px-2 rounded transition-all ${textPosition === 'middle' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500 hover:text-zinc-700'}`}><FoldVertical size={14}/></button>
+                                    <button type="button" onClick={() => setTextPosition('bottom')} className={`px-2 rounded transition-all ${textPosition === 'bottom' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500 hover:text-zinc-700'}`}><ArrowDownToLine size={14}/></button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -548,8 +686,8 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, initi
                     </div>
 
                     {/* Color pickers */}
-                    <div className="flex gap-3 items-end">
-                        <div className="flex-1">
+                    <div className="flex flex-wrap gap-3 items-end">
+                        <div className="flex-1 min-w-[120px]">
                             <label className="block text-xs text-zinc-500 dark:text-zinc-400 mb-1">{bgType === 'gradient' ? 'Start Color' : 'Color'}</label>
                             <div className="flex items-center gap-2">
                                 <input
@@ -562,13 +700,13 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, initi
                                     type="text"
                                     value={color1}
                                     onChange={(e) => { setColor1(e.target.value); setActivePreset(null); }}
-                                    className="flex-1 px-2 py-1.5 text-xs font-mono rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
+                                    className="flex-1 w-full px-2 py-1.5 text-xs font-mono rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 min-w-0"
                                 />
                             </div>
                         </div>
                         {bgType === 'gradient' && (
                             <>
-                                <div className="flex-1">
+                                <div className="flex-1 min-w-[120px]">
                                     <label className="block text-xs text-zinc-500 dark:text-zinc-400 mb-1">End Color</label>
                                     <div className="flex items-center gap-2">
                                         <input
@@ -581,11 +719,11 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, initi
                                             type="text"
                                             value={color2}
                                             onChange={(e) => { setColor2(e.target.value); setActivePreset(null); }}
-                                            className="flex-1 px-2 py-1.5 text-xs font-mono rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
+                                            className="flex-1 w-full px-2 py-1.5 text-xs font-mono rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 min-w-0"
                                         />
                                     </div>
                                 </div>
-                                <div>
+                                <div className="shrink-0">
                                     <label className="block text-xs text-zinc-500 dark:text-zinc-400 mb-1">Direction</label>
                                     <div className="flex gap-1">
                                         {DIRECTION_OPTIONS.map((opt) => (
@@ -612,7 +750,7 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, initi
                         <canvas
                             ref={previewCanvasRef}
                             className="w-full h-full"
-                            style={{ imageRendering: 'auto' }}
+                           style={{ imageRendering: 'auto' }}
                         />
                     </div>
 
@@ -667,4 +805,5 @@ export function CardCreator({ initialImage, initialTitle, initialSubtitle, initi
             )}
         </div>
     );
-}
+});
+CardCreator.displayName = 'CardCreator';

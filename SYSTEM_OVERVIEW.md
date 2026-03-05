@@ -172,6 +172,9 @@ sequenceDiagram
     API->>DB: Fulfill Product (Grant Credits/Membership/GiftCardBalance)
 ```
 
+**Internal Admin Assignments:**
+Admins can bypass Stripe entirely for manual point-of-sale or gifted transactions via the `POST /purchase` endpoint. Using the "Assign Product" flow on a student's profile, admins can directly grant active Memberships or Class Packs, which instantly provisions credits or subscription access without requiring a checkout session.
+
 ### 6. Advanced Payroll Generation
 The payroll engine supports both flat/hourly rates and percentage-of-revenue payouts.
 - **Gross vs Net**: Tenants can configure whether percentages are calculated on gross revenue or net (after estimated transaction fees).

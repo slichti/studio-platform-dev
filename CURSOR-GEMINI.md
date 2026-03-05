@@ -779,3 +779,15 @@ Full SDK migration from Expo 54 to 55:
 - **Schema & Integration**:
     - Leveraged existing CRM schemas to enable automated operational workflows (e.g., tagging a member on sign-up).
     - Hardened variable resolution to ensure dynamic data (e.g., member names) is populated correctly across all action types.
+
+### Session 19 — Commerce & Engagement Polish
+- **Class Pack Administration**:
+  - Implemented `PATCH /packs/:id` to allow editing of existing class pack definitions (Name, Credits, Pricing, Images).
+  - Wove editing UI seamlessly into the `ClassPacksPage` for studio owners to live-update pack thresholds safely.
+- **Point-of-Sale Internal Assignments**:
+  - Engineered `POST /purchase`, bypassing Stripe entirely for on-the-spot internal transactions or gifted/promotional access.
+  - Revamped the Student Profile "Assign" interface to utilize a dynamic radio toggle, supporting both "Class Packs" and "Memberships" point-of-sale assignments in a unified modal.
+- **Custom Card Creator Engine Overhaul**:
+  - Refactored the internal Canvas generator (`CardCreator.tsx`) to support automated multi-line algorithmic text wrapping instead of aggressive scaling.
+  - Exposed deeper creative controls for studio owners to position typography (Top, Middle, Bottom) and alignments (Left, Center, Right) across dynamic gradients.
+  - Eliminated manual workflow friction by using a React `forwardRef` to implicitly capture generated gradient Blob streams the moment a parent form submits (resolving bugs where users forgot to explicitly click "Apply Generated Card").

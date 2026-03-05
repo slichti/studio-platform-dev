@@ -1,14 +1,12 @@
-
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
-
 import { useLoaderData, useOutletContext, Form, useNavigation, Link } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { useAuth } from "@clerk/react-router";
-import { apiRequest } from "../utils/api";
+import { apiRequest } from "~/utils/api";
+import { Trash2, Edit, Plus, Sparkles, Image as ImageIcon, ChevronDown, ChevronUp, Package, Calendar, DollarSign } from "lucide-react";
 import { useState, useRef } from "react";
-import { Plus, Package, Calendar, DollarSign, Sparkles, ChevronDown, ChevronUp, Image as ImageIcon } from "lucide-react";
 import { format } from "date-fns";
-import { CardCreator } from "../components/CardCreator";
+import { CardCreator, type CardCreatorRef } from "~/components/CardCreator";
 
 type ClassPackDefinition = {
     id: string;
@@ -90,20 +88,29 @@ export default function ClassPacksPage() {
     const [showImageSection, setShowImageSection] = useState(false);
     const [imageUrl, setImageUrl] = useState('');
     const [imageBlob, setImageBlob] = useState<Blob | null>(null);
+    const [gradientData, setGradientData] = useState<any>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
     const formRef = useRef<HTMLFormElement>(null);
+    const cardCreatorRef = useRef<CardCreatorRef>(null);
 
     const isSubmitting = navigation.state === "submitting";
 
     const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        let finalBlob = imageBlob;
+
+        if (!finalBlob && gradientData && cardCreatorRef.current) {
+            const generated = await cardCreatorRef.current.exportGeneratedCard();
+            if (generated?.blob) finalBlob = generated.blob;
+        }
+
         // If we have an image blob, upload it first
-        if (imageBlob) {
+        if (finalBlob) {
             e.preventDefault();
             setUploadingImage(true);
             try {
                 const token = await getToken();
                 const uploadFormData = new FormData();
-                const file = new File([imageBlob], 'pack-card.jpg', { type: 'image/jpeg' });
+                const file = new File([finalBlob], 'pack-card.jpg', { type: 'image/jpeg' });
                 uploadFormData.append('file', file);
 
                 const apiUrl = import.meta.env.VITE_API_URL || 'https://studio-platform-api.slichti.workers.dev';
@@ -136,6 +143,7 @@ export default function ClassPacksPage() {
         setEditingPack(pack);
         setImageUrl(pack.imageUrl || '');
         setImageBlob(null);
+        setGradientData(null);
         setShowImageSection(!!pack.imageUrl);
         setIsCreating(false);
         // Ensure form scrolls into view
@@ -147,6 +155,7 @@ export default function ClassPacksPage() {
         setEditingPack(null);
         setImageUrl('');
         setImageBlob(null);
+        setGradientData(null);
         setShowImageSection(false);
     };
 
@@ -255,10 +264,12 @@ export default function ClassPacksPage() {
                                     {showImageSection && (
                                         <div className="p-4 border-t border-zinc-200 dark:border-zinc-700">
                                             <CardCreator
+                                                ref={cardCreatorRef}
                                                 initialImage={imageUrl || undefined}
                                                 onChange={(data: any) => {
                                                     if (data.image !== undefined) setImageBlob(data.image);
                                                     if (data.previewUrl) setImageUrl(data.previewUrl);
+                                                    setGradientData(data.gradient);
                                                 }}
                                             />
                                             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2">
