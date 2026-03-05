@@ -39,7 +39,7 @@ export function ClassDetailModal({
     const [recordingUrl, setRecordingUrl] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [confirmState, setConfirmState] = useState<{ type: 'delete_recording' | 'request_sub' | 'claim_sub' | 'restore', subId?: string } | null>(null);
+    const [confirmState, setConfirmState] = useState<{ type: 'delete_recording' | 'request_sub' | 'claim_sub' | 'restore' | 'cancel_class', subId?: string } | null>(null);
     const { getToken } = useAuth();
 
     // Enrollment policy editing
@@ -117,6 +117,28 @@ export function ClassDetailModal({
             onClose();
         } catch (err: any) {
             alert(err.message || 'Failed to restore class');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleCancelClass = () => {
+        setConfirmState({ type: 'cancel_class' });
+    };
+
+    const executeCancelClass = async () => {
+        setIsSubmitting(true);
+        try {
+            const token = await getToken();
+            const res: any = await apiRequest(`/classes/${classEvent.id}`, token, {
+                method: 'DELETE',
+                headers: { 'X-Tenant-Slug': tenantSlug! }
+            });
+            if (res.error) throw new Error(typeof res.error === 'string' ? res.error : JSON.stringify(res.error));
+            onClassUpdated?.();
+            onClose();
+        } catch (err: any) {
+            setError(err.message || 'Failed to cancel class');
         } finally {
             setIsSubmitting(false);
         }
@@ -327,6 +349,18 @@ export function ClassDetailModal({
                                                     </button>
                                                 )}
                                             </div>
+                                        )}
+
+                                        {/* Cancel Class Button for active classes */}
+                                        {isAdmin && !isCancelled && (
+                                            <button
+                                                onClick={handleCancelClass}
+                                                disabled={isSubmitting}
+                                                className="w-full flex items-center justify-center gap-2 bg-white text-red-700 border border-red-300 py-2 rounded-md text-sm font-medium hover:bg-red-50 disabled:opacity-50"
+                                            >
+                                                <Trash2 size={14} />
+                                                Cancel Class
+                                            </button>
                                         )}
 
                                         {/* Enrollment Policies */}
@@ -618,20 +652,23 @@ export function ClassDetailModal({
                     else if (confirmState?.type === 'request_sub') executeRequestSub();
                     else if (confirmState?.type === 'claim_sub') executeClaimSub();
                     else if (confirmState?.type === 'restore') executeRestoreClass();
+                    else if (confirmState?.type === 'cancel_class') executeCancelClass();
                 }}
                 title={
                     confirmState?.type === 'delete_recording' ? "Delete Recording" :
                         confirmState?.type === 'request_sub' ? "Request Substitute" :
-                            confirmState?.type === 'restore' ? "Restore Class" : "Claim Shift"
+                            confirmState?.type === 'restore' ? "Restore Class" :
+                                confirmState?.type === 'cancel_class' ? "Cancel Class" : "Claim Shift"
                 }
                 description={
                     confirmState?.type === 'delete_recording' ? "Are you sure you want to delete this recording? This cannot be undone." :
                         confirmState?.type === 'request_sub' ? "Are you sure you want to request a substitute? Instructors will be notified." :
                             confirmState?.type === 'restore' ? "Restore this class? All previously cancelled bookings will be re-confirmed and students will be able to attend." :
-                                "Are you sure you want to claim this shift?"
+                                confirmState?.type === 'cancel_class' ? "Cancel this class? All confirmed bookings will be cancelled and students will be notified." :
+                                    "Are you sure you want to claim this shift?"
                 }
-                confirmText={confirmState?.type === 'delete_recording' ? "Delete" : "Confirm"}
-                variant={confirmState?.type === 'delete_recording' ? "destructive" : "default"}
+                confirmText={confirmState?.type === 'cancel_class' ? "Cancel Class" : confirmState?.type === 'delete_recording' ? "Delete" : "Confirm"}
+                variant={confirmState?.type === 'delete_recording' || confirmState?.type === 'cancel_class' ? "destructive" : "default"}
             />
         </>
     );
