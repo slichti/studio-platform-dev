@@ -577,101 +577,113 @@ app.openapi(createRoute({
     const { id } = c.req.valid('param');
     const { recurrenceRule, recurrenceEnd } = c.req.valid('json');
 
-    const ex = await db.query.classes.findFirst({ where: and(eq(classes.id, id), eq(classes.tenantId, tid)) });
-    if (!ex) return c.json({ error: 'Not found' }, 404);
-    if (ex.seriesId) return c.json({ error: 'Class is already part of a series' }, 400);
-
-    // Parse RRule to generate occurrences
-    let occurrences: Date[];
     try {
-        const options = RRule.parseString(recurrenceRule);
-        options.dtstart = ex.startTime;
-        if (recurrenceEnd) options.until = new Date(recurrenceEnd);
-        const rule = new RRule(options);
-        occurrences = rule.all();
-    } catch (rruleErr: any) {
-        return c.json({ error: `Failed to parse recurrence rule: ${rruleErr.message}` }, 400);
+        const ex = await db.query.classes.findFirst({ where: and(eq(classes.id, id), eq(classes.tenantId, tid)) });
+        if (!ex) return c.json({ error: 'Not found' }, 404);
+        if (ex.seriesId) return c.json({ error: 'Class is already part of a series' }, 400);
+
+        // Ensure startTime is a proper Date
+        const startDate = ex.startTime instanceof Date ? ex.startTime : new Date(ex.startTime);
+        console.log('[MAKE-RECURRING] startDate:', startDate, 'recurrenceRule:', recurrenceRule, 'recurrenceEnd:', recurrenceEnd);
+
+        // Parse RRule to generate occurrences
+        let occurrences: Date[];
+        try {
+            const options = RRule.parseString(recurrenceRule);
+            options.dtstart = startDate;
+            if (recurrenceEnd) options.until = new Date(recurrenceEnd);
+            const rule = new RRule(options);
+            occurrences = rule.all();
+            console.log('[MAKE-RECURRING] Generated occurrences:', occurrences.length);
+        } catch (rruleErr: any) {
+            console.error('[MAKE-RECURRING] RRule parsing failed:', rruleErr);
+            return c.json({ error: `Failed to parse recurrence rule: ${rruleErr.message}` }, 400);
+        }
+
+        // Remove the first occurrence if it matches the existing class time (within 1 min)
+        occurrences = occurrences.filter(occ =>
+            Math.abs(occ.getTime() - startDate.getTime()) > 60000
+        );
+
+        if (occurrences.length === 0) {
+            return c.json({ error: 'Recurrence rule produced no additional dates.' }, 400);
+        }
+        if (occurrences.length > 365) {
+            return c.json({ error: `Too many occurrences (${occurrences.length + 1}). Limit to 365 or set a closer end date.` }, 400);
+        }
+
+        // Create the series record
+        const seriesId = crypto.randomUUID();
+        await db.insert(classSeries).values({
+            id: seriesId,
+            tenantId: tid,
+            instructorId: ex.instructorId || null,
+            locationId: ex.locationId || null,
+            title: ex.title,
+            description: ex.description || null,
+            durationMinutes: ex.durationMinutes,
+            price: ex.price || 0,
+            recurrenceRule,
+            validFrom: startDate,
+            validUntil: recurrenceEnd ? new Date(recurrenceEnd) : null,
+            thumbnailUrl: ex.thumbnailUrl || null,
+            gradientPreset: ex.gradientPreset || null,
+            gradientColor1: ex.gradientColor1 || null,
+            gradientColor2: ex.gradientColor2 || null,
+            gradientDirection: ex.gradientDirection ?? null,
+            createdAt: new Date()
+        }).run();
+
+        // Link the original class
+        await db.update(classes).set({ seriesId }).where(eq(classes.id, id)).run();
+
+        // Generate future instances
+        const classData = occurrences.map(occ => ({
+            id: crypto.randomUUID(),
+            tenantId: tid,
+            instructorId: ex.instructorId || null,
+            locationId: ex.locationId || null,
+            seriesId,
+            title: ex.title,
+            description: ex.description || null,
+            startTime: occ,
+            durationMinutes: ex.durationMinutes,
+            capacity: ex.capacity ?? null,
+            price: ex.price || 0,
+            memberPrice: ex.memberPrice ?? null,
+            type: (ex.type || 'class') as any,
+            minStudents: ex.minStudents || 1,
+            autoCancelThreshold: ex.autoCancelThreshold ?? null,
+            autoCancelEnabled: !!ex.autoCancelEnabled,
+            allowCredits: ex.allowCredits !== false,
+            includedPlanIds: ex.includedPlanIds || [],
+            zoomEnabled: !!ex.zoomEnabled,
+            status: 'active' as const,
+            payrollModel: ex.payrollModel || null,
+            payrollValue: ex.payrollValue ?? null,
+            isCourse: !!ex.isCourse,
+            recordingPrice: ex.recordingPrice ?? null,
+            contentCollectionId: ex.contentCollectionId || null,
+            courseId: ex.courseId || null,
+            thumbnailUrl: ex.thumbnailUrl || null,
+            gradientPreset: ex.gradientPreset || null,
+            gradientColor1: ex.gradientColor1 || null,
+            gradientColor2: ex.gradientColor2 || null,
+            gradientDirection: ex.gradientDirection ?? null,
+            createdAt: new Date()
+        }));
+
+        // Batch insert (D1 limit ~50 rows per statement)
+        for (let i = 0; i < classData.length; i += 50) {
+            await db.insert(classes).values(classData.slice(i, i + 50)).run();
+        }
+
+        console.log('[MAKE-RECURRING] Created series', seriesId, 'with', classData.length, 'classes');
+        return c.json({ success: true, seriesId, created: classData.length });
+    } catch (err: any) {
+        console.error('[MAKE-RECURRING] Unhandled error:', err);
+        return c.json({ error: err.message || 'Internal server error creating recurring series' }, 500);
     }
-
-    // Remove the first occurrence if it matches the existing class time (within 1 min)
-    occurrences = occurrences.filter(occ =>
-        Math.abs(occ.getTime() - ex.startTime.getTime()) > 60000
-    );
-
-    if (occurrences.length === 0) {
-        return c.json({ error: 'Recurrence rule produced no additional dates.' }, 400);
-    }
-    if (occurrences.length > 365) {
-        return c.json({ error: `Too many occurrences (${occurrences.length + 1}). Limit to 365 or set a closer end date.` }, 400);
-    }
-
-    // Create the series record
-    const seriesId = crypto.randomUUID();
-    await db.insert(classSeries).values({
-        id: seriesId,
-        tenantId: tid,
-        instructorId: ex.instructorId || null,
-        locationId: ex.locationId || null,
-        title: ex.title,
-        description: ex.description,
-        durationMinutes: ex.durationMinutes,
-        price: ex.price || 0,
-        recurrenceRule,
-        validFrom: ex.startTime,
-        validUntil: recurrenceEnd ? new Date(recurrenceEnd) : null,
-        thumbnailUrl: ex.thumbnailUrl || null,
-        gradientPreset: ex.gradientPreset,
-        gradientColor1: ex.gradientColor1,
-        gradientColor2: ex.gradientColor2,
-        gradientDirection: ex.gradientDirection,
-        createdAt: new Date()
-    }).run();
-
-    // Link the original class
-    await db.update(classes).set({ seriesId }).where(eq(classes.id, id)).run();
-
-    // Generate future instances
-    const classData = occurrences.map(occ => ({
-        id: crypto.randomUUID(),
-        tenantId: tid,
-        instructorId: ex.instructorId || null,
-        locationId: ex.locationId || null,
-        seriesId,
-        title: ex.title,
-        description: ex.description,
-        startTime: occ,
-        durationMinutes: ex.durationMinutes,
-        capacity: ex.capacity,
-        price: ex.price || 0,
-        memberPrice: ex.memberPrice || null,
-        type: ex.type as any,
-        minStudents: ex.minStudents || 1,
-        autoCancelThreshold: ex.autoCancelThreshold || null,
-        autoCancelEnabled: !!ex.autoCancelEnabled,
-        allowCredits: ex.allowCredits !== false,
-        includedPlanIds: ex.includedPlanIds || [],
-        zoomEnabled: !!ex.zoomEnabled,
-        status: 'active' as const,
-        payrollModel: ex.payrollModel || null,
-        payrollValue: ex.payrollValue || null,
-        isCourse: !!ex.isCourse,
-        recordingPrice: ex.recordingPrice || null,
-        contentCollectionId: ex.contentCollectionId || null,
-        courseId: ex.courseId || null,
-        thumbnailUrl: ex.thumbnailUrl || null,
-        gradientPreset: ex.gradientPreset,
-        gradientColor1: ex.gradientColor1,
-        gradientColor2: ex.gradientColor2,
-        gradientDirection: ex.gradientDirection,
-        createdAt: new Date()
-    }));
-
-    // Batch insert (D1 limit)
-    for (let i = 0; i < classData.length; i += 50) {
-        await db.insert(classes).values(classData.slice(i, i + 50)).run();
-    }
-
-    return c.json({ success: true, seriesId, created: classData.length });
 });
 
 // POST /:id/remove-recurrence — Detach a class from its series
