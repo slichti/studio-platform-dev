@@ -133,12 +133,19 @@ export function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDat
                                 key={day.toISOString()}
                                 className="relative border-r border-zinc-100 dark:border-zinc-800 min-w-[120px]"
                                 role="gridcell"
-                                onClick={() => onSelectSlot({ start: day })} // Simplified slot selection (whole day/column focus)
                             >
-                                {/* Time Grid Lines */}
-                                {timeSlots.map(hour => (
-                                    <div key={hour} className="h-20 border-b border-zinc-50 dark:border-zinc-800/50 pointer-events-none" />
-                                ))}
+                                {/* Time Grid Lines - clickable */}
+                                {timeSlots.map(hour => {
+                                    const slotDate = new Date(day);
+                                    slotDate.setHours(hour, 0, 0, 0);
+                                    return (
+                                        <div
+                                            key={hour}
+                                            className="h-20 border-b border-zinc-50 dark:border-zinc-800/50 cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors"
+                                            onClick={() => onSelectSlot({ start: slotDate })}
+                                        />
+                                    );
+                                })}
 
                                 {/* Events */}
                                 {dayEvents.map(event => {

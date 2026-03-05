@@ -87,9 +87,12 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
         setIsEditOpen(false);
     };
 
+    const [slotStartTime, setSlotStartTime] = useState<Date | null>(null);
+
     const handleSelectSlot = useCallback(
         ({ start }: { start: Date }) => {
             if (canSchedule) {
+                setSlotStartTime(start);
                 setIsCreateOpen(true);
             }
         },
@@ -227,13 +230,14 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
 
             <CreateClassModal
                 isOpen={isCreateOpen}
-                onClose={() => setIsCreateOpen(false)}
+                onClose={() => { setIsCreateOpen(false); setSlotStartTime(null); }}
                 onSuccess={handleCreateSuccess}
                 tenantId={tenant?.id}
                 locations={locations}
                 instructors={instructors}
                 courses={coursesData}
                 plans={plansData}
+                initialStartTime={slotStartTime}
             />
 
             <ClassDetailModal

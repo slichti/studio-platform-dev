@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Modal } from "./Modal";
 import { apiRequest } from "../utils/api";
 import { useAuth } from "@clerk/react-router";
@@ -17,9 +17,10 @@ interface CreateClassModalProps {
     instructors?: any[];
     plans?: any[];
     courses?: any[];
+    initialStartTime?: Date | null;
 }
 
-export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], instructors = [], plans = [], courses = [] }: CreateClassModalProps) {
+export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], instructors = [], plans = [], courses = [], initialStartTime }: CreateClassModalProps) {
     const { getToken } = useAuth();
     const { slug } = useParams();
     const [loading, setLoading] = useState(false);
@@ -62,6 +63,13 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
     const [showImageSection, setShowImageSection] = useState(false);
     const [imageBlob, setImageBlob] = useState<Blob | null>(null);
     const [imagePreview, setImagePreview] = useState<string>('');
+
+    // Pre-fill startTime when opened from a calendar slot click
+    useEffect(() => {
+        if (isOpen && initialStartTime) {
+            setFormData(prev => ({ ...prev, startTime: initialStartTime.toISOString() }));
+        }
+    }, [isOpen, initialStartTime]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
