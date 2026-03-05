@@ -393,4 +393,29 @@ app.openapi(createRoute({
     return c.json({ success: true, memberId });
 });
 
+// PATCH /:id/calendar-settings
+app.openapi(createRoute({
+    method: 'patch',
+    path: '/{id}/calendar-settings',
+    tags: ['Studios'],
+    summary: 'Update calendar display settings',
+    request: {
+        params: z.object({ id: z.string() }),
+        body: { content: { 'application/json': { schema: z.object({ calendarStartHour: z.number().int().min(0).max(23), calendarEndHour: z.number().int().min(1).max(24) }) } } }
+    },
+    responses: {
+        200: { content: { 'application/json': { schema: z.object({ success: z.boolean() }) } }, description: 'Updated' },
+        403: { description: 'Forbidden' }
+    }
+}), async (c) => {
+    if (!c.get('can')('manage_tenant')) return c.json({ error: 'Forbidden' } as any, 403);
+    const db = createDb(c.env.DB);
+    const id = c.req.valid('param').id;
+    const { calendarStartHour, calendarEndHour } = c.req.valid('json');
+    const t = await db.select().from(tenants).where(eq(tenants.id, id)).get();
+    if (!t) return c.json({ error: 'Not found' } as any, 404);
+    await db.update(tenants).set({ settings: { ...(t.settings as any || {}), calendarStartHour, calendarEndHour } }).where(eq(tenants.id, id)).run();
+    return c.json({ success: true });
+});
+
 export default app;

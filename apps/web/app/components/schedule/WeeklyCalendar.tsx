@@ -16,9 +16,11 @@ interface WeeklyCalendarProps {
     onSelectEvent: (event: any) => void;
     onSelectSlot: (slot: { start: Date }) => void;
     defaultDate?: Date;
+    startHour?: number; // 0-23, default 5 (5 AM)
+    endHour?: number;   // 1-24, default 24 (midnight)
 }
 
-export function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDate = new Date() }: WeeklyCalendarProps) {
+export function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDate = new Date(), startHour = 5, endHour = 24 }: WeeklyCalendarProps) {
     const [currentDate, setCurrentDate] = useState(defaultDate);
 
     // Auto-advance to the week of the next upcoming event if the current week
@@ -43,7 +45,8 @@ export function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDat
     const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 }); // Sunday start
     const weekDays = Array.from({ length: 7 }).map((_, i) => addDays(weekStart, i));
 
-    const timeSlots = Array.from({ length: 18 }).map((_, i) => i + 5); // 5 AM to 10 PM
+    const slotCount = endHour - startHour;
+    const timeSlots = Array.from({ length: slotCount }).map((_, i) => i + startHour);
 
     const navigate = (direction: 'prev' | 'next' | 'today') => {
         if (direction === 'today') setCurrentDate(new Date());
@@ -115,7 +118,7 @@ export function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDat
                     <div className="w-16 flex-shrink-0 border-r border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50" role="rowheader">
                         {timeSlots.map(hour => (
                             <div key={hour} className="h-20 border-b border-zinc-100 dark:border-zinc-800 text-xs text-zinc-400 p-1 text-right pr-2 sticky left-0">
-                                {hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}
+                                {hour === 0 || hour === 24 ? '12 AM' : hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}
                             </div>
                         ))}
                     </div>
@@ -140,16 +143,14 @@ export function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDat
                                 {/* Events */}
                                 {dayEvents.map(event => {
                                     // Calculate position
-                                    const startHour = event.start.getHours();
+                                    const evStartHour = event.start.getHours();
                                     const startMin = event.start.getMinutes();
-                                    const endHour = event.end.getHours();
-                                    const endMin = event.end.getMinutes();
 
-                                    const startOffset = (startHour - 5) * 80 + (startMin / 60) * 80; // 80px per hour, base at 5 AM
+                                    const startOffset = (evStartHour - startHour) * 80 + (startMin / 60) * 80; // 80px per hour
                                     const durationMins = (event.end.getTime() - event.start.getTime()) / 60000;
                                     const height = (durationMins / 60) * 80;
 
-                                    if (startHour < 5) return null; // Skip very early events
+                                    if (evStartHour < startHour) return null; // Skip events before calendar start
 
                                     const gradient = event.resource?.gradientColor1 && event.resource?.gradientColor2
                                         ? `linear-gradient(${event.resource.gradientDirection || 135}deg, ${event.resource.gradientColor1}, ${event.resource.gradientColor2})`
