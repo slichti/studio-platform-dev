@@ -16,6 +16,8 @@ type ClassPackDefinition = {
     credits: number;
     price: number; // in cents
     expirationDays: number | null;
+    imageUrl?: string | null;
+    vodEnabled?: boolean | null;
     active: boolean;
 };
 
@@ -41,7 +43,7 @@ export const action = async (args: ActionFunctionArgs) => {
     const formData = await request.formData();
     const intent = formData.get("intent");
 
-    if (intent === "create_pack") {
+    if (intent === "create_pack" || intent === "edit_pack") {
         const name = formData.get("name") as string;
         const credits = parseInt(formData.get("credits") as string);
         const price = parseFloat(formData.get("price") as string) * 100; // Convert to cents
@@ -49,13 +51,24 @@ export const action = async (args: ActionFunctionArgs) => {
         const imageUrl = formData.get("imageUrl") as string;
         const vodEnabled = formData.get("vodEnabled") === "on";
 
-        const res: any = await apiRequest(`/commerce/packs`, token, {
-            method: "POST",
-            headers: { 'X-Tenant-Slug': params.slug! },
-            body: JSON.stringify({ name, credits, price, expirationDays, imageUrl, vodEnabled })
-        });
+        if (intent === "create_pack") {
+            const res: any = await apiRequest(`/commerce/packs`, token, {
+                method: "POST",
+                headers: { 'X-Tenant-Slug': params.slug! },
+                body: JSON.stringify({ name, credits, price, expirationDays, imageUrl, vodEnabled })
+            });
+            if (res.error) return { error: res.error };
+        } else if (intent === "edit_pack") {
+            const packId = formData.get("packId") as string;
+            if (!packId) return { error: "Missing pack ID" };
+            const res: any = await apiRequest(`/commerce/packs/${packId}`, token, {
+                method: "PATCH",
+                headers: { 'X-Tenant-Slug': params.slug! },
+                body: JSON.stringify({ name, credits, price, expirationDays, imageUrl, vodEnabled })
+            });
+            if (res.error) return { error: res.error };
+        }
 
-        if (res.error) return { error: res.error };
         return { success: true };
     }
 
@@ -67,7 +80,13 @@ export default function ClassPacksPage() {
     const { me, roles } = useOutletContext<any>() || {}; // Fallback for safety
     const { getToken } = useAuth();
     const navigation = useNavigation();
+
+    // Create state
     const [isCreating, setIsCreating] = useState(false);
+
+    // Edit state
+    const [editingPack, setEditingPack] = useState<ClassPackDefinition | null>(null);
+
     const [showImageSection, setShowImageSection] = useState(false);
     const [imageUrl, setImageUrl] = useState('');
     const [imageBlob, setImageBlob] = useState<Blob | null>(null);
@@ -113,6 +132,26 @@ export default function ClassPacksPage() {
         }
     };
 
+    const handleEditClick = (pack: ClassPackDefinition) => {
+        setEditingPack(pack);
+        setImageUrl(pack.imageUrl || '');
+        setImageBlob(null);
+        setShowImageSection(!!pack.imageUrl);
+        setIsCreating(false);
+        // Ensure form scrolls into view
+        setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50);
+    };
+
+    const cancelEditCreate = () => {
+        setIsCreating(false);
+        setEditingPack(null);
+        setImageUrl('');
+        setImageBlob(null);
+        setShowImageSection(false);
+    };
+
+    const isFormOpen = isCreating || editingPack !== null;
+
     return (
         <div className="max-w-5xl mx-auto py-8">
             <div className="flex items-center justify-between mb-8">
@@ -130,7 +169,7 @@ export default function ClassPacksPage() {
                             Pricing Wizard
                         </Link>
                         <button
-                            onClick={() => setIsCreating(!isCreating)}
+                            onClick={() => { cancelEditCreate(); setIsCreating(true); }}
                             className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 rounded-md text-sm font-medium hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors"
                         >
                             <Plus className="h-4 w-4" />
@@ -140,11 +179,14 @@ export default function ClassPacksPage() {
                 )}
             </div>
 
-            {isCreating && (
+            {isFormOpen && (
                 <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 mb-8 shadow-sm">
-                    <h2 className="text-lg font-semibold mb-4 text-zinc-900 dark:text-zinc-100">New Class Pack</h2>
+                    <h2 className="text-lg font-semibold mb-4 text-zinc-900 dark:text-zinc-100">
+                        {editingPack ? "Edit Class Pack" : "New Class Pack"}
+                    </h2>
                     <Form method="post" onSubmit={handleFormSubmit} ref={formRef}>
-                        <input type="hidden" name="intent" value="create_pack" />
+                        <input type="hidden" name="intent" value={editingPack ? "edit_pack" : "create_pack"} />
+                        {editingPack && <input type="hidden" name="packId" value={editingPack.id} />}
                         <input type="hidden" name="imageUrl" value={imageUrl} />
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                             <div>
@@ -153,6 +195,7 @@ export default function ClassPacksPage() {
                                     type="text"
                                     name="name"
                                     required
+                                    defaultValue={editingPack?.name || ''}
                                     placeholder="e.g. 10 Class Pass"
                                     className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                                 />
@@ -164,6 +207,7 @@ export default function ClassPacksPage() {
                                     name="credits"
                                     required
                                     min="1"
+                                    defaultValue={editingPack?.credits || ''}
                                     placeholder="Number of classes"
                                     className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                                 />
@@ -176,6 +220,7 @@ export default function ClassPacksPage() {
                                     required
                                     min="0"
                                     step="0.01"
+                                    defaultValue={editingPack ? (editingPack.price / 100).toFixed(2) : ''}
                                     placeholder="0.00"
                                     className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                                 />
@@ -185,6 +230,7 @@ export default function ClassPacksPage() {
                                 <input
                                     type="number"
                                     name="expirationDays"
+                                    defaultValue={editingPack?.expirationDays || ''}
                                     placeholder="Optional (e.g. 90)"
                                     className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                                 />
@@ -229,6 +275,7 @@ export default function ClassPacksPage() {
                                 type="checkbox"
                                 name="vodEnabled"
                                 id="vodEnabled"
+                                defaultChecked={editingPack ? !!editingPack.vodEnabled : false}
                                 className="rounded border-zinc-300 dark:border-zinc-700 text-blue-600 focus:ring-blue-500"
                             />
                             <label htmlFor="vodEnabled" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Include VOD Access</label>
@@ -238,7 +285,7 @@ export default function ClassPacksPage() {
                         <div className="flex justify-end gap-3">
                             <button
                                 type="button"
-                                onClick={() => setIsCreating(false)}
+                                onClick={cancelEditCreate}
                                 className="px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-colors"
                             >
                                 Cancel
@@ -248,7 +295,7 @@ export default function ClassPacksPage() {
                                 disabled={isSubmitting || uploadingImage}
                                 className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
                             >
-                                {uploadingImage ? "Uploading Image..." : isSubmitting ? "Creating..." : "Create Pack"}
+                                {uploadingImage ? "Uploading Image..." : isSubmitting ? "Saving..." : (editingPack ? "Save Changes" : "Create Pack")}
                             </button>
                         </div>
                     </Form>
@@ -262,9 +309,19 @@ export default function ClassPacksPage() {
                             <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
                                 <Package className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                             </div>
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-400">
-                                Active
-                            </span>
+                            <div className="flex items-center gap-2">
+                                {(roles?.includes('owner') || roles?.includes('instructor')) && (
+                                    <button
+                                        onClick={() => handleEditClick(pack)}
+                                        className="text-xs font-medium text-blue-600 hover:text-blue-800 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+                                    >
+                                        Edit
+                                    </button>
+                                )}
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-400">
+                                    Active
+                                </span>
+                            </div>
                         </div>
                         <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">{pack.name}</h3>
                         <div className="space-y-3 mb-6">
@@ -323,6 +380,6 @@ export default function ClassPacksPage() {
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 }

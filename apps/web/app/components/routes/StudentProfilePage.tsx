@@ -71,8 +71,21 @@ export default function StudentProfilePageComponent() {
         enabled: !!slug && !!memberId
     });
 
+    const { data: availablePlans } = useQuery({
+        queryKey: ['plans', slug],
+        queryFn: async () => {
+            const token = await getToken();
+            return apiRequest<any[]>(`/commerce/plans`, token, {
+                headers: { 'X-Tenant-Slug': slug! }
+            });
+        },
+        enabled: !!slug
+    });
+
     const [activeTab, setActiveTab] = useState("overview");
     const [isAssigningPack, setIsAssigningPack] = useState(false);
+    const [assignProductType, setAssignProductType] = useState<'pack' | 'membership'>('pack');
+    const [selectedProductId, setSelectedProductId] = useState("");
     const [isEditingProfile, setIsEditingProfile] = useState(false);
     const [showActions, setShowActions] = useState(false);
     const [isSendingEmail, setIsSendingEmail] = useState(false);
@@ -81,7 +94,6 @@ export default function StudentProfilePageComponent() {
     const [newNote, setNewNote] = useState("");
     const [emailSubject, setEmailSubject] = useState("");
     const [emailBody, setEmailBody] = useState("");
-    const [selectedPackId, setSelectedPackId] = useState("");
     const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
     const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
     const [editNoteText, setEditNoteText] = useState("");
@@ -159,13 +171,13 @@ export default function StudentProfilePageComponent() {
         onError: (e: any) => toast.error(e.message)
     });
 
-    const assignPackMutation = useMutation({
-        mutationFn: async (packId: string) => {
+    const assignProductMutation = useMutation({
+        mutationFn: async ({ productId, type }: { productId: string, type: 'pack' | 'membership' }) => {
             const token = await getToken();
             const res = await apiRequest(`/commerce/purchase`, token, {
                 method: "POST",
                 headers: { 'X-Tenant-Slug': slug! },
-                body: JSON.stringify({ memberId, packId })
+                body: JSON.stringify({ memberId, productId, type })
             });
             if ((res as any).error) throw new Error((res as any).error);
             return res;
@@ -173,7 +185,7 @@ export default function StudentProfilePageComponent() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['member', slug, memberId] });
             setIsAssigningPack(false);
-            toast.success("Pack assigned");
+            toast.success("Product assigned successfully");
         },
         onError: (e: any) => toast.error(e.message)
     });
@@ -467,26 +479,62 @@ export default function StudentProfilePageComponent() {
                             </div>
 
                             {isAssigningPack && (
-                                <Card className="bg-zinc-50 dark:bg-zinc-800/50">
+                                <Card className="bg-zinc-50 dark:bg-zinc-800/50 mb-6 border-blue-100 dark:border-blue-900/50">
                                     <CardContent className="pt-6">
-                                        <h4 className="font-semibold text-sm mb-3">Assign Class Pack (Internal / POS)</h4>
+                                        <div className="flex justify-between items-center mb-4">
+                                            <h4 className="font-semibold text-sm text-blue-900 dark:text-blue-100">Assign Product (Internal / POS)</h4>
+                                            <Button variant="ghost" size="sm" onClick={() => setIsAssigningPack(false)} className="h-6 w-6 p-0 text-zinc-500 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-700">
+                                                <X className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+
+                                        <div className="flex gap-4 mb-4">
+                                            <Button
+                                                variant={assignProductType === 'pack' ? 'default' : 'outline'}
+                                                size="sm"
+                                                className="flex-1"
+                                                onClick={() => { setAssignProductType('pack'); setSelectedProductId(''); }}
+                                            >
+                                                Class Pack
+                                            </Button>
+                                            <Button
+                                                variant={assignProductType === 'membership' ? 'default' : 'outline'}
+                                                size="sm"
+                                                className="flex-1"
+                                                onClick={() => { setAssignProductType('membership'); setSelectedProductId(''); }}
+                                            >
+                                                Membership
+                                            </Button>
+                                        </div>
+
                                         <div className="flex gap-4 items-end">
                                             <div className="flex-1">
-                                                <label className="block text-xs font-medium text-zinc-500 mb-1">Select Pack</label>
-                                                <Select value={selectedPackId} onChange={(e) => setSelectedPackId(e.target.value)}>
-                                                    <option value="">Select a pack...</option>
-                                                    {(availablePacks || []).map((p: any) => (
+                                                <label className="block text-xs font-medium text-zinc-500 mb-1">
+                                                    Select {assignProductType === 'pack' ? 'Class Pack' : 'Membership Plan'}
+                                                </label>
+                                                <Select value={selectedProductId} onChange={(e) => setSelectedProductId(e.target.value)}>
+                                                    <option value="">Select a {assignProductType}...</option>
+                                                    {assignProductType === 'pack' && (availablePacks || []).map((p: any) => (
                                                         <option key={p.id} value={p.id}>{p.name} ({p.credits} credits) - ${(p.price / 100).toFixed(2)}</option>
+                                                    ))}
+                                                    {assignProductType === 'membership' && (availablePlans || []).map((p: any) => (
+                                                        <option key={p.id} value={p.id}>{p.name} - ${(p.price / 100).toFixed(2)}/{p.interval}</option>
                                                     ))}
                                                 </Select>
                                             </div>
                                             <Button
-                                                onClick={() => { if (selectedPackId) assignPackMutation.mutate(selectedPackId) }}
-                                                disabled={!selectedPackId || assignPackMutation.isPending}
+                                                onClick={() => { if (selectedProductId) assignProductMutation.mutate({ productId: selectedProductId, type: assignProductType }) }}
+                                                disabled={!selectedProductId || assignProductMutation.isPending}
                                             >
-                                                {assignPackMutation.isPending ? 'Charging...' : 'Assign & Charge'}
+                                                {assignProductMutation.isPending ? 'Assigning...' : 'Assign & Grant Access'}
                                             </Button>
                                         </div>
+                                        <p className="text-xs text-zinc-500 mt-3 flex items-start gap-1">
+                                            <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                                            <span>
+                                                This assigns the product manually and bypasses Stripe checkout. Use this when the student has paid via an external POS system, cash, or if this is a complimentary gift.
+                                            </span>
+                                        </p>
                                     </CardContent>
                                 </Card>
                             )}

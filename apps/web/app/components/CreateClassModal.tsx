@@ -415,7 +415,7 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                                         setFormData({ ...formData, durationMinutes: hrs * 60 + mins });
                                     }}
                                 >
-                                    {[0, 15, 30, 45].map(m => (
+                                    {[0, 5, 10, 15, 20, 30, 45, 50].map(m => (
                                         <option key={m} value={m}>{m} min</option>
                                     ))}
                                 </select>

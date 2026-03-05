@@ -270,6 +270,94 @@ app.post('/packs', async (c) => {
     return c.json({ success: true, id });
 });
 
+// PATCH /packs/:id - Edit
+app.patch('/packs/:id', async (c) => {
+    if (!c.get('can')('manage_commerce')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
+
+    const packId = c.req.param('id');
+    const { name, credits, price, expirationDays, imageUrl, vodEnabled } = await c.req.json();
+
+    // We only allow active packs to be edited here usually
+    const pack = await db.select().from(classPackDefinitions)
+        .where(and(eq(classPackDefinitions.id, packId), eq(classPackDefinitions.tenantId, tenant.id)))
+        .get();
+
+    if (!pack) return c.json({ error: "Pack not found" }, 404);
+
+    await db.update(classPackDefinitions).set({
+        name: name || pack.name,
+        credits: credits ? parseInt(credits) : pack.credits,
+        price: price !== undefined ? parseInt(price) : pack.price,
+        expirationDays: expirationDays !== undefined ? (expirationDays ? parseInt(expirationDays) : null) : pack.expirationDays,
+        imageUrl: imageUrl !== undefined ? imageUrl : pack.imageUrl,
+        vodEnabled: vodEnabled !== undefined ? !!vodEnabled : pack.vodEnabled
+    }).where(eq(classPackDefinitions.id, packId)).run();
+
+    return c.json({ success: true });
+});
+
+// POST /purchase - Manual Assignment (Internal / admin only)
+app.post('/purchase', async (c) => {
+    if (!c.get('can')('manage_commerce') && !c.get('can')('manage_members')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
+
+    // Provide auth user context for fulfillment logs if needed
+    const authUser = c.get('auth');
+
+    const body = await c.req.json();
+    const { memberId, productId, type } = body;
+
+    if (!memberId || !productId || !type) {
+        return c.json({ error: "Missing required fields" }, 400);
+    }
+
+    const member = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.id, memberId), eq(tenantMembers.tenantId, tenant.id))
+    });
+
+    if (!member) {
+        return c.json({ error: "Member not found" }, 404);
+    }
+
+    const { FulfillmentService } = await import('../services/fulfillment');
+    const fulfillment = new FulfillmentService(db, c.env.RESEND_API_KEY, c.env);
+    const mockPaymentId = `manual_${crypto.randomUUID()}`;
+
+    try {
+        if (type === 'pack') {
+            await fulfillment.fulfillPackPurchase(
+                { packId: productId, tenantId: tenant.id, memberId: memberId, userId: member.userId },
+                mockPaymentId,
+                0 // manual assignments are 0 price logged usually or handled externally
+            );
+        } else if (type === 'membership') {
+            // fulfillMembershipPurchase expects a stripe subscription ID usually, but we bypass stripe for manual
+            // So we can pass a mock sub ID
+            await fulfillment.fulfillMembershipPurchase(
+                { type: 'membership_purchase', planId: productId, tenantId: tenant.id, userId: member.userId },
+                mockPaymentId,
+                'manual_customer'
+            );
+        } else {
+            return c.json({ error: "Invalid product type" }, 400);
+        }
+
+        return c.json({ success: true });
+    } catch (e: any) {
+        console.error("Manual fulfillment error", e);
+        return c.json({ error: e.message || "Failed to assign product" }, 500);
+    }
+});
+
 // POST /products/bulk - Bulk Create (Wizard); idempotent: skips items that already exist (same name + type)
 app.post('/products/bulk', async (c) => {
     if (!c.get('can')('manage_commerce')) {
