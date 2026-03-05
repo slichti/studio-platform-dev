@@ -113,10 +113,10 @@ export function ClassDetailModal({
                 headers: { 'X-Tenant-Slug': tenantSlug! }
             });
             if (res.error) throw new Error(typeof res.error === 'string' ? res.error : JSON.stringify(res.error));
+            // Let the schedule page sync effect handle the UI update
             onClassUpdated?.();
-            onClose();
         } catch (err: any) {
-            alert(err.message || 'Failed to restore class');
+            setError(err.message || 'Failed to restore class');
         } finally {
             setIsSubmitting(false);
         }
@@ -135,8 +135,8 @@ export function ClassDetailModal({
                 headers: { 'X-Tenant-Slug': tenantSlug! }
             });
             if (res.error) throw new Error(typeof res.error === 'string' ? res.error : JSON.stringify(res.error));
+            // Let the schedule page sync effect close the modal when class is filtered out
             onClassUpdated?.();
-            onClose();
         } catch (err: any) {
             setError(err.message || 'Failed to cancel class');
         } finally {

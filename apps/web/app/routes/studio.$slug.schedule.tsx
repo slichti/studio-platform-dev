@@ -49,20 +49,27 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
     const [selectedClass, setSelectedClass] = useState<any>(null);
 
     // Derived State
-    const events = useMemo(() => classesData.map((c: any) => ({
-        id: c.id,
-        title: c.title,
-        start: new Date(c.startTime),
-        end: new Date(new Date(c.startTime).getTime() + c.durationMinutes * 60000),
-        resource: c
-    })), [classesData]);
+    const events = useMemo(() => classesData
+        .filter((c: any) => c.status !== 'cancelled')
+        .map((c: any) => ({
+            id: c.id,
+            title: c.title,
+            start: new Date(c.startTime),
+            end: new Date(new Date(c.startTime).getTime() + c.durationMinutes * 60000),
+            resource: c
+        })), [classesData]);
 
     // Keep selectedClass in sync with classesData updates (e.g. after booking)
     useEffect(() => {
         if (selectedClass) {
             const updated = classesData.find((c: any) => c.id === selectedClass.id);
-            if (updated && JSON.stringify(updated) !== JSON.stringify(selectedClass)) {
-                setSelectedClass(updated);
+            if (updated) {
+                if (JSON.stringify(updated) !== JSON.stringify(selectedClass)) {
+                    setSelectedClass(updated);
+                }
+            } else {
+                // Class was removed or no longer in data — close detail modal
+                setIsDetailOpen(false);
             }
         }
     }, [classesData]);
