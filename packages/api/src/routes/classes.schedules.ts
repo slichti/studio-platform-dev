@@ -42,6 +42,7 @@ const ClassSchema = z.object({
     contentCollectionId: z.string().nullable().optional(),
     courseId: z.string().nullable().optional(),
     thumbnailUrl: z.string().nullable().optional(),
+    seriesId: z.string().nullable().optional(),
 
     // Enrollment and Access Rules
     minStudents: z.number().nullable().optional(),
@@ -455,9 +456,10 @@ app.openapi(createRoute({
     method: 'patch',
     path: '/{id}',
     tags: ['Classes'],
-    summary: 'Update class',
+    summary: 'Update class (supports scope for series editing)',
     request: {
         params: z.object({ id: z.string() }),
+        query: z.object({ scope: z.enum(['single', 'future', 'all']).default('single').optional() }),
         body: { content: { 'application/json': { schema: UpdateClassSchema } } }
     },
     responses: {
@@ -471,13 +473,13 @@ app.openapi(createRoute({
     const tid = c.get('tenant').id;
     const { id } = c.req.valid('param');
     const body = c.req.valid('json');
+    const scope = c.req.query('scope') || 'single';
 
     const ex = await db.query.classes.findFirst({ where: and(eq(classes.id, id), eq(classes.tenantId, tid)) });
     if (!ex) return c.json({ error: "Not found" }, 404);
 
     const up: any = {};
     const keys = ['title', 'description', 'startTime', 'durationMinutes', 'capacity', 'price', 'memberPrice', 'allowCredits', 'includedPlanIds', 'zoomEnabled', 'status', 'instructorId', 'locationId', 'payrollModel', 'payrollValue', 'isCourse', 'recordingPrice', 'contentCollectionId', 'courseId', 'gradientPreset', 'gradientColor1', 'gradientColor2', 'gradientDirection', 'thumbnailUrl', 'autoCancelEnabled', 'autoCancelThreshold', 'minStudents', 'type'];
-    // Manual mapping or loop, but since we parsed Validated JSON, we can trust keys
     Object.keys(body).forEach(k => {
         if (keys.includes(k)) {
             // @ts-ignore
@@ -485,15 +487,266 @@ app.openapi(createRoute({
         }
     });
 
-    if (up.startTime || up.durationMinutes || up.instructorId || up.locationId) {
-        const cs = new ConflictService(db);
-        if ((up.instructorId || ex.instructorId) && (await cs.checkInstructorConflict(up.instructorId || ex.instructorId!, up.startTime || ex.startTime, up.durationMinutes || ex.durationMinutes, id)).length) return c.json({ error: "Conflict" }, 409);
-        // Note: Missing room conflict check in patch? Adding it now for completeness.
-        if ((up.locationId || ex.locationId) && (await cs.checkRoomConflict(up.locationId || ex.locationId!, up.startTime || ex.startTime, up.durationMinutes || ex.durationMinutes, id)).length) return c.json({ error: "Location Conflict" }, 409);
+    // For single scope or non-series classes, check conflicts and update just this one
+    if (scope === 'single' || !ex.seriesId) {
+        if (up.startTime || up.durationMinutes || up.instructorId || up.locationId) {
+            const cs = new ConflictService(db);
+            if ((up.instructorId || ex.instructorId) && (await cs.checkInstructorConflict(up.instructorId || ex.instructorId!, up.startTime || ex.startTime, up.durationMinutes || ex.durationMinutes, id)).length) return c.json({ error: "Conflict" }, 409);
+            if ((up.locationId || ex.locationId) && (await cs.checkRoomConflict(up.locationId || ex.locationId!, up.startTime || ex.startTime, up.durationMinutes || ex.durationMinutes, id)).length) return c.json({ error: "Location Conflict" }, 409);
+        }
+        await db.update(classes).set(up).where(eq(classes.id, id)).run();
+        return c.json({ success: true, updated: 1 });
     }
 
-    await db.update(classes).set(up).where(eq(classes.id, id)).run();
-    return c.json({ success: true });
+    // Series-aware edits: don't apply startTime changes to bulk (each class has its own time)
+    const seriesUp = { ...up };
+    delete seriesUp.startTime; // Don't override individual class times
+
+    if (scope === 'future') {
+        // Update this class + all future active classes in the same series
+        const result = await db.update(classes)
+            .set(seriesUp)
+            .where(and(
+                eq(classes.seriesId, ex.seriesId!),
+                eq(classes.tenantId, tid),
+                gte(classes.startTime, ex.startTime),
+                eq(classes.status, 'active')
+            ))
+            .run();
+        // Also update the parent series record
+        const seriesKeys = ['title', 'description', 'durationMinutes', 'price', 'instructorId', 'locationId', 'thumbnailUrl', 'gradientPreset', 'gradientColor1', 'gradientColor2', 'gradientDirection'];
+        const seriesUpdate: any = {};
+        seriesKeys.forEach(k => { if (seriesUp[k] !== undefined) seriesUpdate[k] = seriesUp[k]; });
+        if (Object.keys(seriesUpdate).length > 0) {
+            await db.update(classSeries).set(seriesUpdate).where(eq(classSeries.id, ex.seriesId!)).run();
+        }
+        return c.json({ success: true, updated: result.meta?.changes || 0 });
+    }
+
+    if (scope === 'all') {
+        // Update ALL active classes in the series
+        const result = await db.update(classes)
+            .set(seriesUp)
+            .where(and(
+                eq(classes.seriesId, ex.seriesId!),
+                eq(classes.tenantId, tid),
+                eq(classes.status, 'active')
+            ))
+            .run();
+        // Also update parent series
+        const seriesKeys = ['title', 'description', 'durationMinutes', 'price', 'instructorId', 'locationId', 'thumbnailUrl', 'gradientPreset', 'gradientColor1', 'gradientColor2', 'gradientDirection'];
+        const seriesUpdate: any = {};
+        seriesKeys.forEach(k => { if (seriesUp[k] !== undefined) seriesUpdate[k] = seriesUp[k]; });
+        if (Object.keys(seriesUpdate).length > 0) {
+            await db.update(classSeries).set(seriesUpdate).where(eq(classSeries.id, ex.seriesId!)).run();
+        }
+        return c.json({ success: true, updated: result.meta?.changes || 0 });
+    }
+
+    return c.json({ error: 'Invalid scope' }, 400);
+});
+
+// POST /:id/make-recurring — Convert a single class into a recurring series
+app.openapi(createRoute({
+    method: 'post',
+    path: '/{id}/make-recurring',
+    tags: ['Classes'],
+    summary: 'Convert a single class into a recurring series',
+    request: {
+        params: z.object({ id: z.string() }),
+        body: {
+            content: {
+                'application/json': {
+                    schema: z.object({
+                        recurrenceRule: z.string(), // e.g. "FREQ=WEEKLY;BYDAY=MO,WE"
+                        recurrenceEnd: z.string(), // ISO date for end of recurrence
+                    })
+                }
+            }
+        }
+    },
+    responses: {
+        200: { description: 'Series created' },
+        400: { description: 'Bad request' },
+        404: { description: 'Not found' }
+    }
+}), async (c: any) => {
+    if (!c.get('can')('manage_classes')) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const tid = c.get('tenant').id;
+    const { id } = c.req.valid('param');
+    const { recurrenceRule, recurrenceEnd } = c.req.valid('json');
+
+    const ex = await db.query.classes.findFirst({ where: and(eq(classes.id, id), eq(classes.tenantId, tid)) });
+    if (!ex) return c.json({ error: 'Not found' }, 404);
+    if (ex.seriesId) return c.json({ error: 'Class is already part of a series' }, 400);
+
+    // Parse RRule to generate occurrences
+    let occurrences: Date[];
+    try {
+        const options = RRule.parseString(recurrenceRule);
+        options.dtstart = ex.startTime;
+        if (recurrenceEnd) options.until = new Date(recurrenceEnd);
+        const rule = new RRule(options);
+        occurrences = rule.all();
+    } catch (rruleErr: any) {
+        return c.json({ error: `Failed to parse recurrence rule: ${rruleErr.message}` }, 400);
+    }
+
+    // Remove the first occurrence if it matches the existing class time (within 1 min)
+    occurrences = occurrences.filter(occ =>
+        Math.abs(occ.getTime() - ex.startTime.getTime()) > 60000
+    );
+
+    if (occurrences.length === 0) {
+        return c.json({ error: 'Recurrence rule produced no additional dates.' }, 400);
+    }
+    if (occurrences.length > 365) {
+        return c.json({ error: `Too many occurrences (${occurrences.length + 1}). Limit to 365 or set a closer end date.` }, 400);
+    }
+
+    // Create the series record
+    const seriesId = crypto.randomUUID();
+    await db.insert(classSeries).values({
+        id: seriesId,
+        tenantId: tid,
+        instructorId: ex.instructorId || null,
+        locationId: ex.locationId || null,
+        title: ex.title,
+        description: ex.description,
+        durationMinutes: ex.durationMinutes,
+        price: ex.price || 0,
+        recurrenceRule,
+        validFrom: ex.startTime,
+        validUntil: recurrenceEnd ? new Date(recurrenceEnd) : null,
+        thumbnailUrl: ex.thumbnailUrl || null,
+        gradientPreset: ex.gradientPreset,
+        gradientColor1: ex.gradientColor1,
+        gradientColor2: ex.gradientColor2,
+        gradientDirection: ex.gradientDirection,
+        createdAt: new Date()
+    }).run();
+
+    // Link the original class
+    await db.update(classes).set({ seriesId }).where(eq(classes.id, id)).run();
+
+    // Generate future instances
+    const classData = occurrences.map(occ => ({
+        id: crypto.randomUUID(),
+        tenantId: tid,
+        instructorId: ex.instructorId || null,
+        locationId: ex.locationId || null,
+        seriesId,
+        title: ex.title,
+        description: ex.description,
+        startTime: occ,
+        durationMinutes: ex.durationMinutes,
+        capacity: ex.capacity,
+        price: ex.price || 0,
+        memberPrice: ex.memberPrice || null,
+        type: ex.type as any,
+        minStudents: ex.minStudents || 1,
+        autoCancelThreshold: ex.autoCancelThreshold || null,
+        autoCancelEnabled: !!ex.autoCancelEnabled,
+        allowCredits: ex.allowCredits !== false,
+        includedPlanIds: ex.includedPlanIds || [],
+        zoomEnabled: !!ex.zoomEnabled,
+        status: 'active' as const,
+        payrollModel: ex.payrollModel || null,
+        payrollValue: ex.payrollValue || null,
+        isCourse: !!ex.isCourse,
+        recordingPrice: ex.recordingPrice || null,
+        contentCollectionId: ex.contentCollectionId || null,
+        courseId: ex.courseId || null,
+        thumbnailUrl: ex.thumbnailUrl || null,
+        gradientPreset: ex.gradientPreset,
+        gradientColor1: ex.gradientColor1,
+        gradientColor2: ex.gradientColor2,
+        gradientDirection: ex.gradientDirection,
+        createdAt: new Date()
+    }));
+
+    // Batch insert (D1 limit)
+    for (let i = 0; i < classData.length; i += 50) {
+        await db.insert(classes).values(classData.slice(i, i + 50)).run();
+    }
+
+    return c.json({ success: true, seriesId, created: classData.length });
+});
+
+// POST /:id/remove-recurrence — Detach a class from its series
+app.openapi(createRoute({
+    method: 'post',
+    path: '/{id}/remove-recurrence',
+    tags: ['Classes'],
+    summary: 'Remove a class from its recurring series',
+    request: {
+        params: z.object({ id: z.string() }),
+        body: {
+            content: {
+                'application/json': {
+                    schema: z.object({
+                        cancelFuture: z.boolean().default(false).optional() // Also cancel all future events in the series
+                    })
+                }
+            }
+        }
+    },
+    responses: {
+        200: { description: 'Recurrence removed' },
+        400: { description: 'Bad request' },
+        404: { description: 'Not found' }
+    }
+}), async (c: any) => {
+    if (!c.get('can')('manage_classes')) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const tid = c.get('tenant').id;
+    const { id } = c.req.valid('param');
+    const { cancelFuture } = c.req.valid('json');
+
+    const ex = await db.query.classes.findFirst({ where: and(eq(classes.id, id), eq(classes.tenantId, tid)) });
+    if (!ex) return c.json({ error: 'Not found' }, 404);
+    if (!ex.seriesId) return c.json({ error: 'Class is not part of a series' }, 400);
+
+    const seriesId = ex.seriesId;
+
+    // Detach THIS class from the series
+    await db.update(classes).set({ seriesId: null }).where(eq(classes.id, id)).run();
+
+    let cancelledCount = 0;
+    if (cancelFuture) {
+        // Cancel all FUTURE active classes in the series (not past ones, not this one)
+        const result = await db.update(classes)
+            .set({ status: 'cancelled' })
+            .where(and(
+                eq(classes.seriesId, seriesId),
+                eq(classes.tenantId, tid),
+                gte(classes.startTime, new Date()),
+                eq(classes.status, 'active')
+            ))
+            .run();
+        cancelledCount = result.meta?.changes || 0;
+
+        // Cancel bookings for those future classes
+        const futureClasses = await db.select({ id: classes.id })
+            .from(classes)
+            .where(and(
+                eq(classes.seriesId, seriesId),
+                eq(classes.tenantId, tid),
+                eq(classes.status, 'cancelled'),
+                gte(classes.startTime, new Date())
+            ))
+            .all();
+
+        for (const cls of futureClasses) {
+            await db.update(bookings)
+                .set({ status: 'cancelled' })
+                .where(and(eq(bookings.classId, cls.id), eq(bookings.status, 'confirmed')))
+                .run();
+        }
+    }
+
+    return c.json({ success: true, cancelledFuture: cancelledCount });
 });
 
 // DELETE /:id
