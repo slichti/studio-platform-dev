@@ -45,7 +45,7 @@ export function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDat
     const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 }); // Sunday start
     const weekDays = Array.from({ length: 7 }).map((_, i) => addDays(weekStart, i));
 
-    const slotCount = endHour - startHour;
+    const slotCount = endHour - startHour + 1; // +1 to include end hour label
     const timeSlots = Array.from({ length: slotCount }).map((_, i) => i + startHour);
 
     const navigate = (direction: 'prev' | 'next' | 'today') => {
