@@ -602,6 +602,8 @@ These endpoints serve booking widgets and checkout flows embedded in public stud
     *   Refund-by-PaymentIntent via `POST /pos/refund` (full or partial).
     *   Product price changes create a new Stripe Price object (immutable price pattern).
     *   All POS and Inventory API calls include `X-Tenant-Slug` for tenant resolution.
+    *   **Tenant Branding**: Stripe products are prefixed with `"${tenantName} - "`, and checkout sessions/PaymentIntents use tenant-specific statement descriptors and descriptions for billing clarity.
+    *   **Stripe Sync**: Bi-directional product synchronization via metadata filtering (`tenantId`) ensures Stripe-native inventory management.
 
 ## Compliance & Data Minimization
 *   **Financial System of Record**: Stripe is treated as the sole system of record for financial data. The platform does **not** store sensitive cardholder data (PAN, CVV) or bank account numbers.

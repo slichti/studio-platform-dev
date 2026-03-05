@@ -37,6 +37,15 @@ Studio Platform's Point of Sale and Retail capabilities have been enhanced using
 ### 6. Customer on PaymentIntent
 - **Enhancement:** `POST /pos/process-payment` now accepts `customerId` (Stripe Customer ID) and attaches it to the PaymentIntent for receipts and transaction history.
 
+### 7. Stripe Product Synchronization
+- **Bi-directional Sync:** `GET /pos/products` (via `PosService.listProducts`) now triggers a background sync using the Stripe Search API.
+- **Filtering:** Stripe products are filtered using metadata: `metadata["tenantId"]:"[ID]"`.
+- **Behavior:** Products added directly in the Stripe dashboard with the correct `tenantId` metadata are automatically imported into the local `products` table.
+
+### 8. Tenant Branding in Stripe
+- **Product Naming:** All products created via the POS or bulk import in commerce are prefixed with the tenant business name: `"${tenantName} - ${productName}"`.
+- **Transaction Clarity:** Stripe checkout sessions and PaymentIntents now include `statement_descriptor_suffix` (truncated tenant name) and a detailed `description` incorporating the tenant name for better customer billing visibility.
+
 ## API Summary
 
 | Method | Route | Description |

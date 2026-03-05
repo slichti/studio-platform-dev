@@ -44,11 +44,59 @@ export class PosService {
 
     // --- Products ---
 
-    async listProducts() {
+    async listProducts(tenantStripeAccountId?: string | null) {
+        await this.syncProductsFromStripe(tenantStripeAccountId);
         return this.db.select().from(products)
             .where(eq(products.tenantId, this.tenantId))
             .orderBy(desc(products.createdAt))
             .all();
+    }
+
+    async syncProductsFromStripe(tenantStripeAccountId?: string | null) {
+        if (!this.stripeService) return;
+        try {
+            const stripeData = await this.stripeService.searchProductsByTenant(this.tenantId, tenantStripeAccountId || undefined);
+            for (const prod of stripeData.data) {
+                if (!prod.active) continue;
+
+                // Check if exists locally
+                const existing = await this.db.select().from(products)
+                    .where(and(eq(products.stripeProductId, prod.id), eq(products.tenantId, this.tenantId)))
+                    .get();
+
+                if (!existing) {
+                    // Find price
+                    let priceCents = 0;
+                    let currency = 'usd';
+                    let stripePriceId = prod.default_price as string | undefined;
+
+                    if (stripePriceId && typeof stripePriceId === 'string') {
+                        try {
+                            const priceObj = await this.stripeService.retrievePrice(stripePriceId, tenantStripeAccountId || undefined);
+                            priceCents = priceObj.unit_amount || 0;
+                            currency = priceObj.currency;
+                        } catch (e) { console.error("Could not fetch price", e); }
+                    }
+
+                    await this.db.insert(products).values({
+                        id: crypto.randomUUID(),
+                        tenantId: this.tenantId,
+                        name: prod.name,
+                        description: prod.description || undefined,
+                        price: priceCents,
+                        currency,
+                        stockQuantity: 9999, // default
+                        isActive: true,
+                        stripeProductId: prod.id,
+                        stripePriceId: stripePriceId || undefined,
+                        createdAt: new Date(),
+                        updatedAt: new Date()
+                    }).run();
+                }
+            }
+        } catch (e) {
+            console.error("Failed to sync products from stripe", e);
+        }
     }
 
     async createProduct(data: {
@@ -60,20 +108,20 @@ export class PosService {
         stockQuantity: number,
         imageUrl?: string,
         isActive: boolean
-    }, tenantStripeAccountId?: string | null, currency = 'usd') {
+    }, tenantStripeAccountId?: string | null, currency = 'usd', tenantName?: string) {
         const id = crypto.randomUUID();
         let stripeProductId = null;
         let stripePriceId = null;
 
         // Stripe Sync
-        if (this.stripeService && tenantStripeAccountId) {
+        if (this.stripeService) {
             try {
                 const prod = await this.stripeService.createProduct({
-                    name: data.name,
+                    name: tenantName ? `${tenantName} - ${data.name}` : data.name,
                     description: data.description,
                     images: data.imageUrl ? [data.imageUrl] : [],
                     metadata: { tenantId: this.tenantId, localId: id }
-                }, tenantStripeAccountId);
+                }, tenantStripeAccountId || undefined);
                 stripeProductId = prod.id;
 
                 if (data.price > 0) {
@@ -81,7 +129,7 @@ export class PosService {
                         productId: prod.id,
                         unitAmount: data.price,
                         currency: currency
-                    }, tenantStripeAccountId);
+                    }, tenantStripeAccountId || undefined);
                     stripePriceId = price.id;
                 }
             } catch (e) {
@@ -119,19 +167,19 @@ export class PosService {
         category?: string,
         sku?: string,
         isActive?: boolean
-    }, tenantStripeAccountId?: string | null) {
+    }, tenantStripeAccountId?: string | null, tenantName?: string) {
         const product = await this.db.select().from(products).where(and(eq(products.id, id), eq(products.tenantId, this.tenantId))).get();
         if (!product) throw new Error('Product not found');
 
         let newStripePriceId: string | undefined;
-        if (data.price !== undefined && this.stripeService && tenantStripeAccountId && product.stripeProductId) {
+        if (data.price !== undefined && this.stripeService && product.stripeProductId) {
             try {
                 const currency = product.currency || 'usd';
                 const price = await this.stripeService.createPrice({
                     productId: product.stripeProductId,
                     unitAmount: data.price,
                     currency
-                }, tenantStripeAccountId);
+                }, tenantStripeAccountId || undefined);
                 newStripePriceId = price.id;
             } catch (e) { console.error("Stripe Price Create Error", e); }
         }
@@ -143,14 +191,14 @@ export class PosService {
         }).where(eq(products.id, id)).run();
 
         // Sync Stripe product metadata (verapose pattern: create new price on price change)
-        if (this.stripeService && tenantStripeAccountId && product.stripeProductId) {
+        if (this.stripeService && product.stripeProductId) {
             try {
                 await this.stripeService.updateProduct(product.stripeProductId, {
-                    name: data.name,
+                    name: (tenantName && data.name) ? `${tenantName} - ${data.name}` : data.name,
                     description: data.description,
                     active: data.isActive,
                     images: data.imageUrl ? [data.imageUrl] : []
-                }, tenantStripeAccountId);
+                }, tenantStripeAccountId || undefined);
             } catch (e) { console.error("Stripe Sync Error", e); }
         }
     }
@@ -161,9 +209,9 @@ export class PosService {
 
         await this.db.update(products).set({ isActive: false }).where(eq(products.id, id)).run();
 
-        if (this.stripeService && tenantStripeAccountId && product.stripeProductId) {
+        if (this.stripeService && product.stripeProductId) {
             try {
-                await this.stripeService.archiveProduct(product.stripeProductId, tenantStripeAccountId);
+                await this.stripeService.archiveProduct(product.stripeProductId, tenantStripeAccountId || undefined);
             } catch (e) { console.error("Stripe Archive Error", e); }
         }
     }

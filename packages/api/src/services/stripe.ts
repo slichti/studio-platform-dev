@@ -66,6 +66,8 @@ export class StripeService {
             applicationFeeAmount?: number;
             applicationFeePercent?: number;
             automaticTax?: boolean;
+            statementDescriptorSuffix?: string;
+            description?: string;
         }
     ) {
         const { client, options } = this.getClient(connectedAccountId);
@@ -95,15 +97,18 @@ export class StripeService {
             sessionParams.automatic_tax = { enabled: true };
         }
 
-        if (params.mode === 'subscription' && params.applicationFeePercent) {
-            sessionParams.subscription_data = {
-                application_fee_percent: params.applicationFeePercent
+        if (params.mode !== 'subscription' && (params.applicationFeeAmount || params.statementDescriptorSuffix || params.description)) {
+            sessionParams.payment_intent_data = {
+                ...(params.applicationFeeAmount && { application_fee_amount: params.applicationFeeAmount }),
+                ...(params.statementDescriptorSuffix && { statement_descriptor_suffix: params.statementDescriptorSuffix }),
+                ...(params.description && { description: params.description })
             };
         }
 
-        if (params.mode !== 'subscription' && params.applicationFeeAmount) {
-            sessionParams.payment_intent_data = {
-                application_fee_amount: params.applicationFeeAmount
+        if (params.mode === 'subscription' && (params.applicationFeePercent || params.description)) {
+            sessionParams.subscription_data = {
+                ...(params.applicationFeePercent && { application_fee_percent: params.applicationFeePercent }),
+                ...(params.description && { description: params.description })
             };
         }
 
@@ -176,17 +181,22 @@ export class StripeService {
             sessionParams.automatic_tax = { enabled: true };
         }
 
-        if (params.mode === 'subscription' && params.applicationFeePercent) {
+        if (params.mode === 'subscription' && (params.applicationFeePercent || params.description)) {
             sessionParams.subscription_data = {
-                application_fee_percent: params.applicationFeePercent
+                ...(params.applicationFeePercent && { application_fee_percent: params.applicationFeePercent }),
+                ...(params.description && { description: params.description })
             };
         }
 
-        if (params.mode !== 'subscription' && params.applicationFeeAmount) {
+        if (params.mode !== 'subscription' && (params.applicationFeeAmount || params.statementDescriptorSuffix || params.description)) {
             sessionParams.payment_intent_data = {
-                application_fee_amount: params.applicationFeeAmount
+                ...(params.applicationFeeAmount && { application_fee_amount: params.applicationFeeAmount }),
+                ...(params.statementDescriptorSuffix && { statement_descriptor_suffix: params.statementDescriptorSuffix }),
+                ...(params.description && { description: params.description })
             };
         }
+
+
 
         if (params.lineItems && params.lineItems.length > 0) {
             sessionParams.line_items = params.lineItems;
@@ -226,6 +236,7 @@ export class StripeService {
             currency: string;
             description: string;
             metadata?: Record<string, string>;
+            statementDescriptorSuffix?: string;
         }
     ) {
         const { client, options } = this.getClient(connectedAccountId);
@@ -238,6 +249,7 @@ export class StripeService {
             customer: params.customerId,
             description: params.description,
             metadata: params.metadata,
+            statement_descriptor_suffix: params.statementDescriptorSuffix,
             off_session: true,
             confirm: true,
             payment_method_types: ['card', 'us_bank_account'],
@@ -373,24 +385,30 @@ export class StripeService {
      */
     async createProduct(params: { name: string; description?: string; images?: string[]; active?: boolean; metadata?: Record<string, string>; taxCode?: string }, connectedAccountId?: string) {
         const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
-        return client.products.create({
-            name: params.name,
-            description: params.description,
-            images: params.images,
-            active: params.active,
-            metadata: params.metadata,
-            tax_code: params.taxCode
-        }, options);
+        const payload = Object.fromEntries(
+            Object.entries({
+                name: params.name,
+                description: params.description,
+                images: params.images,
+                active: params.active,
+                metadata: params.metadata,
+                tax_code: params.taxCode
+            }).filter(([_, v]) => v !== undefined)
+        ) as any;
+        return client.products.create(payload, options);
     }
 
     async createPrice(params: { productId: string; unitAmount: number; currency: string; recurring?: Stripe.PriceCreateParams.Recurring }, connectedAccountId?: string) {
         const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
-        return client.prices.create({
-            product: params.productId,
-            unit_amount: params.unitAmount,
-            currency: params.currency,
-            recurring: params.recurring
-        }, options);
+        const payload = Object.fromEntries(
+            Object.entries({
+                product: params.productId,
+                unit_amount: params.unitAmount,
+                currency: params.currency,
+                recurring: params.recurring
+            }).filter(([_, v]) => v !== undefined)
+        ) as any;
+        return client.prices.create(payload, options);
     }
 
     async retrievePrice(priceId: string, connectedAccountId?: string) {
@@ -400,20 +418,25 @@ export class StripeService {
 
     async updateProduct(id: string, params: { name?: string; description?: string; images?: string[]; active?: boolean; metadata?: Record<string, string>; taxCode?: string }, connectedAccountId?: string) {
         const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
-        return client.products.update(id, {
-            name: params.name,
-            description: params.description,
-            images: params.images,
-            active: params.active,
-            metadata: params.metadata,
-            tax_code: params.taxCode
-        }, options);
+        const payload = Object.fromEntries(
+            Object.entries({
+                name: params.name,
+                description: params.description,
+                images: params.images,
+                active: params.active,
+                metadata: params.metadata,
+                tax_code: params.taxCode
+            }).filter(([_, v]) => v !== undefined)
+        ) as any;
+        return client.products.update(id, payload, options);
     }
 
     async archiveProduct(id: string, connectedAccountId?: string) {
         const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
         return client.products.update(id, { active: false }, options);
     }
+
+
 
     /**
      * Customer Management
@@ -446,6 +469,15 @@ export class StripeService {
         return client.customers.search({
             query: `name~"${safe}" OR email~"${safe}"`,
             limit: 10
+        }, options);
+    }
+
+    async searchProductsByTenant(tenantId: string, connectedAccountId?: string) {
+        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+        const safe = tenantId.replace(/["\\]/g, '').trim();
+        return client.products.search({
+            query: `active:'true' AND metadata['tenantId']:'${safe}'`,
+            limit: 100
         }, options);
     }
 

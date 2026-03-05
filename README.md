@@ -241,6 +241,7 @@ The platform uses Stripe Connect for multi-tenant billing. To set up your local 
      -d "enabled_events[]=capability.updated" \
      -d "enabled_events[]=charge.refunded"
    ```
+4. **Tenant Branding & Sync:** The platform automatically prefixes Stripe products with the tenant name and synchronizes inventory via metadata filtering (`tenantId`). Transaction descriptors and payment descriptions incorporate the tenant name for billing clarity on shared platform accounts.
    Then upload the secrets to Cloudflare using Wrangler:
    ```bash
    npx wrangler secret put STRIPE_SECRET_KEY -c packages/api/wrangler.toml

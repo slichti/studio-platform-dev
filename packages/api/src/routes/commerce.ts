@@ -400,7 +400,7 @@ app.post('/products/bulk', async (c) => {
             }
 
             const stripeProduct = await stripe.createProduct({
-                name: item.name,
+                name: `${tenant.name} - ${item.name}`,
                 active: true,
                 metadata: { tenantId: tenant.id, type: item.type },
                 taxCode: 'txcd_00000000'
@@ -623,10 +623,14 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
         }
         const lineItems = [];
         if (taxableAmount > 0) {
+            const prodName = pack ? pack.name : (plan ? plan.name : (recording ? `Access: ${recording.title}` : 'Gift Card Credit'));
             lineItems.push({
                 price_data: {
                     currency: tenant.currency || 'usd',
-                    product_data: { name: pack ? pack.name : (plan ? plan.name : (recording ? `Access: ${recording.title}` : 'Gift Card Credit')), tax_code: 'txcd_00000000' },
+                    product_data: {
+                        name: `${tenant.name} - ${prodName}`,
+                        tax_code: 'txcd_00000000'
+                    },
                     unit_amount: Math.max(0, taxableAmount - creditApplied),
                     ...(stripeMode === 'subscription' && plan ? { recurring: { interval: plan.interval as any, interval_count: plan.intervalCount || 1 } } : {})
                 },
@@ -664,7 +668,9 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
                 automaticTax: true,
                 applicationFeeAmount: stripeMode !== 'subscription' && appFeeDecimal > 0 ? Math.round(amountWithFee * appFeeDecimal) : undefined,
                 applicationFeePercent: stripeMode === 'subscription' && appFeeDecimal > 0 ? appFeeDecimal * 100 : undefined,
-                metadata: metadata
+                metadata: metadata,
+                statementDescriptorSuffix: tenant.name.replace(/[<>"']/g, '').substring(0, 22),
+                description: `${tenant.name} - ${metadata.productName}`
             });
 
             return c.json({ url: session.url });
@@ -676,7 +682,9 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
                 customerEmail, customer: stripeCustomerId || undefined, lineItems, mode: stripeMode, automaticTax: true,
                 applicationFeeAmount: stripeMode !== 'subscription' && appFeeDecimal > 0 ? Math.round(amountWithFee * appFeeDecimal) : undefined,
                 applicationFeePercent: stripeMode === 'subscription' && appFeeDecimal > 0 ? appFeeDecimal * 100 : undefined,
-                metadata: metadata
+                metadata: metadata,
+                statementDescriptorSuffix: tenant.name.replace(/[<>"']/g, '').substring(0, 22),
+                description: `${tenant.name} - ${metadata.productName}`
             });
 
             return c.json({ clientSecret: session.client_secret });

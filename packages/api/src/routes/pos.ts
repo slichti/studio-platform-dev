@@ -28,8 +28,11 @@ app.get('/products', async (c) => {
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
 
-    const service = new PosService(db, tenant.id, c.env, undefined);
-    const list = await service.listProducts();
+    let stripeService: StripeService | undefined;
+    if (c.env.STRIPE_SECRET_KEY) stripeService = new StripeService(c.env.STRIPE_SECRET_KEY as string);
+
+    const service = new PosService(db, tenant.id, c.env, stripeService);
+    const list = await service.listProducts(tenant.stripeAccountId || undefined);
 
     return c.json({ products: list });
 });
@@ -62,7 +65,7 @@ app.post('/products', async (c) => {
     if (c.env.STRIPE_SECRET_KEY) stripeService = new StripeService(c.env.STRIPE_SECRET_KEY as string);
 
     const service = new PosService(db, tenant.id, c.env, stripeService);
-    const id = await service.createProduct(parseResult.data, tenant.stripeAccountId, tenant.currency || 'usd');
+    const id = await service.createProduct(parseResult.data, tenant.stripeAccountId, tenant.currency || 'usd', tenant.name);
 
     return c.json({ success: true, id });
 });
@@ -163,6 +166,8 @@ app.post('/process-payment', async (c) => {
             amount: totalAmount,
             currency: tenant.currency || 'usd',
             automatic_payment_methods: { enabled: true },
+            statement_descriptor_suffix: tenant.name.replace(/[<>"']/g, '').substring(0, 22),
+            description: `${tenant.name} - Point of Sale`,
             metadata: {
                 tenantId: tenant.id,
                 items: JSON.stringify(itemDetails.map((i: any) => `${i.quantity}x ${i.name}`).join(', '))
@@ -240,7 +245,7 @@ app.put('/products/:id', async (c) => {
 
     const service = new PosService(db, tenant.id, c.env, stripeService);
     try {
-        await service.updateProduct(id, body, tenant.stripeAccountId);
+        await service.updateProduct(id, body, tenant.stripeAccountId, tenant.name);
         return c.json({ success: true });
     } catch (e: any) {
         return c.json({ error: e.message }, 500);
@@ -282,7 +287,7 @@ app.post('/products/import', async (c) => {
     const results = { success: 0, failed: 0, errors: [] as string[] };
     for (const p of products) {
         try {
-            await service.createProduct(p, tenant.stripeAccountId, tenant.currency || 'usd');
+            await service.createProduct(p, tenant.stripeAccountId, tenant.currency || 'usd', tenant.name);
             results.success++;
         } catch (e: any) {
             results.failed++;

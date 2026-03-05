@@ -138,6 +138,10 @@ export const authMiddleware = createMiddleware<{ Variables: Variables, Bindings:
             });
         } catch (jwtErr: any) {
             console.error("JWT Verification Failed:", jwtErr.message);
+            const isExpired = jwtErr.message?.toLowerCase().includes('expired') || jwtErr.name === 'JwtTokenExpired';
+            if (isExpired) {
+                return c.json({ error: "Token Expired", details: jwtErr.message }, 401);
+            }
             return c.json({ error: "Invalid Token Signature", details: jwtErr.message }, 401);
         }
 
@@ -269,7 +273,12 @@ export const optionalAuthMiddleware = createMiddleware<{ Variables: Variables, B
                 claims: payload as any,
             });
         } catch (jwtErr: any) {
-            console.error("JWT Verification Failed (Optional):", jwtErr.message);
+            const isExpired = jwtErr.message?.toLowerCase().includes('expired') || jwtErr.name === 'JwtTokenExpired';
+            if (isExpired) {
+                console.warn("JWT Verification Failed (Optional): Token Expired");
+            } else {
+                console.error("JWT Verification Failed (Optional):", jwtErr.message);
+            }
         }
 
         await next();
