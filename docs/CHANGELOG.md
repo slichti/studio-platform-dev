@@ -2,6 +2,16 @@
 
 This document tracks the iterative development of features and capabilities over time, generated from the project commit history.
 
+## 2026-03-06
+
+- **🚀 Feature:** Implement Integrated Community Hub across Platform and Tenants:
+    - [x] Mounted `community` routes in API with platform/tenant flexibility.
+    - [x] Updated tenant middleware to support virtual "platform" tenant context.
+    - [x] Implemented feature-based navigation filtering and alphabetization in Platform Admin.
+    - [x] Created `admin.community.tsx` and updated `studio.$slug.tsx` for conditional hub visibility.
+    - [x] Enabled Community Hub for `garden-yoga` and platform in Cloud D1.
+    - [x] **Fix:** Corrected `app.route` middleware signatures in API `index.ts` to satisfy typechecks.
+
 ## 2026-03-05
 
 - **🚀 Feature:** Implement Configurable Platform Earning Strategy:

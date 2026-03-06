@@ -85,6 +85,18 @@
   - "Join Waitlist" actions with real-time queue positioning in the student portal classes list.
   - Automated `waitlist_promoted` trigger firing upon spot openings linked to custom marketing campaigns and push notifications.
 
+### Session 5 — Community Hub & Platform Filtering
+- **Integrated Community Hub**:
+  - Unified `CommunityHub` component supporting both Platform and Tenant contexts.
+  - Mounted `/community` routes with platform/tenant flexibility in the API.
+  - Enabled support for virtual "platform" tenant via middleware updates.
+- **Admin Navigation Overhaul**:
+  - Implemented dynamic navigation filtering based on `platform_config` feature flags.
+  - Added alphabetical sorting to the Platform Admin sidebar for better accessibility.
+- **Bug Fixes & Hardening**:
+  - Fixed Hono `app.route` middleware signature errors to resolve CI/CD typecheck failures.
+  - Verified and enabled all core feature flags in the Cloud D1 production database.
+
 ## 🎯 Design Philosophy
 - **Edge Native**: Minimize round-trips via `D1.batch()` and SARGable queries.
 - **Brand Dynamic**: Single mobile binary and web shell that rebrands on-the-fly via tenant metadata.

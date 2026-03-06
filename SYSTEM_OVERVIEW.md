@@ -263,6 +263,12 @@ The platform takes a cut of transactions to sustain operations and provide value
     - **POS**: Managed via the `application_fee_amount` field in Stripe's PaymentIntent API.
     - **Subscriptions**: Managed via the `application_fee_percent` field in Stripe's Subscription API.
 - **Tier-Based**: Platform plans define the default fee, which can be overridden at the individual tenant level for strategic partners.
+### 14. Community Hub
+The platform provides a centralized rich-media social engagement hub for both the platform and individual tenants.
+- **Unified Component**: A single `CommunityHub` component serves both `/admin/community` (Platform) and `/studio/:slug/community` (Tenant) contexts.
+- **Rich Media Support**: Integrated with Cloudflare R2/Stream for photo and video sharing.
+- **Tenant Isolation**: Posts and comments are strictly isolated by `tenantId`, with a virtual `platform` tenant used for global announcements and engagement.
+- **Feature Gating**: Visibility is controlled by `feature_community` in `platform_config` (Global) and `community` in `tenant_features` (Per-Tenant).
 
 ## Security Implementation
 
