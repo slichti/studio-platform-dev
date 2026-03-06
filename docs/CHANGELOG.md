@@ -11,6 +11,8 @@ This document tracks the iterative development of features and capabilities over
     - [x] State-based Sales Tax calculation via new `TaxService`.
     - [x] Rich Transaction Metadata (tenant, customer, items) for Stripe PaymentIntents.
     - [x] Robust Full & Partial Refund tracking in DB and Stripe.
+    - [x] **New:** Metadata-based tenant isolation for Stripe customer searches.
+    - [x] **New:** Improved POS frontend resilience for session expiry (401 responses).
 
 ## 2025-12-18
 

@@ -9,7 +9,7 @@ The modern, all-in-one platform for dance, yoga, and fitness studios.
 *   **Brand & Customization:** Includes a custom Card Creator engine enabling studios to generate and auto-export dynamic gradient backgrounds with multi-line typography alignments tailored for class packs and membership previews.
 *   **Course Management (LMS):** Hybrid courses combining live sessions, on-demand VOD, quizzes, assignments, and per-lesson completion tracking with progress percentage. Instructors can grade assignments with feedback.
 *   **Student Portal:** Full self-service portal at `/portal/:slug` — book classes, join waitlists, view attendance history, manage class pack credits, browse and enroll in courses, manage memberships, and edit their profile (name, phone).
-*   **RBAC & Security:** Comprehensive role-based access control audited across 92+ API routes. Students are precisely scoped to their own data with explicit IDOR guards on tag assignments, custom field values, and booking records.
+*   **RBAC & Security:** Comprehensive role-based access control audited across 92+ API routes. Students are precisely scoped to their own data with explicit IDOR guards on tag assignments, custom field values, and booking records. Stripe searching is strictly isolated via metadata-based `tenantId` filtering.
 *   **Website Builder:** Drag-and-drop website editor with custom domains.
 *   **Public Instructor Profiles:** Shareable instructor pages with detailed schedules and approved student reviews.
 *   **Student App:** Mobile app for students to book classes and manage their accounts.

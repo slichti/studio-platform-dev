@@ -467,14 +467,21 @@ export class StripeService {
         return client.customers.update(customerId, params as Stripe.CustomerUpdateParams, options);
     }
 
-    async searchCustomers(query: string, connectedAccountId?: string | null) {
+    async searchCustomers(query: string, tenantId?: string, connectedAccountId?: string | null) {
         const { client, options } = this.getClient(connectedAccountId);
         // Sanitize query to prevent injection into Stripe search syntax.
         // Stripe search uses Lucene-like operators; strip quotes and backslashes.
         const safe = query.replace(/["\\]/g, '').trim().slice(0, 200);
         if (!safe) return { data: [] };
+
+        let searchQuery = `(name~"${safe}" OR email~"${safe}")`;
+        if (tenantId) {
+            const safeTenantId = tenantId.replace(/["\\]/g, '').trim();
+            searchQuery += ` AND metadata['tenantId']:'${safeTenantId}'`;
+        }
+
         return client.customers.search({
-            query: `name~"${safe}" OR email~"${safe}"`,
+            query: searchQuery,
             limit: 10
         }, options);
     }

@@ -157,10 +157,11 @@ flowchart TD
     *   **Uploads**: Sensitive files (e.g., waivers) are protected by ownership or role checks.
 *   **CSRF Protection**:
     *   **Stripe Connect**: Usage of **Signed State Tokens (JWT)** prevents CSRF attacks during the OAuth flow. The `state` parameter is cryptographically verifiable.
-*   **Tenant Isolation**:
-    *   All queries are scoped by `tenantId` derived from the request hostname/header via strict middleware.
-    *   Lifecycle guards (archived status, subscription status, and the panic switch via `studentAccessDisabled`) run for both authenticated and anonymous requests to ensure public schedules and guest flows cannot bypass a disabled tenant.
-    *   **Automations**: Background triggers (e.g., `class_booked`) use explicit joins with the `classes` table to ensure bookings are only processed within the correct tenant scope.
+    *   **Tenant Isolation**:
+        *   All queries are scoped by `tenantId` derived from the request hostname/header via strict middleware.
+        *   Lifecycle guards (archived status, subscription status, and the panic switch via `studentAccessDisabled`) run for both authenticated and anonymous requests to ensure public schedules and guest flows cannot bypass a disabled tenant.
+        *   **Stripe Isolation**: `StripeService` appends `metadata['tenantId']` to customer search queries to prevent cross-tenant data leaks.
+        *   **Automations**: Background triggers (e.g., `class_booked`) use explicit joins with the `classes` table to ensure bookings are only processed within the correct tenant scope.
 *   **Input Sanitization**:
     *   Stripe customer search queries are sanitized (quotes and backslashes stripped) before interpolation to prevent search syntax injection.
     *   All `dangerouslySetInnerHTML` renders (course articles, assignment instructions, website builder) pass content through `DOMPurify.sanitize()`.

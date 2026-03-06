@@ -585,15 +585,39 @@ function ProductForm({ token, tenantSlug, product, onSuccess }: any) {
             setSubmitting(false);
             onSuccess();
         }}>
-            <input name="name" defaultValue={product?.name} required className="w-full p-2 border rounded dark:bg-zinc-800 dark:text-zinc-100" placeholder="Product Name" />
-            <div className="grid grid-cols-2 gap-4">
-                <input name="price" type="number" step="0.01" defaultValue={product ? (product.price / 100) : ''} required className="w-full p-2 border rounded dark:bg-zinc-800 dark:text-zinc-100" placeholder="Price ($)" />
-                <input name="stockQuantity" type="number" defaultValue={product?.stockQuantity} required className="w-full p-2 border rounded dark:bg-zinc-800 dark:text-zinc-100" placeholder="Stock" />
+            <input name="name" defaultValue={product?.name} required className="w-full text-sm p-2 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 border rounded dark:text-zinc-100" placeholder="Product Name" />
+            <div className="grid grid-cols-2 gap-2">
+                <input name="price" type="number" step="0.01" defaultValue={product ? (product.price / 100) : ''} required className="w-full text-sm p-2 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 border rounded dark:text-zinc-100" placeholder="Price ($)" />
+                <input name="stockQuantity" type="number" defaultValue={product?.stockQuantity} required className="w-full text-sm p-2 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 border rounded dark:text-zinc-100" placeholder="Stock" />
             </div>
-            <textarea name="description" defaultValue={product?.description} className="w-full p-2 border rounded dark:bg-zinc-800 dark:text-zinc-100 h-20" placeholder="Description" />
-            <button disabled={submitting} type="submit" className="w-full bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 text-white rounded p-2">
-                {submitting ? 'Saving...' : 'Save Product'}
-            </button>
+            <textarea name="description" defaultValue={product?.description} className="w-full text-xs p-2 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 border rounded dark:text-zinc-100 h-20" placeholder="Description" />
+
+            <div className="flex flex-col gap-2 pt-2">
+                <button disabled={submitting} type="submit" className="w-full bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 text-white font-bold rounded-lg p-3 text-sm hover:opacity-90">
+                    {submitting ? 'Saving...' : 'Save Product'}
+                </button>
+
+                {product && (
+                    <button
+                        type="button"
+                        disabled={submitting}
+                        onClick={async () => {
+                            if (!confirm("Are you sure you want to archive this product? It will no longer appear in the POS.")) return;
+                            setSubmitting(true);
+                            await apiRequest(`/pos/products/${product.id}`, token, {
+                                method: 'PUT',
+                                headers: { 'X-Tenant-Slug': tenantSlug },
+                                body: JSON.stringify({ ...product, isActive: false })
+                            });
+                            setSubmitting(false);
+                            onSuccess();
+                        }}
+                        className="w-full flex items-center justify-center gap-2 text-red-500 text-xs font-semibold py-2 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-colors"
+                    >
+                        <Archive size={14} /> Archive Product
+                    </button>
+                )}
+            </div>
         </form>
     );
 }
@@ -618,9 +642,18 @@ function CustomerForm({ token, tenantSlug, onSuccess, onCancel }: any) {
                     country: 'US'
                 }
             };
-            const res = await apiRequest('/pos/customers', token, { method: 'POST', headers: { 'X-Tenant-Slug': tenantSlug }, body: JSON.stringify(payload) });
-            setSubmitting(false);
-            if (res.customer) onSuccess(res.customer);
+            try {
+                const res = await apiRequest('/pos/customers', token, { method: 'POST', headers: { 'X-Tenant-Slug': tenantSlug }, body: JSON.stringify(payload) });
+                setSubmitting(false);
+                if (res.customer) onSuccess(res.customer);
+            } catch (err: any) {
+                setSubmitting(false);
+                if (err.status === 401 || err.message?.includes('Token Expired')) {
+                    alert('Your session has expired. Please refresh the page to continue.');
+                } else {
+                    alert('Failed to create customer: ' + err.message);
+                }
+            }
         }}>
             <input name="name" required className="w-full p-2 border rounded dark:bg-zinc-800 dark:text-zinc-100" placeholder="Full Name" />
             <div className="grid grid-cols-2 gap-4">

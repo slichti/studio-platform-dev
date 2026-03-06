@@ -611,7 +611,7 @@ export class PosService {
         let stripeMatches: any[] = [];
         if (this.stripeService && tenantStripeAccountId) {
             try {
-                const result = await this.stripeService.searchCustomers(query, tenantStripeAccountId);
+                const result = await this.stripeService.searchCustomers(query, this.tenantId, tenantStripeAccountId);
                 stripeMatches = result.data.map((cus) => {
                     // Avoid duplicating if email already in localMatches
                     if (localMatches.find(m => m.email.toLowerCase() === cus.email?.toLowerCase())) return null;
