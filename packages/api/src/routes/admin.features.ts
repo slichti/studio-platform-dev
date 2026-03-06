@@ -4,11 +4,9 @@ import { tenants, tenantFeatures } from '@studio/db/src/schema'; // Ensure corre
 import { eq, and } from 'drizzle-orm';
 
 // Bindings and Variables should match index.ts or be imported
-type Bindings = {
-    DB: D1Database;
-};
+import { HonoContext } from '../types';
 
-const app = new Hono<{ Bindings: Bindings }>();
+const app = new Hono<HonoContext>();
 
 // GET /
 app.get('/', async (c) => {

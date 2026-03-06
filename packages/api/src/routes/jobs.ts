@@ -5,12 +5,9 @@ import { eq, and, desc, lt, inArray } from 'drizzle-orm';
 import { isFeatureEnabled } from '../utils/features';
 import { EmailService } from '../services/email';
 
-type Bindings = {
-    DB: D1Database;
-    RESEND_API_KEY: string;
-};
+import { HonoContext } from '../types';
 
-const app = new Hono<{ Bindings: Bindings }>();
+const app = new Hono<HonoContext>();
 
 // Simple API Key protection for Cron Jobs?
 // For now, assume protected by Worker logic or secret header

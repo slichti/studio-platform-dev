@@ -6,25 +6,9 @@ import { eq, and, sql } from 'drizzle-orm';
 import { rateLimitMiddleware } from '../middleware/rate-limit';
 import { Svix } from 'svix';
 
-type Bindings = {
-    STRIPE_SECRET_KEY: string;
-    STRIPE_PRICE_GROWTH?: string;
-    STRIPE_PRICE_SCALE?: string;
-    CLERK_SECRET_KEY: string;
-    RESEND_API_KEY: string;
-    PLATFORM_ADMIN_EMAIL?: string;
-    SVIX_AUTH_TOKEN?: string;
-    DB: D1Database;
-};
+import { HonoContext } from '../types';
 
-type Variables = {
-    auth: {
-        userId: string;
-        claims?: any;
-    };
-}
-
-const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
+const app = new Hono<HonoContext>();
 
 // GET /check-slug?slug=example
 app.get('/check-slug', async (c) => {

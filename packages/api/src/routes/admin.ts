@@ -11,7 +11,7 @@ import usersRouter from './admin.users';
 import tenantsRouter from './admin.tenants';
 import billingRouter from './admin.billing';
 import mediaRouter from './admin.media';
-import statsRouter from './admin.stats';
+import statsRouter from './admin-stats';
 import commsRouter from './admin.communications';
 import supportRouter from './admin.support';
 import configRouter from './admin.config';
