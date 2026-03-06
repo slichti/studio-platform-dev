@@ -86,6 +86,7 @@ import adminBackups from './routes/admin.backups'; // [NEW] Backup Management
 import adminOwners from './routes/admin.tenants.owners'; // [NEW] Ownership Management
 import adminApiKeys from './routes/admin.api-keys'; // [NEW] API Key Management
 import adminSeo from './routes/admin.seo'; // [NEW] SEO Management
+import community from './routes/community'; // [NEW] Community Hub
 
 import { seoMiddleware } from './middleware/seo';
 import sitemapRoute from './routes/sitemap';
@@ -196,6 +197,10 @@ app.get('/studios/gbp-callback', authMiddleware, tenantMiddleware, async (c) => 
   } catch (e: any) { return c.json({ error: e.message }, 500); }
 });
 
+app.route('/reports/custom', authMiddleware, tenantMiddleware, reportsCustom);
+app.route('/community', authMiddleware, tenantMiddleware, community);
+
+// --- Public Routes ---
 app.post('/studios/gbp-sync', authMiddleware, tenantMiddleware, async (c) => {
   const tenant = c.get('tenant');
   if (!c.get('can')('manage_tenant')) return c.json({ error: "Forbidden" }, 403);

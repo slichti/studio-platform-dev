@@ -13,4 +13,5 @@ export const FEATURES = [
     { key: 'marketing', label: 'Marketing & CRM', icon: Mail, sections: 'CRM > Email Automations' },
     { key: 'payroll', label: 'Payroll & Compensation', icon: CreditCard, sections: 'Management > Payroll Admin' },
     { key: 'course_management', label: 'Course Management', icon: BookOpen, sections: 'Platform > Courses' },
+    { key: 'community', label: 'Community Hub', icon: MessagesSquare, sections: 'Operations > Community Hub' },
 ];

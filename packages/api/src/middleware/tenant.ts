@@ -43,6 +43,23 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
         tenant = await db.query.tenants.findFirst({
             where: eq(tenants.slug, headerTenantSlug),
         });
+
+        // [NEW] Virtual Platform Tenant Fallback for Headers
+        if (!tenant && headerTenantSlug === 'platform') {
+            console.log('[TenantMiddleware] Synthesizing virtual Platform tenant from Header');
+            tenant = {
+                id: 'platform',
+                slug: 'platform',
+                name: 'Studio Platform',
+                branding: { primaryColor: '#2563eb' },
+                status: 'active',
+                subscriptionStatus: 'active',
+                tier: 'scale', // Full feature access for platform support
+                isPublic: true,
+                createdAt: new Date()
+            } as any;
+        }
+
         if (!tenant) console.log('[TenantMiddleware] Slug Header provided but not found:', headerTenantSlug);
     }
 

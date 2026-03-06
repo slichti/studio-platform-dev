@@ -25,8 +25,9 @@ import { Badge } from "../ui/Badge";
 import { useCommunity } from "../../hooks/useCommunity";
 import { cn } from "../../lib/utils";
 
-export default function CommunityHub() {
-    const { slug } = useParams();
+export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
+    const { slug: paramsSlug } = useParams();
+    const slug = propsSlug || paramsSlug;
     const { posts, isLoading, createPost, likePost, commentOnPost, generateAIContent } = useCommunity(slug!);
 
     const [newPostContent, setNewPostContent] = useState("");

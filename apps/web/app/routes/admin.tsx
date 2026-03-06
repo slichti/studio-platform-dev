@@ -27,8 +27,11 @@ export const loader = async (args: LoaderFunctionArgs) => {
         const env = (args.context as any).cloudflare?.env || (args.context as any).env || {};
         const apiUrl = env.VITE_API_URL || "https://studio-platform-api.slichti.workers.dev";
 
-        // Fetch /me to get email and system role
-        const user = (await apiRequest("/users/me", token, {}, apiUrl)) as any;
+        // Fetch /me and platform config in parallel
+        const [user, configs] = await Promise.all([
+            apiRequest("/users/me", token, {}, apiUrl),
+            apiRequest<any[]>("/admin/platform/config", token, {}, apiUrl).catch(() => [])
+        ]);
 
         // A. Role Check (Must be System Admin)
         if (!user.isPlatformAdmin && user.role !== 'admin') {
@@ -36,10 +39,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
             throw new Response("Forbidden", { status: 403 });
         }
 
-        // B. Strict Allowlist Check - REMOVED per user request to allow DB-based role management
-        // Now relying solely on user.isPlatformAdmin or user.role === 'admin' checked above.
-
-        return { user, token };
+        return { user, token, configs };
     } catch (e: any) {
         if (e.status === 403 || e.message?.includes("Forbidden")) {
             throw new Response("Access Denied", { status: 403 });
@@ -68,20 +68,21 @@ export default function AdminLayout() {
     const displayImage = dbUser?.portraitUrl || clerkUser?.imageUrl;
 
     const navItems = [
+        { label: "Dashboard", href: "/admin", end: true, icon: "📊" },
         { label: "Activity Logs", href: "/admin/logs", icon: "📋" },
         { label: "AI Configuration", href: "/admin/ai", icon: "🤖" },
         { label: "Architecture", href: "/admin/architecture", icon: "🏗️" },
         { label: "Backups", href: "/admin/backups", icon: "💾" },
-        { label: "Chat System", href: "/admin/chat", icon: "💬" },
+        { label: "Chat System", href: "/admin/chat", icon: "💬", featureKey: "feature_chat" },
         { label: "Communications", href: "/admin/comms", icon: "📡" },
+        { label: "Community Hub", href: "/admin/community", icon: "💬", featureKey: "feature_community" },
         { label: "Coupons", href: "/admin/coupons", icon: "🎟️" },
-        { label: "Dashboard", href: "/admin", end: true, icon: "📊" },
         { label: "Diagnostics", href: "/admin/diagnostics", icon: "🩺" },
-        { label: "Financials", href: "/admin/financials", icon: "💰" },
+        { label: "Financials", href: "/admin/financials", icon: "💰", featureKey: "feature_financials" },
         { label: "Global Bookings", href: "/admin/bookings", icon: "🎟️" },
         { label: "Global User Directory", href: "/admin/users", icon: "👥" },
         { label: "Internal Docs", href: "/documentation", icon: "📚" },
-        { label: "Mobile App", href: "/admin/mobile", icon: "📱" },
+        { label: "Mobile App", href: "/admin/mobile", icon: "📱", featureKey: "feature_mobile_app" },
         { label: "Operations Dashboard", href: "/admin/ops", icon: "🛠️" },
         { label: "Platform Features", href: "/admin/features", icon: "⚙️" },
         { label: "Platform Plans", href: "/admin/plans", icon: "💎" },
@@ -89,10 +90,13 @@ export default function AdminLayout() {
         { label: "SEO Management", href: "/admin/seo", icon: "🔍" },
         { label: "System Status", href: "/admin/status", icon: "🟢" },
         { label: "Tenants", href: "/admin/tenants", icon: "🏢" },
-        { label: "Video Manager", href: "/admin/videos", icon: "🎬" },
-        { label: "Website Builder", href: "/admin/website", icon: "🌐" },
-        { label: "Community Hub", href: "/admin/community", icon: "💬" },
-    ];
+        { label: "Video Manager", href: "/admin/videos", icon: "🎬", featureKey: "feature_vod" },
+        { label: "Website Builder", href: "/admin/website", icon: "🌐", featureKey: "feature_website_builder" },
+    ].sort((a, b) => a.label === "Dashboard" ? -1 : b.label === "Dashboard" ? 1 : a.label.localeCompare(b.label));
+
+    const enabledFeatures = new Set(loaderData.configs?.filter((c: any) => c.enabled).map((c: any) => c.key) || []);
+
+    const filteredNavItems = navItems.filter(item => !item.featureKey || enabledFeatures.has(item.featureKey));
 
     return (
         <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 font-sans flex text-zinc-900 dark:text-zinc-100">
@@ -110,8 +114,8 @@ export default function AdminLayout() {
                     </div>
                 </div>
 
-                <nav className="flex-1 p-3 space-y-1 mt-2">
-                    {navItems.map((item) => (
+                <nav className="flex-1 p-3 space-y-1 mt-2 overflow-y-auto">
+                    {filteredNavItems.map((item) => (
                         <NavLink
                             key={item.href}
                             to={item.href}
