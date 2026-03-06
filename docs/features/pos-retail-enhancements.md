@@ -46,6 +46,18 @@ Studio Platform's Point of Sale and Retail capabilities have been enhanced using
 - **Product Naming:** All products created via the POS or bulk import in commerce are prefixed with the tenant business name: `"${tenantName} - ${productName}"`.
 - **Transaction Clarity:** Stripe checkout sessions and PaymentIntents now include `statement_descriptor_suffix` (truncated tenant name) and a detailed `description` incorporating the tenant name for better customer billing visibility.
 
+### 9. Auto-focus on Creation
+- **Enhancement:** Added `autoFocus` to the "Full Name" input in customer and member creation modals (`POSPage`, `BookingWidget`, `StudentsPage`).
+- **Benefit:** Streamlines the workflow for staff by allowing immediate typing upon opening the modal.
+
+### 10. State Dropdown
+- **Enhancement:** Replaced the text input for "State" in the POS customer modal with a searchable selection of US states.
+- **Benefit:** Improves data accuracy and simplifies the address entry process.
+
+### 11. Customer Creation & Invitation Fix
+- **Fix:** Addressed a critical bug where customer creation failed due to a missing or misconfigured `tenant_invitations` table in the production database.
+- **Outcome:** Submitting a new customer now correctly handles global user creation, tenant member association, and automated invitation token generation with established unique constraints.
+
 ## API Summary
 
 | Method | Route | Description |
