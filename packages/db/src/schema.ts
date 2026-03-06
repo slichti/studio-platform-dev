@@ -1661,6 +1661,7 @@ export const communityPosts = sqliteTable('community_posts', {
     commentsCount: integer('comments_count').default(0),
     isPinned: integer('is_pinned', { mode: 'boolean' }).default(false),
     topicId: text('topic_id').references(() => platformSeoTopics.id),
+    mediaJson: text('media_json', { mode: 'json' }), // Support for audio, video, gifs: { type: string, url: string }[]
     isGenerated: integer('is_generated', { mode: 'boolean' }).default(false),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({

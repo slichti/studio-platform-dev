@@ -214,8 +214,29 @@ app.openapi(createMemberRoute, async (c) => {
     }
     if (!u) return c.json({ error: "User error" }, 500) as any;
 
+    if (u.isPlatformAdmin) {
+        return c.json({
+            error: "Platform Admin",
+            code: "PLATFORM_ADMIN_EXISTS",
+            message: "This user is a Platform Admin and cannot be added as a member."
+        }, 409);
+    }
+
     const exists = await db.query.tenantMembers.findFirst({ where: and(eq(tenantMembers.userId, u.id), eq(tenantMembers.tenantId, tenant.id)) });
-    if (exists) return c.json({ error: 'Exists' }, 409);
+    if (exists) {
+        if (exists.status === 'archived') {
+            return c.json({
+                error: "Exists (Archived)",
+                code: "TENANT_MEMBER_ARCHIVED",
+                message: "This user is archived. Please reactivate them from the members list."
+            }, 409);
+        }
+        return c.json({
+            error: "Exists",
+            code: "TENANT_MEMBER_EXISTS",
+            message: "This user is already a member of this studio."
+        }, 409);
+    }
 
     const mid = crypto.randomUUID();
     const token = !u.lastActiveAt ? crypto.randomUUID() : null;

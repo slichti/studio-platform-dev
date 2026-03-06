@@ -102,7 +102,10 @@ export default function StudentsPage() {
                 })
             }) as any;
 
-            if (res.error) toast.error(typeof res.error === 'string' ? res.error : 'Failed to add member');
+            if (res.error) {
+                const message = res.message || (typeof res.error === 'string' ? res.error : 'Failed to add member');
+                toast.error(message);
+            }
             else {
                 toast.success("Member added");
                 setIsAddingMember(false);
