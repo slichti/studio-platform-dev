@@ -798,6 +798,18 @@ Full SDK migration from Expo 54 to 55:
   - Unified `HonoContext` across `onboarding.ts`, `jobs.ts`, `admin.features.ts`, and `admin-stats.ts` to eliminate `Bindings` and `Variables` type mismatches.
 - **Monetization Engine**:
   - Implemented `custom_application_fee_percent` on the `tenants` table, allowing per-tenant transaction fee overrides.
+
+### Session 21 — Member Conflicts & Community Hub Expansion (March 2026)
+- **Descriptive Member Errors**:
+  - Enhanced `POST /members` to return specific error codes: `PLATFORM_ADMIN_EXISTS`, `TENANT_MEMBER_EXISTS`, and `TENANT_MEMBER_ARCHIVED`.
+  - Updated `StudentsPage.tsx` to display human-readable feedback for these conflicts.
+- **Community Hub Expansion**:
+  - **Rich Media**: Injected `media_json` support into `community_posts` schema and API logic for multi-attachment posts (Video, Audio, Images).
+  - **AI Assist**: Integrated Gemini 2.0 Flash to generate studio-branded social posts from short prompts (`POST /community/generate`).
+  - **Social Engagement**: Built a modern feed UI with heart animations for likes, inline comments/replies, and pinned post badges.
+- **Infrastructure & Deployment**:
+  - Resolved D1 migration numbering collision for `0027_messy_excalibur.sql`.
+  - Manually registered the migration in production to unblock CI/CD.
   - Synchronized `platform_plans` with a base `application_fee_percent` per tier level.
   - Verified that fees are correctly calculated for both one-time POS transactions and recurring Stripe subscriptions.
 - **Verification & Testing**:
