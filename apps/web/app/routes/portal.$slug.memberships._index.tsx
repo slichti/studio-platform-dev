@@ -347,13 +347,24 @@ export default function PortalMembershipsPage() {
                                     {/* Pricing + CTA */}
                                     <div className="mt-auto pt-4 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between gap-3">
                                         <div>
-                                            <span className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                                                {isFree ? "Free" : `$${(plan.price / 100).toFixed(plan.price % 100 === 0 ? 0 : 2)}`}
-                                            </span>
-                                            {!isFree && (
-                                                <span className="text-sm text-zinc-500 dark:text-zinc-400 ml-1">
-                                                    {intervalLabel(plan.interval)}
+                                            <div className="flex flex-col">
+                                                <span className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+                                                    {isFree ? "Free" : `$${(plan.price / 100).toFixed(plan.price % 100 === 0 ? 0 : 2)}`}
                                                 </span>
+                                                {!isFree && (
+                                                    <span className="text-sm text-zinc-500 dark:text-zinc-400">
+                                                        {intervalLabel(plan.interval)}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Monthly Breakdown for Year/Multi-Month */}
+                                            {!isFree && (plan.interval === 'year' || (plan.interval === 'month' && plan.intervalCount > 1)) && (
+                                                <div className="mt-1">
+                                                    <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 dark:text-indigo-400 px-1.5 py-0.5 rounded-full uppercase tracking-tight">
+                                                        ${((plan.price / 100) / (plan.interval === 'year' ? 12 : plan.intervalCount)).toFixed(2)}/mo
+                                                    </span>
+                                                </div>
                                             )}
                                         </div>
 

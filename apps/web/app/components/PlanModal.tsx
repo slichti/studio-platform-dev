@@ -170,6 +170,32 @@ export function PlanModal({ isOpen, plan, onClose, onSave, isSubmitting, tenantS
                             </div>
                         </div>
 
+                        {/* Pricing Breakdown Preview */}
+                        {(Number(price) > 0) && (interval !== 'one_time') && (intervalCount > 1 || interval === 'year' || interval === 'week') && (
+                            <div className="bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 rounded-lg p-3 space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
+                                <Label className="text-indigo-900 dark:text-indigo-400 text-xs font-semibold uppercase tracking-wider">Pricing Breakdown</Label>
+                                <div className="space-y-1">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-indigo-700 dark:text-indigo-300">Customer will be charged:</span>
+                                        <span className="font-bold text-indigo-900 dark:text-indigo-200">
+                                            {interval === 'month' && intervalCount > 1
+                                                ? `$${(Number(price) / intervalCount).toFixed(2)} / month`
+                                                : interval === 'year'
+                                                    ? `$${(Number(price) / 12).toFixed(2)} / month`
+                                                    : interval === 'week'
+                                                        ? `$${(Number(price)).toFixed(2)} / week`
+                                                        : `$${(Number(price)).toFixed(2)}`
+                                            }
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between text-xs text-indigo-600 dark:text-indigo-400">
+                                        <span>Total over full term:</span>
+                                        <span>${Number(price).toFixed(2)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {interval !== 'one_time' && (
                             <div className="flex items-center space-x-2 pt-2">
                                 <input
