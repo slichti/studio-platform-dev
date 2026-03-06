@@ -790,4 +790,16 @@ Full SDK migration from Expo 54 to 55:
 - **Custom Card Creator Engine Overhaul**:
   - Refactored the internal Canvas generator (`CardCreator.tsx`) to support automated multi-line algorithmic text wrapping instead of aggressive scaling.
   - Exposed deeper creative controls for studio owners to position typography (Top, Middle, Bottom) and alignments (Left, Center, Right) across dynamic gradients.
-  - Eliminated manual workflow friction by using a React `forwardRef` to implicitly capture generated gradient Blob streams the moment a parent form submits (resolving bugs where users forgot to explicitly click "Apply Generated Card").
+   - Eliminated manual workflow friction by using a React `forwardRef` to implicitly capture generated gradient Blob streams the moment a parent form submits (resolving bugs where users forgot to explicitly click "Apply Generated Card").
+
+### Session 20 — Deployment Fixes & Platform Monetization (March 2026)
+- **Deployment & Type Stability**:
+  - Consolidated redundant stats routes into a single `admin-stats.ts` to resolve naming conflicts and deployment collisions.
+  - Unified `HonoContext` across `onboarding.ts`, `jobs.ts`, `admin.features.ts`, and `admin-stats.ts` to eliminate `Bindings` and `Variables` type mismatches.
+- **Monetization Engine**:
+  - Implemented `custom_application_fee_percent` on the `tenants` table, allowing per-tenant transaction fee overrides.
+  - Synchronized `platform_plans` with a base `application_fee_percent` per tier level.
+  - Verified that fees are correctly calculated for both one-time POS transactions and recurring Stripe subscriptions.
+- **Verification & Testing**:
+  - Fixed persistent test failures in `booking-integration.test.ts` and `debug_fixes.test.ts` by synchronizing manual SQL schemas with the production D1 schema.
+  - Validated the entire non-mobile monorepo test suite (47/47 API tests, all Web tests passing).

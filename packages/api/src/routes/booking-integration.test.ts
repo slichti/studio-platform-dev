@@ -36,7 +36,8 @@ describe('Booking Lifecycle Integration', () => {
             storage_usage INTEGER DEFAULT 0, member_count INTEGER DEFAULT 0, instructor_count INTEGER DEFAULT 0,
             last_billed_at INTEGER, archived_at INTEGER, grace_period_ends_at INTEGER, student_access_disabled INTEGER DEFAULT 0,
             aggregator_config TEXT, is_test INTEGER DEFAULT 0 NOT NULL,
-            seo_config TEXT, gbp_token TEXT
+            seo_config TEXT, gbp_token TEXT,
+            custom_application_fee_percent INTEGER
         )`);
 
         db = drizzle(sqlite, { schema });

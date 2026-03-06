@@ -41,6 +41,7 @@ describe('Debug Fixes Verification', () => {
             last_billed_at INTEGER, archived_at INTEGER, grace_period_ends_at INTEGER, student_access_disabled INTEGER DEFAULT 0 NOT NULL,
             aggregator_config TEXT, is_test INTEGER DEFAULT 0 NOT NULL, 
             seo_config TEXT, gbp_token TEXT,
+            custom_application_fee_percent INTEGER,
             created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`);
 
