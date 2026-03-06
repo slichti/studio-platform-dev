@@ -11,7 +11,10 @@ import {
     MessageSquare,
     ChevronLeft,
     Save,
-    Shield
+    Shield,
+    Heart,
+    Trophy,
+    Users
 } from "lucide-react";
 
 export const loader = async (args: any) => {
@@ -37,7 +40,10 @@ export default function TenantCommunitySettings() {
 
     const [form, setForm] = useState({
         emailEnabled: settings?.emailEnabled ?? false,
-        smsEnabled: settings?.smsEnabled ?? false
+        smsEnabled: settings?.smsEnabled ?? false,
+        reactionsEnabled: settings?.reactionsEnabled ?? true,
+        milestonesEnabled: settings?.milestonesEnabled ?? true,
+        profilePreviewsEnabled: settings?.profilePreviewsEnabled ?? true,
     });
 
     if (error) return <div className="p-8 text-rose-600 font-medium">Error loading settings: {error}</div>;
@@ -123,6 +129,71 @@ export default function TenantCommunitySettings() {
                                 className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 dark:focus:ring-offset-zinc-900 ${form.smsEnabled ? 'bg-blue-600' : 'bg-zinc-200 dark:bg-zinc-700'}`}
                             >
                                 <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${form.smsEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-8 shadow-sm">
+                    <div className="flex items-center gap-4 mb-8">
+                        <div className="p-2 bg-purple-50 dark:bg-purple-900/30 rounded-xl">
+                            <Shield size={18} className="text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">Feature Controls</h2>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between p-6 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800/50 transition-all hover:bg-zinc-100/50 dark:hover:bg-zinc-800/80">
+                            <div className="flex items-center gap-4">
+                                <div className="p-2.5 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm">
+                                    <Heart size={18} className="text-pink-500" />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-zinc-900 dark:text-zinc-50">Multi-Emoji Reactions</h3>
+                                    <p className="text-xs text-zinc-500 mt-1">Allow members to react with Heart, Celebrate, and Fire emojis.</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setForm(f => ({ ...f, reactionsEnabled: !f.reactionsEnabled }))}
+                                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 dark:focus:ring-offset-zinc-900 ${form.reactionsEnabled ? 'bg-blue-600' : 'bg-zinc-200 dark:bg-zinc-700'}`}
+                            >
+                                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${form.reactionsEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                            </button>
+                        </div>
+
+                        <div className="flex items-center justify-between p-6 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800/50 transition-all hover:bg-zinc-100/50 dark:hover:bg-zinc-800/80">
+                            <div className="flex items-center gap-4">
+                                <div className="p-2.5 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm">
+                                    <Trophy size={18} className="text-yellow-500" />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-zinc-900 dark:text-zinc-50">Milestone Auto-Posts</h3>
+                                    <p className="text-xs text-zinc-500 mt-1">Automatically announce when members hit 10, 50, or 100 classes.</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setForm(f => ({ ...f, milestonesEnabled: !f.milestonesEnabled }))}
+                                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 dark:focus:ring-offset-zinc-900 ${form.milestonesEnabled ? 'bg-blue-600' : 'bg-zinc-200 dark:bg-zinc-700'}`}
+                            >
+                                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${form.milestonesEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                            </button>
+                        </div>
+
+                        <div className="flex items-center justify-between p-6 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800/50 transition-all hover:bg-zinc-100/50 dark:hover:bg-zinc-800/80">
+                            <div className="flex items-center gap-4">
+                                <div className="p-2.5 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm">
+                                    <Users size={18} className="text-blue-500" />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-zinc-900 dark:text-zinc-50">Member Profile Previews</h3>
+                                    <p className="text-xs text-zinc-500 mt-1">Show a popover with class counts and join date when hovering over an avatar.</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setForm(f => ({ ...f, profilePreviewsEnabled: !f.profilePreviewsEnabled }))}
+                                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 dark:focus:ring-offset-zinc-900 ${form.profilePreviewsEnabled ? 'bg-blue-600' : 'bg-zinc-200 dark:bg-zinc-700'}`}
+                            >
+                                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${form.profilePreviewsEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
                             </button>
                         </div>
                     </div>

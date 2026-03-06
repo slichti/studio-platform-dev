@@ -35,12 +35,13 @@ export function useCommunity(slug: string, filters: { type?: string; limit?: num
         }
     });
 
-    const likePost = useMutation({
-        mutationFn: async (postId: string) => {
+    const reactToPost = useMutation({
+        mutationFn: async ({ postId, type }: { postId: string, type: 'like' | 'heart' | 'celebrate' | 'fire' }) => {
             const token = await getToken();
-            return apiRequest(`/community/${postId}/like`, token, {
+            return apiRequest(`/community/${postId}/react`, token, {
                 method: 'POST',
-                headers: { 'X-Tenant-Slug': slug }
+                headers: { 'X-Tenant-Slug': slug },
+                body: JSON.stringify({ type })
             });
         },
         onSuccess: () => {
@@ -78,8 +79,23 @@ export function useCommunity(slug: string, filters: { type?: string; limit?: num
         posts: query.data as any[] || [],
         isLoading: query.isLoading,
         createPost,
-        likePost,
+        reactToPost,
         commentOnPost,
         generateAIContent
     };
+}
+
+export function useMemberPreview(slug: string, memberId: string | null) {
+    const { getToken } = useAuth();
+
+    return useQuery({
+        queryKey: ['community', 'member-preview', slug, memberId],
+        queryFn: async () => {
+            const token = await getToken();
+            return apiRequest(`/community/members/${memberId}/preview`, token, {
+                headers: { 'X-Tenant-Slug': slug }
+            });
+        },
+        enabled: !!slug && !!memberId
+    });
 }

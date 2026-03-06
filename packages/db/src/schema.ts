@@ -1661,10 +1661,11 @@ export const communityPosts = sqliteTable('community_posts', {
     tenantId: text('tenant_id').notNull().references(() => tenants.id),
     authorId: text('author_id').notNull().references(() => tenantMembers.id),
     content: text('content').notNull(),
-    type: text('type', { enum: ['post', 'announcement', 'event', 'photo', 'blog'] }).default('post').notNull(),
+    type: text('type', { enum: ['post', 'announcement', 'event', 'photo', 'blog', 'milestone'] }).default('post').notNull(),
     imageUrl: text('image_url'),
     likesCount: integer('likes_count').default(0),
     commentsCount: integer('comments_count').default(0),
+    reactionsJson: text('reactions_json', { mode: 'json' }), // Cached emoji counts: { like: 5, heart: 2 }
     isPinned: integer('is_pinned', { mode: 'boolean' }).default(false),
     topicId: text('topic_id').references(() => platformSeoTopics.id),
     mediaJson: text('media_json', { mode: 'json' }), // Support for audio, video, gifs: { type: string, url: string }[]
@@ -1686,12 +1687,14 @@ export const communityComments = sqliteTable('community_comments', {
     postIdx: index('community_comment_post_idx').on(table.postId),
 }));
 
-export const communityLikes = sqliteTable('community_likes', {
+export const communityReactions = sqliteTable('community_reactions', {
     postId: text('post_id').notNull().references(() => communityPosts.id, { onDelete: 'cascade' }),
     memberId: text('member_id').notNull().references(() => tenantMembers.id),
+    type: text('type', { enum: ['like', 'heart', 'celebrate', 'fire'] }).default('like').notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
-    pk: primaryKey({ columns: [table.postId, table.memberId] }),
+    pk: primaryKey({ columns: [table.postId, table.memberId, table.type] }),
+    postIdx: index('community_reaction_post_idx').on(table.postId),
 }));
 
 // --- Reviews & Testimonials ---

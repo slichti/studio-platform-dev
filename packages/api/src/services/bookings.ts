@@ -454,6 +454,18 @@ export class BookingService {
                                 milestone: count
                             }
                         });
+
+                        // Community Hub Milestone Post
+                        const communitySettings = (tenant.settings as any)?.community;
+                        if (communitySettings?.milestonesEnabled !== false) { // Default to true if not specified
+                            try {
+                                const { CommunityService } = await import('./community');
+                                const communityService = new CommunityService(this.db);
+                                await communityService.postMilestone(tenantId, member.id, count);
+                            } catch (e) {
+                                console.error("[BookingService] Community Milestone Post Error", e);
+                            }
+                        }
                     }
 
                     // Trigger: class_attended (for SEO Review Engine)

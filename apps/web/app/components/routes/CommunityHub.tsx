@@ -13,28 +13,41 @@ import {
     Music,
     Smile,
     Sparkles,
-    Pin
+    Pin,
+    Flame,
+    Trophy,
+    Calendar,
+    Users
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/Card";
 import { Input } from "../ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/Avatar";
 import { Badge } from "../ui/Badge";
-import { useCommunity } from "../../hooks/useCommunity";
+import { useCommunity, useMemberPreview } from "../../hooks/useCommunity";
 import { cn } from "../../lib/utils";
 
 export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
     const { slug: paramsSlug } = useParams();
     const slug = propsSlug || paramsSlug;
-    const { posts, isLoading, createPost, likePost, commentOnPost, generateAIContent } = useCommunity(slug!);
+    const { posts, isLoading, createPost, reactToPost, commentOnPost, generateAIContent } = useCommunity(slug!);
 
     const [newPostContent, setNewPostContent] = useState("");
     const [isGenerating, setIsGenerating] = useState(false);
     const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
     const [commentText, setCommentText] = useState("");
+    const [previewMemberId, setPreviewMemberId] = useState<string | null>(null);
+
+    const REACTION_TYPES = [
+        { type: 'like', icon: Heart, label: 'Like', color: 'text-red-500', bg: 'hover:bg-red-50', fill: 'fill-red-500' },
+        { type: 'heart', icon: Heart, label: 'Love', color: 'text-pink-500', bg: 'hover:bg-pink-50', fill: 'fill-pink-500' },
+        { type: 'celebrate', icon: Sparkles, label: 'Celebrate', color: 'text-yellow-500', bg: 'hover:bg-yellow-50', fill: 'fill-yellow-500' },
+        { type: 'fire', icon: Flame, label: 'Fire', color: 'text-orange-500', bg: 'hover:bg-orange-50', fill: 'fill-orange-500' },
+    ] as const;
 
     const handleCreatePost = async () => {
         if (!newPostContent.trim()) return;
@@ -64,8 +77,8 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
         }
     };
 
-    const handleLike = (postId: string) => {
-        likePost.mutate(postId);
+    const handleReact = (postId: string, type: 'like' | 'heart' | 'celebrate' | 'fire' = 'like') => {
+        reactToPost.mutate({ postId, type });
     };
 
     const handleComment = async (postId: string) => {
@@ -155,8 +168,8 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
                 {posts.map((post) => (
                     <Card key={post.id} className={cn("border-none shadow-lg transition-all hover:shadow-xl", post.isPinned && "ring-1 ring-primary/20")}>
                         <CardHeader className="flex flex-row items-center gap-4 p-4 pb-0">
-                            <Avatar>
-                                <AvatarImage src={post.author?.user?.profile?.avatarUrl} />
+                            <Avatar className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setPreviewMemberId(post.authorId)}>
+                                <AvatarImage src={post.author?.user?.profile?.portraitUrl} />
                                 <AvatarFallback>{post.author?.user?.profile?.firstName?.[0] || 'U'}</AvatarFallback>
                             </Avatar>
                             <div className="flex-1">
@@ -200,15 +213,43 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
                             {/* Engagement Bar */}
                             <div className="flex items-center justify-between border-t pt-2 mt-4">
                                 <div className="flex items-center gap-1">
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className={cn("gap-2 hover:bg-red-50 hover:text-red-500", post.isLiked && "text-red-500")}
-                                        onClick={() => handleLike(post.id)}
-                                    >
-                                        <Heart className={cn("h-5 w-5", post.isLiked && "fill-current")} />
-                                        {post.likesCount || 0}
-                                    </Button>
+                                    <div className="flex items-center gap-1 group relative">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className={cn(
+                                                "gap-2",
+                                                post.userReaction && REACTION_TYPES.find(r => r.type === post.userReaction)?.color
+                                            )}
+                                            onClick={() => handleReact(post.id, (post.userReaction as any) || 'like')}
+                                        >
+                                            {(() => {
+                                                const r = REACTION_TYPES.find(rt => rt.type === post.userReaction) || REACTION_TYPES[0];
+                                                const Icon = r.icon;
+                                                return <Icon className={cn("h-5 w-5", post.userReaction && r.fill)} />;
+                                            })()}
+                                            {post.likesCount || 0}
+                                        </Button>
+
+                                        {/* Reaction Picker Popover (Simplified) */}
+                                        <div className="absolute bottom-full left-0 mb-2 hidden group-hover:flex items-center gap-1 p-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-full shadow-xl animate-in fade-in slide-in-from-bottom-2 z-10">
+                                            {REACTION_TYPES.map((r) => {
+                                                const Icon = r.icon;
+                                                return (
+                                                    <Button
+                                                        key={r.type}
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className={cn("h-8 w-8 rounded-full", r.bg, r.color)}
+                                                        onClick={() => handleReact(post.id, r.type)}
+                                                        title={r.label}
+                                                    >
+                                                        <Icon className={cn("h-4 w-4", post.userReaction === r.type && r.fill)} />
+                                                    </Button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
                                     <Button
                                         variant="ghost"
                                         size="sm"
@@ -260,7 +301,58 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
                     </div>
                 </div>
             )}
+
+            <MemberPreviewModal
+                slug={slug!}
+                memberId={previewMemberId}
+                onClose={() => setPreviewMemberId(null)}
+            />
         </div>
+    );
+}
+
+function MemberPreviewModal({ slug, memberId, onClose }: { slug: string, memberId: string | null, onClose: () => void }) {
+    const { data: member, isLoading } = useMemberPreview(slug, memberId);
+
+    return (
+        <Dialog open={!!memberId} onOpenChange={(open) => !open && onClose()}>
+            <DialogContent className="max-w-md p-0 overflow-hidden border-none shadow-2xl">
+                <div className="h-24 bg-gradient-to-r from-primary/20 to-primary/5" />
+                <div className="px-6 pb-8 -mt-12 text-center space-y-4">
+                    <Avatar className="h-24 w-24 mx-auto ring-4 ring-background shadow-lg">
+                        <AvatarImage src={member?.profilePicture} />
+                        <AvatarFallback className="text-2xl">{member?.firstName?.[0]}</AvatarFallback>
+                    </Avatar>
+
+                    <div className="space-y-1">
+                        <DialogTitle className="text-2xl font-bold">{member?.firstName} {member?.lastName}</DialogTitle>
+                        <p className="text-muted-foreground flex items-center justify-center gap-1.5 text-sm font-medium">
+                            <Calendar className="h-4 w-4" />
+                            Joined {member ? new Date(member.joinedAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '...'}
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 pt-4">
+                        <div className="p-4 bg-muted/50 rounded-2xl space-y-1">
+                            <Trophy className="h-5 w-5 text-yellow-500 mx-auto" />
+                            <p className="text-2xl font-bold">{member?.stats?.totalClasses || 0}</p>
+                            <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Classes</p>
+                        </div>
+                        <div className="p-4 bg-muted/50 rounded-2xl space-y-1">
+                            <Users className="h-5 w-5 text-blue-500 mx-auto" />
+                            <p className="text-2xl font-bold">{member?.stats?.totalClasses > 50 ? 'Elite' : 'Member'}</p>
+                            <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Rank</p>
+                        </div>
+                    </div>
+
+                    <div className="pt-4">
+                        <Button className="w-full rounded-xl py-6 text-lg font-semibold" onClick={onClose}>
+                            Awesome!
+                        </Button>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
     );
 }
 

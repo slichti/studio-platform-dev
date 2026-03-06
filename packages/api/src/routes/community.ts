@@ -1,8 +1,9 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { communityPosts, communityComments, communityLikes, tenantMembers, users, tenants } from '@studio/db/src/schema';
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { communityPosts, communityComments, communityReactions, tenantMembers, users, tenants, bookings } from '@studio/db/src/schema';
+import { eq, and, desc, sql, isNotNull } from 'drizzle-orm';
 import { HonoContext } from '../types';
+import { CommunityService } from '../services/community';
 
 const app = new Hono<HonoContext>();
 
@@ -22,21 +23,27 @@ app.get('/', async (c) => {
 
     const posts = await db.select({
         id: communityPosts.id, content: communityPosts.content, type: communityPosts.type, imageUrl: communityPosts.imageUrl,
-        likesCount: communityPosts.likesCount, commentsCount: communityPosts.commentsCount, isPinned: communityPosts.isPinned,
+        likesCount: communityPosts.likesCount, commentsCount: communityPosts.commentsCount,
+        reactions: communityPosts.reactionsJson,
+        isPinned: communityPosts.isPinned,
         media: communityPosts.mediaJson,
         createdAt: communityPosts.createdAt, authorId: tenantMembers.id, authorEmail: users.email, authorProfile: users.profile
     })
         .from(communityPosts).innerJoin(tenantMembers, eq(communityPosts.authorId, tenantMembers.id)).innerJoin(users, eq(tenantMembers.userId, users.id))
         .where(whereClause).orderBy(desc(communityPosts.isPinned), desc(communityPosts.createdAt)).limit(limit).all();
 
-    let likedIds = new Set<string>();
+    let userReactions = new Map<string, string>(); // postId -> reactionType
     if (member) {
-        const likes = await db.select({ postId: communityLikes.postId }).from(communityLikes).where(eq(communityLikes.memberId, member.id)).all();
-        likedIds = new Set(likes.map(l => l.postId));
+        const reactions = await db.select({ postId: communityReactions.postId, type: communityReactions.type })
+            .from(communityReactions).where(eq(communityReactions.memberId, member.id)).all();
+        userReactions = new Map(reactions.map(r => [r.postId, r.type]));
     }
 
     return c.json(posts.map(p => ({
-        ...p, author: { id: p.authorId, user: { email: p.authorEmail, profile: p.authorProfile } }, isLiked: likedIds.has(p.id)
+        ...p,
+        author: { id: p.authorId, user: { email: p.authorEmail, profile: p.authorProfile } },
+        userReaction: userReactions.get(p.id) || null,
+        isLiked: userReactions.has(p.id) // keep for backward compatibility
     })));
 });
 
@@ -69,7 +76,10 @@ app.get('/settings', async (c) => {
 
     const settings = (tenant.settings as any)?.community || {
         emailEnabled: false,
-        smsEnabled: false
+        smsEnabled: false,
+        reactionsEnabled: true,
+        milestonesEnabled: true,
+        profilePreviewsEnabled: true
     };
 
     return c.json(settings);
@@ -83,7 +93,7 @@ app.patch('/settings', async (c) => {
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
-    const { emailEnabled, smsEnabled } = await c.req.json();
+    const { emailEnabled, smsEnabled, reactionsEnabled, milestonesEnabled, profilePreviewsEnabled } = await c.req.json();
 
     const currentSettings = (tenant.settings as any) || {};
     const newSettings = {
@@ -91,7 +101,10 @@ app.patch('/settings', async (c) => {
         community: {
             ...(currentSettings.community || {}),
             ...(emailEnabled !== undefined ? { emailEnabled } : {}),
-            ...(smsEnabled !== undefined ? { smsEnabled } : {})
+            ...(smsEnabled !== undefined ? { smsEnabled } : {}),
+            ...(reactionsEnabled !== undefined ? { reactionsEnabled } : {}),
+            ...(milestonesEnabled !== undefined ? { milestonesEnabled } : {}),
+            ...(profilePreviewsEnabled !== undefined ? { profilePreviewsEnabled } : {})
         }
     };
 
@@ -175,22 +188,36 @@ app.post('/ai-generate', async (c) => {
     }
 });
 
-// POST / community/:id/like
-app.post('/:id/like', async (c) => {
+// POST / community/:id/react
+app.post('/:id/react', async (c) => {
     const db = createDb(c.env.DB);
     const member = c.get('member');
+    const postId = c.req.param('id');
     if (!member) return c.json({ error: 'Member required' }, 403);
 
-    const existing = await db.select().from(communityLikes).where(and(eq(communityLikes.postId, c.req.param('id')), eq(communityLikes.memberId, member.id))).get();
+    const { type = 'like' } = await c.req.json<{ type?: 'like' | 'heart' | 'celebrate' | 'fire' }>();
+
+    const existing = await db.select().from(communityReactions)
+        .where(and(eq(communityReactions.postId, postId), eq(communityReactions.memberId, member.id), eq(communityReactions.type, type)))
+        .get();
+
     if (existing) {
-        await db.delete(communityLikes).where(and(eq(communityLikes.postId, c.req.param('id')), eq(communityLikes.memberId, member.id))).run();
-        await db.update(communityPosts).set({ likesCount: sql`${communityPosts.likesCount} - 1` }).where(eq(communityPosts.id, c.req.param('id'))).run();
-        return c.json({ liked: false });
+        await db.delete(communityReactions)
+            .where(and(eq(communityReactions.postId, postId), eq(communityReactions.memberId, member.id), eq(communityReactions.type, type)))
+            .run();
     } else {
-        await db.insert(communityLikes).values({ postId: c.req.param('id'), memberId: member.id }).run();
-        await db.update(communityPosts).set({ likesCount: sql`${communityPosts.likesCount} + 1` }).where(eq(communityPosts.id, c.req.param('id'))).run();
-        return c.json({ liked: true });
+        await db.insert(communityReactions).values({
+            postId,
+            memberId: member.id,
+            type
+        }).run();
     }
+
+    // Sync counts
+    const communityService = new CommunityService(db);
+    const reactionsJson = await communityService.updateReactionCounts(postId);
+
+    return c.json({ success: true, reactions: reactionsJson });
 });
 
 // GET / community/:id/comments
@@ -227,6 +254,38 @@ app.patch('/:id/pin', async (c) => {
 
     await db.update(communityPosts).set({ isPinned: !post.isPinned }).where(eq(communityPosts.id, post.id)).run();
     return c.json({ isPinned: !post.isPinned });
+});
+
+// GET / community/members/:id/preview
+app.get('/members/:id/preview', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const memberId = c.req.param('id');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const member = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.id, memberId), eq(tenantMembers.tenantId, tenant.id)),
+        with: { user: true }
+    });
+
+    if (!member) return c.json({ error: 'Member not found' }, 404);
+
+    // Stats
+    const attendanceCount = await db.select({ count: sql<number>`count(*)` })
+        .from(bookings)
+        .where(and(eq(bookings.memberId, memberId), isNotNull(bookings.checkedInAt)))
+        .get();
+
+    return c.json({
+        id: member.id,
+        firstName: (member.user.profile as any)?.firstName,
+        lastName: (member.user.profile as any)?.lastName,
+        profilePicture: (member.user.profile as any)?.portraitUrl,
+        joinedAt: member.joinedAt,
+        stats: {
+            totalClasses: attendanceCount?.count || 0,
+        }
+    });
 });
 
 // DELETE / community/:id
