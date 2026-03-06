@@ -197,8 +197,11 @@ app.get('/studios/gbp-callback', authMiddleware, tenantMiddleware, async (c) => 
   } catch (e: any) { return c.json({ error: e.message }, 500); }
 });
 
-app.route('/reports/custom', authMiddleware, tenantMiddleware, reportsCustom);
-app.route('/community', authMiddleware, tenantMiddleware, community);
+app.use('/reports/custom/*', authMiddleware, tenantMiddleware);
+app.route('/reports/custom', reportsCustom);
+
+app.use('/community/*', authMiddleware, tenantMiddleware);
+app.route('/community', community);
 
 // --- Public Routes ---
 app.post('/studios/gbp-sync', authMiddleware, tenantMiddleware, async (c) => {
