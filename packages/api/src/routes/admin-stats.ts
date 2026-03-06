@@ -340,8 +340,8 @@ app.get('/communications', async (c) => {
     });
 });
 
-// GET /:id - Tenant-specific stats
-app.get('/:id', async (c) => {
+// GET / - Tenant-specific stats (mounted under /tenants/:id/stats)
+app.get('/', async (c) => {
     const db = createDb(c.env.DB);
     const tenantId = c.req.param('id');
     if (!tenantId) return c.json({ error: 'Missing tenantId' }, 400);

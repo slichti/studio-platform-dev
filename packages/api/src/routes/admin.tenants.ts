@@ -194,30 +194,51 @@ app.patch('/:id/quotas', async (c) => {
     if (!isPlatformAdmin) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
     const body = await c.req.json();
+    const tid = c.req.param('id');
 
-    // Validate keys (basic security)
-    const allowedKeys = ['sms_limit', 'email_limit', 'storage_limit', 'student_limit', 'instructor_limit', 'location_limit'];
-    const invalidKeys = Object.keys(body).filter(k => !allowedKeys.includes(k));
-    if (invalidKeys.length > 0) return c.json({ error: 'Invalid keys: ' + invalidKeys.join(', ') }, 400);
-
-    // Fetch current settings or create empty object if null
-    const t = await db.select({ settings: tenants.settings }).from(tenants).where(eq(tenants.id, c.req.param('id'))).get();
-    if (!t) return c.json({ error: 'Not found' }, 404);
-
-    const currentSettings = (t.settings as any) || {};
-    const quotas = (currentSettings.quotas || {});
-
-    const newSettings = {
-        ...currentSettings,
-        quotas: {
-            ...quotas,
-            ...body
-        }
+    // Mappings for top-level columns
+    const columnMap: Record<string, any> = {
+        sms_limit: 'smsLimit',
+        smsLimit: 'smsLimit',
+        email_limit: 'emailLimit',
+        emailLimit: 'emailLimit',
+        streaming_limit: 'streamingLimit',
+        streamingLimit: 'streamingLimit',
+        billing_exempt: 'billingExempt',
+        billingExempt: 'billingExempt'
     };
 
-    await db.update(tenants).set({ settings: newSettings }).where(eq(tenants.id, c.req.param('id'))).run();
+    const columnUpdates: any = {};
+    const settingsQuotas: any = {};
 
-    return c.json({ success: true, settings: newSettings });
+    for (const [key, value] of Object.entries(body)) {
+        if (columnMap[key]) {
+            columnUpdates[columnMap[key]] = value;
+        } else {
+            settingsQuotas[key] = value;
+        }
+    }
+
+    if (Object.keys(columnUpdates).length > 0) {
+        await db.update(tenants).set(columnUpdates).where(eq(tenants.id, tid)).run();
+    }
+
+    if (Object.keys(settingsQuotas).length > 0) {
+        const t = await db.select({ settings: tenants.settings }).from(tenants).where(eq(tenants.id, tid)).get();
+        if (t) {
+            const currentSettings = (t.settings as any) || {};
+            const newSettings = {
+                ...currentSettings,
+                quotas: {
+                    ...(currentSettings.quotas || {}),
+                    ...settingsQuotas
+                }
+            };
+            await db.update(tenants).set({ settings: newSettings }).where(eq(tenants.id, tid)).run();
+        }
+    }
+
+    return c.json({ success: true });
 });
 
 // POST /:id/lifecycle/archive

@@ -209,7 +209,7 @@ export function TenantDetailView({
                                 id={`exempt-${t.id}`}
                                 className="rounded border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800 text-blue-600 focus:ring-blue-500"
                                 defaultChecked={!!t.billingExempt}
-                                onChange={(e) => handlers.handleLimitUpdate(t.id, 'billingExempt', e.target.checked)}
+                                onChange={(e) => handlers.handleLimitUpdate(t.id, 'billing_exempt', e.target.checked)}
                             />
                             <label className="text-xs text-zinc-700 dark:text-zinc-300 cursor-pointer select-none font-medium" htmlFor={`exempt-${t.id}`}>Billing Exempt</label>
                         </div>
