@@ -418,7 +418,7 @@ export default function StudentsPage() {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">First Name</label>
-                                <Input name="firstName" placeholder="Jane" />
+                                <Input name="firstName" autoFocus placeholder="Jane" />
                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Last Name</label>

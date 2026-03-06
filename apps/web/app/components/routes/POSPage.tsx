@@ -655,7 +655,7 @@ function CustomerForm({ token, tenantSlug, onSuccess, onCancel }: any) {
                 }
             }
         }}>
-            <input name="name" required className="w-full p-2 border rounded dark:bg-zinc-800 dark:text-zinc-100" placeholder="Full Name" />
+            <input name="name" autoFocus required className="w-full p-2 border rounded dark:bg-zinc-800 dark:text-zinc-100" placeholder="Full Name" />
             <div className="grid grid-cols-2 gap-4">
                 <input name="email" type="email" required className="w-full p-2 border rounded dark:bg-zinc-800 dark:text-zinc-100" placeholder="Email" />
                 <input name="phone" className="w-full p-2 border rounded dark:bg-zinc-800 dark:text-zinc-100" placeholder="Phone" />
