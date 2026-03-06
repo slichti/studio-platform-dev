@@ -59,6 +59,40 @@ export default function AdminCommunityDashboard() {
         }
     };
 
+    const toggleEmail = async () => {
+        setUpdating("email");
+        try {
+            const token = await getToken();
+            await apiRequest("/admin/community/global", token, {
+                method: "PUT",
+                body: JSON.stringify({ emailEnabled: !data.global.emailEnabled })
+            });
+            toast.success(`Global Email Alerts ${!data.global.emailEnabled ? 'enabled' : 'disabled'}`);
+            revalidator.revalidate();
+        } catch (e) {
+            toast.error("Failed to update email settings");
+        } finally {
+            setUpdating(null);
+        }
+    };
+
+    const toggleSms = async () => {
+        setUpdating("sms");
+        try {
+            const token = await getToken();
+            await apiRequest("/admin/community/global", token, {
+                method: "PUT",
+                body: JSON.stringify({ smsEnabled: !data.global.smsEnabled })
+            });
+            toast.success(`Global SMS Alerts ${!data.global.smsEnabled ? 'enabled' : 'disabled'}`);
+            revalidator.revalidate();
+        } catch (e) {
+            toast.error("Failed to update SMS settings");
+        } finally {
+            setUpdating(null);
+        }
+    };
+
     const toggleTenant = async (tenantId: string, current: boolean) => {
         setUpdating(tenantId);
         try {
@@ -98,27 +132,60 @@ export default function AdminCommunityDashboard() {
                         <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Global configuration</h2>
                     </div>
 
-                    <div className="flex items-center justify-between p-5 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800/50 transition-all hover:border-blue-200 dark:hover:border-blue-800">
-                        <div className="flex-1">
-                            <h3 className="font-semibold text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
-                                Platform visibility
-                                <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase font-bold tracking-wider ${data.global.enabled ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'}`}>
-                                    {data.global.enabled ? 'Enabled' : 'Disabled'}
-                                </span>
-                            </h3>
-                            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 max-w-md">When disabled, the Community Hub is hidden for all studios regardless of individual settings.</p>
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between p-5 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800/50 transition-all hover:border-blue-200 dark:hover:border-blue-800">
+                            <div className="flex-1">
+                                <h3 className="font-semibold text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
+                                    Platform visibility
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase font-bold tracking-wider ${data.global.enabled ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'}`}>
+                                        {data.global.enabled ? 'Enabled' : 'Disabled'}
+                                    </span>
+                                </h3>
+                                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 max-w-md">When disabled, the Community Hub is hidden for all studios regardless of individual settings.</p>
+                            </div>
+                            <button
+                                onClick={toggleGlobal}
+                                disabled={updating === "global"}
+                                className={`flex items-center gap-3 px-6 py-3 rounded-xl font-semibold transition-all shadow-sm active:scale-95 disabled:opacity-50 ${data.global.enabled ? 'bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/20 shadow-lg'}`}
+                            >
+                                {updating === "global" ? "Processing..." : data.global.enabled ? (
+                                    <><ToggleRight className="text-green-500" /> Disable globally</>
+                                ) : (
+                                    <><ToggleLeft /> Enable globally</>
+                                )}
+                            </button>
                         </div>
-                        <button
-                            onClick={toggleGlobal}
-                            disabled={updating === "global"}
-                            className={`flex items-center gap-3 px-6 py-3 rounded-xl font-semibold transition-all shadow-sm active:scale-95 disabled:opacity-50 ${data.global.enabled ? 'bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/20 shadow-lg'}`}
-                        >
-                            {updating === "global" ? "Processing..." : data.global.enabled ? (
-                                <><ToggleRight className="text-green-500" /> Disable globally</>
-                            ) : (
-                                <><ToggleLeft /> Enable globally</>
-                            )}
-                        </button>
+
+                        {/* Global Notifications */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="flex items-center justify-between p-5 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800/50">
+                                <div>
+                                    <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-50">Global Email Alerts</h4>
+                                    <p className="text-xs text-zinc-500 mt-1">Master switch for email notifications.</p>
+                                </div>
+                                <button
+                                    onClick={toggleEmail}
+                                    disabled={updating === "email"}
+                                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 dark:focus:ring-offset-zinc-900 disabled:opacity-50 ${data.global.emailEnabled ? 'bg-blue-600' : 'bg-zinc-200 dark:bg-zinc-700'}`}
+                                >
+                                    <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${data.global.emailEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                                </button>
+                            </div>
+
+                            <div className="flex items-center justify-between p-5 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800/50">
+                                <div>
+                                    <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-50">Global SMS Alerts</h4>
+                                    <p className="text-xs text-zinc-500 mt-1">Master switch for SMS notifications.</p>
+                                </div>
+                                <button
+                                    onClick={toggleSms}
+                                    disabled={updating === "sms"}
+                                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 dark:focus:ring-offset-zinc-900 disabled:opacity-50 ${data.global.smsEnabled ? 'bg-blue-600' : 'bg-zinc-200 dark:bg-zinc-700'}`}
+                                >
+                                    <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${data.global.smsEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     {data.global.updatedAt && (

@@ -11,10 +11,15 @@ app.get('/', async (c) => {
     const db = createDb(c.env.DB);
 
     // 1. Get global community config
-    const globalConfig = await db.select()
+    const configs = await db.select()
         .from(platformConfig)
-        .where(eq(platformConfig.key, 'feature_community'))
-        .get();
+        .where(sql`${platformConfig.key} IN ('feature_community', 'feature_community_email', 'feature_community_sms')`)
+        .all();
+
+    const globalParams = configs.reduce((acc, curr) => {
+        acc[curr.key] = curr.enabled;
+        return acc;
+    }, {} as Record<string, boolean>);
 
     // 2. Get all tenants and their community status
     const allTenants = await db.select({
@@ -38,8 +43,10 @@ app.get('/', async (c) => {
 
     return c.json({
         global: {
-            enabled: globalConfig?.enabled ?? false,
-            updatedAt: globalConfig?.updatedAt
+            enabled: globalParams['feature_community'] ?? false,
+            emailEnabled: globalParams['feature_community_email'] ?? false,
+            smsEnabled: globalParams['feature_community_sms'] ?? false,
+            updatedAt: configs.find(c => c.key === 'feature_community')?.updatedAt
         },
         tenants: tenantsResult
     });
@@ -48,20 +55,43 @@ app.get('/', async (c) => {
 // PUT /global - Update global community toggle
 app.put('/global', async (c) => {
     const db = createDb(c.env.DB);
-    const { enabled } = await c.req.json();
+    const { enabled, emailEnabled, smsEnabled } = await c.req.json();
 
-    await db.insert(platformConfig).values({
-        key: 'feature_community',
-        enabled: !!enabled,
-        description: 'Enable rich social engagement, media sharing, and AI-assisted community building.',
-        updatedAt: new Date()
-    }).onConflictDoUpdate({
-        target: [platformConfig.key],
-        set: {
+    if (enabled !== undefined) {
+        await db.insert(platformConfig).values({
+            key: 'feature_community',
             enabled: !!enabled,
+            description: 'Enable rich social engagement, media sharing, and AI-assisted community building.',
             updatedAt: new Date()
-        }
-    }).run();
+        }).onConflictDoUpdate({
+            target: [platformConfig.key],
+            set: { enabled: !!enabled, updatedAt: new Date() }
+        }).run();
+    }
+
+    if (emailEnabled !== undefined) {
+        await db.insert(platformConfig).values({
+            key: 'feature_community_email',
+            enabled: !!emailEnabled,
+            description: 'Enable global email notifications for community interactions.',
+            updatedAt: new Date()
+        }).onConflictDoUpdate({
+            target: [platformConfig.key],
+            set: { enabled: !!emailEnabled, updatedAt: new Date() }
+        }).run();
+    }
+
+    if (smsEnabled !== undefined) {
+        await db.insert(platformConfig).values({
+            key: 'feature_community_sms',
+            enabled: !!smsEnabled,
+            description: 'Enable global SMS notifications for community interactions.',
+            updatedAt: new Date()
+        }).onConflictDoUpdate({
+            target: [platformConfig.key],
+            set: { enabled: !!smsEnabled, updatedAt: new Date() }
+        }).run();
+    }
 
     return c.json({ success: true });
 });

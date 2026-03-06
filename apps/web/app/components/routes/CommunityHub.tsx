@@ -7,6 +7,7 @@ import {
     Share2,
     MoreVertical,
     Send,
+    Settings,
     Image as ImageIcon,
     Video,
     Music,
@@ -88,6 +89,12 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
                     <h1 className="text-3xl font-bold tracking-tight">Community Hub</h1>
                     <p className="text-muted-foreground">Connect and grow with your studio family.</p>
                 </div>
+                <a
+                    href={`/studio/${slug}/community/settings`}
+                    className="p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all text-zinc-500"
+                >
+                    <Settings size={20} />
+                </a>
             </header>
 
             {/* Create Post Card */}

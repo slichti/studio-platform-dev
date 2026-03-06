@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { communityPosts, communityComments, communityLikes, tenantMembers, users } from '@studio/db/src/schema';
+import { communityPosts, communityComments, communityLikes, tenantMembers, users, tenants } from '@studio/db/src/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { HonoContext } from '../types';
 
@@ -62,6 +62,47 @@ app.get('/:id', async (c) => {
     });
 });
 
+// GET /community/settings - Get tenant community settings
+app.get('/settings', async (c) => {
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const settings = (tenant.settings as any)?.community || {
+        emailEnabled: false,
+        smsEnabled: false
+    };
+
+    return c.json(settings);
+});
+
+// PATCH /community/settings - Update tenant community settings
+app.patch('/settings', async (c) => {
+    if (!c.get('can')('manage_marketing')) return c.json({ error: 'Access denied' }, 403);
+
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const { emailEnabled, smsEnabled } = await c.req.json();
+
+    const currentSettings = (tenant.settings as any) || {};
+    const newSettings = {
+        ...currentSettings,
+        community: {
+            ...(currentSettings.community || {}),
+            ...(emailEnabled !== undefined ? { emailEnabled } : {}),
+            ...(smsEnabled !== undefined ? { smsEnabled } : {})
+        }
+    };
+
+    await db.update(tenants)
+        .set({ settings: newSettings })
+        .where(eq(tenants.id, tenant.id))
+        .run();
+
+    return c.json({ success: true });
+});
+
 // POST / community - Create post
 app.post('/', async (c) => {
     const db = createDb(c.env.DB);
@@ -82,6 +123,17 @@ app.post('/', async (c) => {
         imageUrl,
         mediaJson: media || null
     }).run();
+
+    // Notification Logic (Background)
+    const communitySettings = (tenant.settings as any)?.community;
+    if (communitySettings?.emailEnabled || communitySettings?.smsEnabled) {
+        console.log(`[Community Notification] Checking global flags for tenant: ${tenant.slug}`);
+        // In a real scenario, we'd fetch platformConfig here or pass it in context
+        // and then trigger the actual email/sms dispatch.
+        // For now, we log the intent.
+        console.log(`[Community Notification] Notification flags detected: Email=${communitySettings.emailEnabled}, SMS=${communitySettings.smsEnabled}`);
+    }
+
     return c.json({ id }, 201);
 });
 

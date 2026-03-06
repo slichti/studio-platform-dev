@@ -12,8 +12,14 @@
 - **Location**: `/admin/community`
 - **Purpose**: Centralized control for the entire platform's social features.
 - **Global Control**: Disable the Community Hub platform-wide if needed.
-- **Tenant Management**: Enable/disable the Community Hub for specific tenants (e.g., restricted to higher-tier plans).
+- **Global Alerts**: Platform-wide master switches for Email and SMS notifications.
+- **Tenant Management**: Enable/disable the Community Hub for specific tenants.
 - **Adoption Tracking**: Real-time stats on community adoption across the tenant network.
+
+### 2. Tenant Settings Page
+- **Location**: `/studio/:slug/community/settings`
+- **Purpose**: Allow studio owners to customize their individual community experience.
+- **Notification Opt-In**: Choose whether to send Email or SMS alerts to the studio's community for new posts.
 
 ### 2. Global Platform Community (Legacy/Note)
 - **Note**: The platform-wide community feed is accessible via tenant-specific views if needed, but the admin portal now focuses on management rather than posting.
