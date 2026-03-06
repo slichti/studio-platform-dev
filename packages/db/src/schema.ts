@@ -83,6 +83,8 @@ export const tenants = sqliteTable('tenants', {
     seoConfig: text('seo_config', { mode: 'json' }), // { titleTemplate, defaultMetaDescription, defaultSchemaType, indexingEnabled }
     gbpToken: text('gbp_token', { mode: 'json' }), // Encrypted JSON: { accessToken, refreshToken, expiryDate, locationId }
 
+    // Platform Fees (Connect Commission)
+    customApplicationFeePercent: integer('custom_application_fee_percent'), // in basis points (e.g. 500 = 5%)
 
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
@@ -754,6 +756,7 @@ export const platformPlans = sqliteTable('platform_plans', {
 
     // Config
     trialDays: integer('trial_days').default(14).notNull(),
+    applicationFeePercent: integer('application_fee_percent').default(0).notNull(), // in basis points (e.g. 500 = 5%)
     features: text('features', { mode: 'json' }).notNull(), // Array of strings
     highlight: integer('highlight', { mode: 'boolean' }).default(false),
     active: integer('active', { mode: 'boolean' }).default(true),

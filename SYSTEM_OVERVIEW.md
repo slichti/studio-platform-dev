@@ -256,6 +256,14 @@ The platform provides a comprehensive membership system integrated tightly with 
 - **Time-Limited Passes**: Studio owners can disable auto-renewal, creating fixed-duration passes. Webhooks instantly intercept `checkout.session.completed` events for these plans to reliably mark them for cancellation at the period end in Stripe.
 - **Self-Service Portal**: Authenticated students manage their lifecycle directly within the portal. They can cancel, pause for a fixed number of months, resume, and jump directly into the Stripe Customer Portal to securely update their payment methods.
 
+### 13. Platform Monetization & Commissions
+The platform takes a cut of transactions to sustain operations and provide value-added services.
+- **Basis Points**: Commissions are configured in basis points (e.g., 250 = 2.5%).
+- **Automatic Collection**:
+    - **POS**: Managed via the `application_fee_amount` field in Stripe's PaymentIntent API.
+    - **Subscriptions**: Managed via the `application_fee_percent` field in Stripe's Subscription API.
+- **Tier-Based**: Platform plans define the default fee, which can be overridden at the individual tenant level for strategic partners.
+
 ## Security Implementation
 
 ### Authentication Strategy

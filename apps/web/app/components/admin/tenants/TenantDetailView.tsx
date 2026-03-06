@@ -39,6 +39,7 @@ interface TenantDetailViewProps {
         setDeleteModalOpen: (open: boolean) => void;
         setTenantToDelete: (id: string | null) => void;
         setDeleteInput: (input: string) => void;
+        handleBillingConfigUpdate: (id: string, config: any) => void;
     };
 }
 
@@ -111,6 +112,30 @@ export function TenantDetailView({
                         <div className="flex gap-2 mt-1">
                             <button onClick={(e) => { e.stopPropagation(); handlers.handleCancelSubscription(t.id); }} className="text-[10px] text-red-600 hover:underline">Cancel Subs</button>
                             <button onClick={(e) => { e.stopPropagation(); handlers.openRefundModal(t.id); }} className="text-[10px] text-zinc-500 hover:text-zinc-800 hover:underline">Refund</button>
+                        </div>
+                    </div>
+
+                    <div className="h-8 w-px bg-zinc-200 dark:bg-zinc-800 hidden md:block"></div>
+
+                    <div>
+                        <div className="text-[10px] uppercase text-zinc-500 font-bold mb-1">Platform Fee Override</div>
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="number"
+                                step="10"
+                                className="w-24 text-xs border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                                defaultValue={t.customApplicationFeePercent || ''}
+                                placeholder="Auto (bps)"
+                                onBlur={(e) => {
+                                    const val = e.target.value === '' ? null : parseInt(e.target.value);
+                                    if (val !== t.customApplicationFeePercent) {
+                                        handlers.handleBillingConfigUpdate(t.id, { customApplicationFeePercent: val });
+                                    }
+                                }}
+                            />
+                            <span className="text-[10px] text-zinc-400 font-mono">
+                                {t.customApplicationFeePercent !== null ? `${(t.customApplicationFeePercent / 100).toFixed(1)}%` : 'Tier Default'}
+                            </span>
                         </div>
                     </div>
                 </div>

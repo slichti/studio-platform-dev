@@ -672,3 +672,15 @@ flowchart LR
     *   **Steps**: Template Selection -> Branding -> Location -> Schedule -> Team Invite -> Data Import.
     *   **Templates**: Pre-configured business types (Yoga, Gym, Martial Arts, etc.) set default class types and prices.
 
+## Monetization & Platform Fees
+
+The platform earns revenue via two main mechanisms:
+1. **SaaS Subscriptions**: Tenants pay for access to the platform based on their selected `platform_plan`.
+2. **Transaction Fees (Connect Commissions)**: The platform collects a percentage of every transaction processed through a tenant's Stripe Connect account.
+
+### Application Fee Logic
+- **Configuration**: Fees are stored in basis points (100 bps = 1%).
+- **Hierarchy**: The system checks for a `tenants.custom_application_fee_percent` override first; if null, it falls back to the `platform_plans.application_fee_percent` assigned to the tenant's tier.
+- **Application**:
+    - **One-time Payments (POS)**: Calculated as a fixed `application_fee_amount` in cents during PaymentIntent creation.
+    - **Recurring Payments (Memberships)**: Applied as an `application_fee_percent` on the Stripe Subscription, capturing a portion of every recurring invoice.

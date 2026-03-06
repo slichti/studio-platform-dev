@@ -198,7 +198,8 @@ export default function AdminPlansPage() {
             name: plan.name,
             trialDays: plan.trialDays,
             features: features,
-            active: plan.active
+            active: plan.active,
+            applicationFeePercent: plan.applicationFeePercent || 0
         });
     };
 
@@ -209,7 +210,8 @@ export default function AdminPlansPage() {
                 name: editForm.name,
                 trialDays: parseInt(editForm.trialDays),
                 features: editForm.features,
-                active: editForm.active
+                active: editForm.active,
+                applicationFeePercent: parseInt(editForm.applicationFeePercent)
             });
             setEditingId(null);
         } catch (e) {
@@ -248,6 +250,7 @@ export default function AdminPlansPage() {
                             <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Pricing (Stripe)</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Trial</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider w-1/3">Features</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Fee (bps)</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Status</th>
                             <th className="px-6 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Actions</th>
                         </tr>
@@ -307,6 +310,20 @@ export default function AdminPlansPage() {
                                             ))}
                                             {(plan.features || []).length === 0 && <span className="text-zinc-400 italic">No features configured</span>}
                                         </div>
+                                    )}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
+                                    {editingId === plan.id ? (
+                                        <input
+                                            type="number"
+                                            step="10"
+                                            value={editForm.applicationFeePercent}
+                                            onChange={e => setEditForm({ ...editForm, applicationFeePercent: e.target.value })}
+                                            className="border rounded px-2 py-1 w-20"
+                                            placeholder="BP (500=5%)"
+                                        />
+                                    ) : (
+                                        <span className="font-mono text-xs">{(plan.applicationFeePercent || 0)} ({((plan.applicationFeePercent || 0) / 100).toFixed(1)}%)</span>
                                     )}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">

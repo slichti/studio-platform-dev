@@ -4,6 +4,7 @@ import { apiRequest, API_URL } from "../../utils/api";
 import { useState, Fragment, useEffect } from "react";
 import { useAuth } from "@clerk/react-router";
 import { ChevronDown, ChevronRight, Activity, LogIn, Bell, Users } from "lucide-react";
+import { toast } from "sonner";
 import { PrivacyBlur } from "../PrivacyBlur";
 import { TenantDetailView } from "../admin/tenants/TenantDetailView";
 import { AdminTenantsModals } from "../admin/tenants/Modals";
@@ -600,7 +601,21 @@ export default function AdminTenantsPageComponent() {
         setSelectedTenantForRefund,
         setImpersonateModalOpen,
         setTenantToImpersonate,
-        confirmImpersonate
+        confirmImpersonate,
+        handleBillingConfigUpdate: async (id: string, config: any) => {
+            try {
+                const token = await getToken();
+                const res: any = await apiRequest(`/admin/tenants/${id}/billing-config`, token, {
+                    method: 'PATCH',
+                    body: JSON.stringify(config)
+                });
+                if (res.error) throw new Error(res.error);
+                setTenants((prev: any[]) => prev.map((t: any) => t.id === id ? { ...t, ...res } : t));
+                toast.success("Billing config updated");
+            } catch (e: any) {
+                toast.error(e.message || "Failed to update billing config");
+            }
+        }
     };
 
     const state = {

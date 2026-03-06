@@ -8,7 +8,7 @@ export type Tier = 'launch' | 'growth' | 'scale';
 export const TIERS: Record<Tier, {
     name: string;
     price: number; // Monthly in cents
-    applicationFeePercent: number; // Percentage taken from transactions (e.g. 0.05 for 5%)
+    applicationFeePercent: number; // Percentage in basis points (e.g. 500 for 5%)
     limits: {
         students: number; // -1 for unlimited
         instructors: number;
@@ -24,7 +24,7 @@ export const TIERS: Record<Tier, {
     launch: {
         name: 'Launch',
         price: 0,
-        applicationFeePercent: 0.05, // 5% Application Fee
+        applicationFeePercent: 500, // 5% Application Fee
         limits: {
             students: -1, // Unlimited students to reduce friction
             instructors: 5,
@@ -40,7 +40,7 @@ export const TIERS: Record<Tier, {
     growth: {
         name: 'Growth',
         price: 4900, // $49/mo
-        applicationFeePercent: 0.02, // 2% Application Fee
+        applicationFeePercent: 200, // 2% Application Fee
         limits: {
             students: -1,
             instructors: 15,
@@ -56,7 +56,7 @@ export const TIERS: Record<Tier, {
     scale: {
         name: 'Scale',
         price: 12900, // $129/mo
-        applicationFeePercent: 0.0, // 0% Application Fee
+        applicationFeePercent: 0, // 0% Application Fee
         limits: {
             students: -1,
             instructors: -1,
@@ -86,7 +86,7 @@ export class PricingService {
                 tiers[p.slug] = {
                     name: p.name,
                     price: p.monthlyPriceCents,
-                    applicationFeePercent: 0, // In transition, placeholder from DB if added
+                    applicationFeePercent: p.applicationFeePercent || 0,
                     limits: {
                         students: -1,
                         instructors: -1,
@@ -123,6 +123,31 @@ export class PricingService {
     static isFeatureEnabled(tier: string, feature: string) {
         const config = this.getTierConfig(tier);
         return config.features.includes(feature);
+    }
+
+    static async getApplicationFeeConfig(db: any, tenantId: string) {
+        const { tenants } = await import('@studio/db/src/schema');
+        const tenant = await db.select({
+            tier: tenants.tier,
+            customFee: tenants.customApplicationFeePercent
+        }).from(tenants).where(eq(tenants.id, tenantId)).get();
+
+        if (!tenant) return 0;
+
+        // Override takes precedence
+        if (tenant.customFee !== null && tenant.customFee !== undefined) {
+            return tenant.customFee;
+        }
+
+        const tierConfig = await this.getTierConfigAsync(db, tenant.tier);
+        return tierConfig.applicationFeePercent || 0;
+    }
+
+    static calculateApplicationFeeAmount(amountCents: number, basisPoints: number) {
+        if (basisPoints <= 0) return 0;
+        // basisPoints 500 = 5%
+        // fee = amount * (500 / 10000)
+        return Math.round(amountCents * (basisPoints / 10000));
     }
 }
 

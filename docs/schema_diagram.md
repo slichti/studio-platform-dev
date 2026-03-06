@@ -26,6 +26,7 @@ erDiagram
         json slack_credentials
         json seo_config
         json gbp_token
+        integer custom_application_fee_percent
     }
     tenant_members {
         string id PK
@@ -598,6 +599,19 @@ erDiagram
         string feature_key
         boolean enabled
         timestamp created_at
+    }
+    platform_plans {
+        string id PK
+        string name
+        string slug UK
+        string stripe_price_id_monthly
+        string stripe_price_id_annual
+        integer monthly_price_cents
+        integer annual_price_cents
+        integer trial_days
+        integer application_fee_percent
+        json features
+        boolean active
     }
     audit_logs {
         string id PK

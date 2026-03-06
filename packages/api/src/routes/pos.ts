@@ -6,7 +6,7 @@ import { StripeService } from '../services/stripe';
 import { AutomationsService } from '../services/automations';
 import { EmailService } from '../services/email';
 import { SmsService } from '../services/sms';
-import { UsageService } from '../services/pricing';
+import { UsageService, PricingService } from '../services/pricing';
 import { PushService } from '../services/push';
 import { users, tenantMembers } from '@studio/db/src/schema'; // Added tenantMembers to imports
 import { eq } from 'drizzle-orm';
@@ -168,10 +168,14 @@ app.post('/process-payment', async (c) => {
     if (tenant.stripeAccountId) options.stripeAccount = tenant.stripeAccountId;
 
     try {
+        const feeBasisPoints = await PricingService.getApplicationFeeConfig(db, tenant.id);
+        const applicationFeeAmount = PricingService.calculateApplicationFeeAmount(totalAmount, feeBasisPoints);
+
         const piParams: any = {
             amount: totalAmount,
             currency: tenant.currency || 'usd',
             automatic_payment_methods: { enabled: true },
+            application_fee_amount: applicationFeeAmount > 0 ? applicationFeeAmount : undefined,
             statement_descriptor_suffix: tenant.name.replace(/[<>"']/g, '').substring(0, 22),
             description: `${tenant.name} - Point of Sale`,
             metadata: {

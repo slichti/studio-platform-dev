@@ -54,7 +54,7 @@ app.put('/:id', async (c) => {
     const body = await c.req.json();
 
     // Whitelist updatable fields
-    const { name, description, trialDays, features, highlight, active } = body;
+    const { name, description, trialDays, features, highlight, active, applicationFeePercent } = body;
     const updateData: any = {};
     if (name !== undefined) updateData.name = name;
     if (description !== undefined) updateData.description = description;
@@ -62,6 +62,7 @@ app.put('/:id', async (c) => {
     if (features !== undefined) updateData.features = features;
     if (highlight !== undefined) updateData.highlight = highlight;
     if (active !== undefined) updateData.active = active;
+    if (applicationFeePercent !== undefined) updateData.applicationFeePercent = applicationFeePercent;
 
     await db.update(platformPlans)
         .set(updateData)

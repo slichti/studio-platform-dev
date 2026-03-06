@@ -161,6 +161,33 @@ app.patch('/:id/tier', async (c) => {
     return c.json({ success: true, tier });
 });
 
+// PATCH /:id/billing-config
+app.patch('/:id/billing-config', async (c) => {
+    const isPlatformAdmin = c.get('auth')?.claims?.isPlatformAdmin === true;
+    if (!isPlatformAdmin) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const { customApplicationFeePercent } = await c.req.json();
+
+    const updateData: any = {};
+    if (customApplicationFeePercent !== undefined) {
+        updateData.customApplicationFeePercent = customApplicationFeePercent;
+    }
+
+    await db.update(tenants).set(updateData).where(eq(tenants.id, c.req.param('id'))).run();
+
+    // Log audit
+    const audit = new AuditService(db);
+    await audit.log({
+        actorId: c.get('auth')!.userId,
+        action: 'update_billing_config',
+        targetId: c.req.param('id'),
+        details: updateData,
+        ipAddress: c.req.header('CF-Connecting-IP')
+    });
+
+    return c.json({ success: true, ...updateData });
+});
+
 // PATCH /:id/quotas
 app.patch('/:id/quotas', async (c) => {
     const isPlatformAdmin = c.get('auth')?.claims?.isPlatformAdmin === true;

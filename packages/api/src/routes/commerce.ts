@@ -4,6 +4,7 @@ import { tenants, tenantMembers, coupons, couponRedemptions, classPackDefinition
 import { eq, and, gt, sql } from 'drizzle-orm';
 import { rateLimitMiddleware } from '../middleware/rate-limit';
 import { HonoContext } from '../types';
+import { PricingService } from '../services/pricing';
 
 const app = new Hono<HonoContext>();
 
@@ -642,9 +643,7 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
         // We'll keep the logic same for now.
         if (stripeFee > 0) lineItems.push({ price_data: { currency: tenant.currency || 'usd', product_data: { name: 'Processing Fee', tax_code: 'txcd_00000000' }, unit_amount: stripeFee }, quantity: 1 });
 
-        const { PricingService } = await import('../services/pricing');
-        const tier = PricingService.getTierConfig(tenant.tier);
-        const appFeeDecimal = tier.applicationFeePercent;
+        const feeBasisPoints = await PricingService.getApplicationFeeConfig(db, tenant.id);
 
         const metadata = {
             type: pack ? 'pack_purchase' : (plan ? 'membership_purchase' : (recording ? 'recording_purchase' : 'gift_card_purchase')),
@@ -666,8 +665,8 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
                 lineItems,
                 mode: stripeMode,
                 automaticTax: true,
-                applicationFeeAmount: stripeMode !== 'subscription' && appFeeDecimal > 0 ? Math.round(amountWithFee * appFeeDecimal) : undefined,
-                applicationFeePercent: stripeMode === 'subscription' && appFeeDecimal > 0 ? appFeeDecimal * 100 : undefined,
+                applicationFeeAmount: stripeMode !== 'subscription' && feeBasisPoints > 0 ? PricingService.calculateApplicationFeeAmount(amountWithFee, feeBasisPoints) : undefined,
+                applicationFeePercent: stripeMode === 'subscription' && feeBasisPoints > 0 ? feeBasisPoints / 100 : undefined,
                 metadata: metadata,
                 statementDescriptorSuffix: tenant.name.replace(/[<>"']/g, '').substring(0, 22),
                 description: `${tenant.name} - ${metadata.productName}`
@@ -680,8 +679,8 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
                 currency: tenant.currency || 'usd',
                 returnUrl: `${new URL(c.req.url).origin}/studio/${tenant.slug}/return?session_id={CHECKOUT_SESSION_ID}`,
                 customerEmail, customer: stripeCustomerId || undefined, lineItems, mode: stripeMode, automaticTax: true,
-                applicationFeeAmount: stripeMode !== 'subscription' && appFeeDecimal > 0 ? Math.round(amountWithFee * appFeeDecimal) : undefined,
-                applicationFeePercent: stripeMode === 'subscription' && appFeeDecimal > 0 ? appFeeDecimal * 100 : undefined,
+                applicationFeeAmount: stripeMode !== 'subscription' && feeBasisPoints > 0 ? PricingService.calculateApplicationFeeAmount(amountWithFee, feeBasisPoints) : undefined,
+                applicationFeePercent: stripeMode === 'subscription' && feeBasisPoints > 0 ? feeBasisPoints / 100 : undefined,
                 metadata: metadata,
                 statementDescriptorSuffix: tenant.name.replace(/[<>"']/g, '').substring(0, 22),
                 description: `${tenant.name} - ${metadata.productName}`

@@ -4,6 +4,13 @@ This document tracks the iterative development of features and capabilities over
 
 ## 2026-03-05
 
+- **🚀 Feature:** Implement Configurable Platform Earning Strategy:
+    - [x] Global Platform Fee configuration per plan (basis points).
+    - [x] Per-Tenant Fee overridability for bespoke billing logic.
+    - [x] Automatic Application Fee collection for POS transactions.
+    - [x] Integrated Recurring Application Fees for Membership subscriptions.
+    - [x] Admin UI for managing platform tiers and tenant-specific billing overrides.
+
 - **🚀 Feature:** feat(pos): implement comprehensive POS retail enhancements:
     - [x] Product archiving and Membership integration in POS display.
     - [x] Automatic global Account Creation and Stripe Sync for new POS customers.
