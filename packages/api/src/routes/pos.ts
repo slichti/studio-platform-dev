@@ -32,13 +32,14 @@ app.get('/products', async (c) => {
     if (c.env.STRIPE_SECRET_KEY) stripeService = new StripeService(c.env.STRIPE_SECRET_KEY as string);
 
     const service = new PosService(db, tenant.id, c.env, stripeService);
+    const { memberId } = c.req.query();
 
     // Self-healing: repair any products that failed initial sync
     if (stripeService) {
         c.executionCtx.waitUntil(service.repairMissingStripeIds(tenant.stripeAccountId, tenant.name));
     }
 
-    const list = await service.listProducts(tenant.stripeAccountId || undefined);
+    const list = await service.listProducts(tenant.stripeAccountId || undefined, memberId);
 
     return c.json({ products: list });
 });

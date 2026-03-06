@@ -32,6 +32,9 @@ export function PlanModal({ isOpen, plan, onClose, onSave, isSubmitting, tenantS
     const [description, setDescription] = useState("");
     const [vodEnabled, setVodEnabled] = useState(false);
     const [trialDays, setTrialDays] = useState(0);
+    const [isIntroOffer, setIsIntroOffer] = useState(false);
+    const [introOfferLimit, setIntroOfferLimit] = useState(1);
+    const [winBackPeriodDays, setWinBackPeriodDays] = useState<number | "">("");
 
     const [cardData, setCardData] = useState<{ image: Blob | null; title: string; subtitle: string; previewUrl: string; gradient?: any }>({
         image: null, title: "", subtitle: "", previewUrl: ""
@@ -49,6 +52,9 @@ export function PlanModal({ isOpen, plan, onClose, onSave, isSubmitting, tenantS
             setDescription(plan?.description || "");
             setVodEnabled(plan?.vodEnabled || false);
             setTrialDays(plan?.trialDays || 0);
+            setIsIntroOffer(plan?.isIntroOffer || false);
+            setIntroOfferLimit(plan?.introOfferLimit || 1);
+            setWinBackPeriodDays(plan?.winBackPeriodDays ?? "");
             setCardData({
                 image: null,
                 title: plan?.overlayTitle || "",
@@ -104,6 +110,9 @@ export function PlanModal({ isOpen, plan, onClose, onSave, isSubmitting, tenantS
                     overlaySubtitle: cardData.subtitle,
                     vodEnabled,
                     trialDays: Number(trialDays),
+                    isIntroOffer,
+                    introOfferLimit: Number(introOfferLimit),
+                    winBackPeriodDays: winBackPeriodDays === "" ? null : Number(winBackPeriodDays),
                 },
                 plan?.id
             );
@@ -246,6 +255,56 @@ export function PlanModal({ isOpen, plan, onClose, onSave, isSubmitting, tenantS
                                 placeholder="0 = no trial"
                             />
                             <p className="text-xs text-zinc-500">Set to 0 to disable the free trial for this plan.</p>
+                        </div>
+
+                        <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 space-y-4">
+                            <Label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Eligibility & Special Offers</Label>
+
+                            <div className="flex items-center space-x-2">
+                                <input
+                                    type="checkbox"
+                                    id="isIntroOffer"
+                                    checked={isIntroOffer}
+                                    onChange={e => setIsIntroOffer(e.target.checked)}
+                                    className="rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
+                                />
+                                <div className="grid gap-1.5 leading-none">
+                                    <label htmlFor="isIntroOffer" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                        Mark as Intro/Special Offer
+                                    </label>
+                                    <p className="text-xs text-zinc-500">Limits who can purchase this plan.</p>
+                                </div>
+                            </div>
+
+                            {isIntroOffer && (
+                                <div className="space-y-4 pl-6 animate-in fade-in slide-in-from-left-2 duration-200">
+                                    <div className="space-y-2">
+                                        <Label>Purchase Limit (per member)</Label>
+                                        <Input
+                                            type="number"
+                                            min="1"
+                                            value={introOfferLimit}
+                                            onChange={e => setIntroOfferLimit(Number(e.target.value))}
+                                        />
+                                        <p className="text-xs text-zinc-500">How many times a single member can buy this.</p>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between items-center">
+                                            <Label>Win-back Period (days)</Label>
+                                            <span className="text-[10px] bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-500">Optional</span>
+                                        </div>
+                                        <Input
+                                            type="number"
+                                            min="1"
+                                            value={winBackPeriodDays}
+                                            onChange={e => setWinBackPeriodDays(e.target.value === "" ? "" : Number(e.target.value))}
+                                            placeholder="e.g. 90"
+                                        />
+                                        <p className="text-xs text-zinc-500">Days of inactivity required before they can buy it again. Leave empty for "once ever".</p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 

@@ -736,6 +736,12 @@ export const membershipPlans = sqliteTable('membership_plans', {
     active: integer('active', { mode: 'boolean' }).default(true),
     stripeProductId: text('stripe_product_id'),
     stripePriceId: text('stripe_price_id'),
+
+    // Eligibility & Special Offers (Win-back)
+    isIntroOffer: integer('is_intro_offer', { mode: 'boolean' }).default(false),
+    introOfferLimit: integer('intro_offer_limit').default(1), // Max purchases allowed
+    winBackPeriodDays: integer('win_back_period_days'), // Days of inactivity required to re-eligible
+
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });

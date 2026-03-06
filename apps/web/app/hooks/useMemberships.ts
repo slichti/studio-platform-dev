@@ -15,6 +15,9 @@ export type Plan = {
     overlaySubtitle?: string;
     vodEnabled: boolean;
     trialDays?: number;
+    isIntroOffer?: boolean;
+    introOfferLimit?: number;
+    winBackPeriodDays?: number | null;
     updatedAt?: string;
     active?: boolean;
 };

@@ -25,6 +25,7 @@ import { InventoryService } from './inventory';
 import { TaxService } from './tax';
 import { AuditService } from './audit';
 import { PushService } from './push';
+import { EligibilityService } from './eligibility';
 
 interface CartItem {
     productId: string;
@@ -49,7 +50,7 @@ export class PosService {
 
     // --- Products ---
 
-    async listProducts(tenantStripeAccountId?: string | null) {
+    async listProducts(memberId?: string, tenantStripeAccountId?: string | null) {
         await this.syncProductsFromStripe(tenantStripeAccountId);
 
         const dbProducts = await this.db.select().from(products)
@@ -61,12 +62,29 @@ export class PosService {
             .where(and(eq(membershipPlans.tenantId, this.tenantId), eq(membershipPlans.active, true)))
             .all();
 
+        const eligibility = new EligibilityService(this.db, this.tenantId);
+        const filteredMemberships = [];
+
+        if (memberId) {
+            for (const m of dbMemberships) {
+                const { eligible } = await eligibility.isEligible(memberId, m.id);
+                if (eligible) {
+                    filteredMemberships.push(m);
+                }
+            }
+        } else {
+            // No member, show only non-intro offers?
+            // User says "special member ... expire in two weeks ... purchase once"
+            // Let's show all active if no member selected (standard behavior)
+            filteredMemberships.push(...dbMemberships);
+        }
+
         const formattedProducts = dbProducts.map(p => ({
             ...p,
             type: 'product' as const
         }));
 
-        const formattedMemberships = dbMemberships.map(m => ({
+        const formattedMemberships = filteredMemberships.map(m => ({
             id: m.id,
             tenantId: m.tenantId,
             name: m.name,

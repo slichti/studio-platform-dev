@@ -89,9 +89,10 @@ export default function POSPageComponent() {
         loadProducts();
     }, [refreshTrigger, tenant]);
 
-    const loadProducts = async () => {
+    const loadProducts = async (memberId?: string) => {
         try {
-            const res = await apiRequest('/pos/products', token, { headers: { 'X-Tenant-Slug': tenantSlug } });
+            const qs = memberId ? `?memberId=${memberId}` : '';
+            const res = await apiRequest(`/pos/products${qs}`, token, { headers: { 'X-Tenant-Slug': tenantSlug } });
             if (res.products) {
                 setProducts(res.products);
             }
@@ -368,7 +369,10 @@ export default function POSPageComponent() {
                                     <div className="text-[9px] text-blue-600 dark:text-blue-300 truncate w-24">{selectedCustomer.email}</div>
                                 </div>
                             </div>
-                            <button onClick={() => setSelectedCustomer(null)} className="text-blue-400 hover:text-blue-600"><X size={12} /></button>
+                            <button onClick={() => {
+                                setSelectedCustomer(null);
+                                loadProducts();
+                            }} className="text-blue-400 hover:text-blue-600"><X size={12} /></button>
                         </div>
                     ) : (
                         <div className="relative">
@@ -397,7 +401,14 @@ export default function POSPageComponent() {
                                         {customerResults.map(c => (
                                             <button
                                                 key={c.id || c.stripeCustomerId}
-                                                onClick={() => { setSelectedCustomer(c); setShowCustomerSearch(false); setCustomerQuery(""); }}
+                                                onClick={() => {
+                                                    setSelectedCustomer(c);
+                                                    setShowCustomerSearch(false);
+                                                    setCustomerQuery("");
+                                                    if (!c.isStripeGuest) {
+                                                        loadProducts(c.id);
+                                                    }
+                                                }}
                                                 className="w-full text-left p-2 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded text-sm group"
                                             >
                                                 <div className="font-medium">{c.profile ? `${c.profile.firstName} ${c.profile.lastName}` : (c.name || 'Unknown')}</div>

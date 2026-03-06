@@ -29,7 +29,7 @@ app.post('/plans', async (c) => {
     if (!c.get('can')('manage_commerce')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant')!;
-    const { name, description, price, interval, intervalCount, autoRenew, currency, imageUrl, overlayTitle, overlaySubtitle, vodEnabled, trialDays } = await c.req.json();
+    const { name, description, price, interval, intervalCount, autoRenew, currency, imageUrl, overlayTitle, overlaySubtitle, vodEnabled, trialDays, isIntroOffer, introOfferLimit, winBackPeriodDays } = await c.req.json();
     if (!name || price === undefined) return c.json({ error: 'name and price are required' }, 400);
 
     const id = crypto.randomUUID();
@@ -48,6 +48,9 @@ app.post('/plans', async (c) => {
         overlaySubtitle,
         vodEnabled: !!vodEnabled,
         trialDays: trialDays ? Number(trialDays) : 0,
+        isIntroOffer: !!isIntroOffer,
+        introOfferLimit: introOfferLimit ? Number(introOfferLimit) : 1,
+        winBackPeriodDays: winBackPeriodDays ? Number(winBackPeriodDays) : null,
         active: true,
     }).run();
 
@@ -68,7 +71,7 @@ app.patch('/plans/:id', async (c) => {
 
     const body = await c.req.json();
     const patch: Record<string, any> = { updatedAt: new Date() };
-    const allowed = ['name', 'description', 'price', 'interval', 'intervalCount', 'autoRenew', 'imageUrl', 'overlayTitle', 'overlaySubtitle', 'vodEnabled', 'trialDays'];
+    const allowed = ['name', 'description', 'price', 'interval', 'intervalCount', 'autoRenew', 'imageUrl', 'overlayTitle', 'overlaySubtitle', 'vodEnabled', 'trialDays', 'isIntroOffer', 'introOfferLimit', 'winBackPeriodDays'];
     for (const key of allowed) {
         if (body[key] !== undefined) patch[key] = body[key];
     }
