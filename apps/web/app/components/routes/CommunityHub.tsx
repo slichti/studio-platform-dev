@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useParams } from "react-router";
 import {
     MessageSquare,
@@ -17,30 +17,40 @@ import {
     Flame,
     Trophy,
     Calendar,
-    Users
+    Users,
+    X
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "~/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
 
-import { Button } from "../ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/Card";
-import { Input } from "../ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/Avatar";
-import { Badge } from "../ui/Badge";
-import { useCommunity, useMemberPreview } from "../../hooks/useCommunity";
-import { cn } from "../../lib/utils";
+import { Button } from "~/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/Card";
+import { Input } from "~/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/Avatar";
+import { Badge } from "~/components/ui/Badge";
+import { useCommunity, useMemberPreview } from "~/hooks/useCommunity";
+import { cn } from "~/lib/utils";
+import { apiRequest } from "~/utils/api";
+import { useAuth } from "@clerk/react-router";
 
 export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
     const { slug: paramsSlug } = useParams();
     const slug = propsSlug || paramsSlug;
     const { posts, isLoading, createPost, reactToPost, commentOnPost, generateAIContent } = useCommunity(slug!);
+    const { getToken } = useAuth();
 
     const [newPostContent, setNewPostContent] = useState("");
     const [isGenerating, setIsGenerating] = useState(false);
     const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
     const [commentText, setCommentText] = useState("");
     const [previewMemberId, setPreviewMemberId] = useState<string | null>(null);
+    const [selectedMedia, setSelectedMedia] = useState<{ url: string; type: 'image' | 'video' }[]>([]);
+    const [isUploading, setIsUploading] = useState(false);
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const videoInputRef = useRef<HTMLInputElement>(null);
 
     const REACTION_TYPES = [
         { type: 'like', icon: Heart, label: 'Like', color: 'text-red-500', bg: 'hover:bg-red-50', fill: 'fill-red-500' },
@@ -49,11 +59,43 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
         { type: 'fire', icon: Flame, label: 'Fire', color: 'text-orange-500', bg: 'hover:bg-orange-50', fill: 'fill-orange-500' },
     ] as const;
 
-    const handleCreatePost = async () => {
-        if (!newPostContent.trim()) return;
+    const EMOJIS = ["✨", "🔥", "💪", "🧘‍♀️", "🧘‍♂️", "🤍", "🙌", "🎉", "🙏", "🚀", "💡", "🌈", "❤️", "😊", "👋"];
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video') => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsUploading(true);
         try {
-            await createPost.mutateAsync({ content: newPostContent });
+            const token = await getToken();
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const res = await apiRequest(`/uploads`, token, {
+                method: 'POST',
+                headers: { 'X-Tenant-Slug': slug! },
+                body: formData
+            });
+
+            setSelectedMedia(prev => [...prev, { url: res.url, type }]);
+            toast.success(`${type === 'image' ? 'Photo' : 'Video'} attached!`);
+        } catch (err) {
+            toast.error("Failed to upload file");
+        } finally {
+            setIsUploading(false);
+            e.target.value = '';
+        }
+    };
+
+    const handleCreatePost = async () => {
+        if (!newPostContent.trim() && selectedMedia.length === 0) return;
+        try {
+            await createPost.mutateAsync({
+                content: newPostContent,
+                media: selectedMedia.length > 0 ? selectedMedia : undefined
+            });
             setNewPostContent("");
+            setSelectedMedia([]);
             toast.success("Post shared with the community!");
         } catch (e) {
             toast.error("Failed to share post");
@@ -124,17 +166,85 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
                                 value={newPostContent}
                                 onChange={(e) => setNewPostContent(e.target.value)}
                             />
+
+                            {/* Media Previews */}
+                            {selectedMedia.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                    {selectedMedia.map((media, idx) => (
+                                        <div key={idx} className="relative h-20 w-20 rounded-lg overflow-hidden border group">
+                                            {media.type === 'image' ? (
+                                                <img src={media.url} className="h-full w-full object-cover" />
+                                            ) : (
+                                                <div className="h-full w-full bg-muted flex items-center justify-center">
+                                                    <Video className="h-6 w-6 text-muted-foreground" />
+                                                </div>
+                                            )}
+                                            <button
+                                                onClick={() => setSelectedMedia(prev => prev.filter((_, i) => i !== idx))}
+                                                className="absolute top-1 right-1 p-0.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                            >
+                                                <X size={12} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
                             <div className="flex items-center justify-between border-t pt-4">
                                 <div className="flex items-center gap-2">
-                                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary transition-colors">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        ref={fileInputRef}
+                                        onChange={(e) => handleFileUpload(e, 'image')}
+                                    />
+                                    <input
+                                        type="file"
+                                        accept="video/*"
+                                        className="hidden"
+                                        ref={videoInputRef}
+                                        onChange={(e) => handleFileUpload(e, 'video')}
+                                    />
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="text-muted-foreground hover:text-primary transition-colors"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        disabled={isUploading}
+                                    >
                                         <ImageIcon className="h-5 w-5" />
                                     </Button>
-                                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary transition-colors">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="text-muted-foreground hover:text-primary transition-colors"
+                                        onClick={() => videoInputRef.current?.click()}
+                                        disabled={isUploading}
+                                    >
                                         <Video className="h-5 w-5" />
                                     </Button>
-                                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary transition-colors">
-                                        <Smile className="h-5 w-5" />
-                                    </Button>
+
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary transition-colors">
+                                                <Smile className="h-5 w-5" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-64 p-2">
+                                            <div className="grid grid-cols-5 gap-1">
+                                                {EMOJIS.map(emoji => (
+                                                    <button
+                                                        key={emoji}
+                                                        onClick={() => setNewPostContent(prev => prev + emoji)}
+                                                        className="h-10 text-xl hover:bg-muted rounded-md transition-colors"
+                                                    >
+                                                        {emoji}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </PopoverContent>
+                                    </Popover>
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <Button

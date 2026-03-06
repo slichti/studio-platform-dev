@@ -151,40 +151,44 @@ app.post('/', async (c) => {
 });
 
 // POST / community/ai-generate - AI Assist for posts
+import { GeminiService } from '../services/gemini';
+import { aiUsageLogs } from '@studio/db/src/schema';
+
 app.post('/ai-generate', async (c) => {
     const tenant = c.get('tenant');
+    const auth = c.get('auth');
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
-    const { prompt, tone = 'friendly' } = await c.req.json();
+    const { prompt } = await c.req.json();
     if (!prompt) return c.json({ error: 'Prompt required' }, 400);
 
-    const { GeminiService } = await import('../services/gemini');
-    const gemini = new GeminiService(c.env.GEMINI_API_KEY!);
+    const apiKey = c.env.GEMINI_API_KEY;
+    if (!apiKey) return c.json({ error: 'AI features not configured' }, 503);
 
-    const systemPrompt = `You are a social media manager for "${tenant.name}", a fitness/wellness studio.
-    Write a short, engaging community post (under 400 characters) based on the user's idea: "${prompt}".
-    The tone should be ${tone}. 
-    Include 2-3 relevant emojis.
-    Keep it warm, encouraging, and brand-aligned.
-    Output ONLY the post text.`;
+    const gemini = new GeminiService(apiKey);
 
     try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${c.env.GEMINI_API_KEY}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: systemPrompt }] }],
-                generationConfig: { temperature: 0.7, maxOutputTokens: 256 }
-            })
-        });
+        const { content, usage } = await gemini.generateCommunityPost(prompt, tenant.name);
 
-        const data = await response.json() as any;
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+        // Log AI Usage
+        const db = createDb(c.env.DB);
+        c.executionCtx.waitUntil(
+            db.insert(aiUsageLogs).values({
+                id: crypto.randomUUID(),
+                tenantId: tenant.id,
+                userId: auth?.userId || null,
+                model: 'gemini-2.0-flash',
+                feature: 'community_hub',
+                promptTokens: usage.promptTokenCount,
+                completionTokens: usage.candidatesTokenCount,
+                totalTokens: usage.totalTokenCount,
+            }).run()
+        );
 
-        return c.json({ content: text });
-    } catch (e) {
-        console.error(e);
-        return c.json({ error: 'Failed to generate content' }, 500);
+        return c.json({ content });
+    } catch (e: any) {
+        console.error('AI Generation Failed:', e);
+        return c.json({ error: 'AI was unable to help this time.' }, 500);
     }
 });
 

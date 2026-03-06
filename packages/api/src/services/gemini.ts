@@ -234,4 +234,62 @@ ${context}` : ''}`;
             throw err;
         }
     }
+
+    /**
+     * Generates a refined, engaging community post based on a prompt.
+     */
+    async generateCommunityPost(prompt: string, studioName?: string): Promise<AIGenerationResult<string>> {
+        const defaultCommunityPrompt = `You are a helpful and engaging community manager for a fitness/wellness studio${studioName ? ` called "${studioName}"` : ""}.
+Your goal is to take a brief idea or draft from a member and turn it into a high-quality, engaging social post for the studio's community hub.
+
+Requirements:
+1. Make it sound warm, encouraging, and human - like you're talking to friends.
+2. Use a few relevant emojis to add personality (but don't overdo it).
+3. If it's a question, make it sound thought-provoking.
+4. If it's an update, make it sound exciting or inspiring.
+5. Keep it concise (under 280 characters if possible, max 500).
+6. Output ONLY the refined post text. No labels, no quotes.
+
+Draft Idea: ${prompt}`;
+
+        const model = this.config?.model || "gemini-2.0-flash";
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`;
+
+        try {
+            const response = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: defaultCommunityPrompt }] }],
+                    generationConfig: {
+                        temperature: 0.8,
+                        topK: 40,
+                        topP: 0.95,
+                        maxOutputTokens: 512,
+                    },
+                }),
+            });
+
+            if (!response.ok) {
+                const error = await response.text();
+                throw new Error(`Gemini API error: ${response.status} - ${error}`);
+            }
+
+            const data = (await response.json()) as any;
+            const text = (data.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
+            const usage = (data.usageMetadata as AIUsageMetadata) || {
+                promptTokenCount: 0,
+                candidatesTokenCount: 0,
+                totalTokenCount: 0,
+            };
+
+            return {
+                content: text.replace(/^["']|["']$/g, ""),
+                usage,
+            };
+        } catch (err) {
+            console.error("Failed to generate community post:", err);
+            throw err;
+        }
+    }
 }
