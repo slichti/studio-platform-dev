@@ -8,10 +8,15 @@
 
 ## Features
 
-### 1. Global Platform Community
-- **Access**: Platform admins can access a global community hub at `/admin/community`.
-- **Purpose**: Facilitate platform-wide announcements, discussions among studio owners, and general engagement.
-- **Toggle**: Controlled via `feature_community` in the `platform_config` table.
+### 1. Admin Management Dashboard
+- **Location**: `/admin/community`
+- **Purpose**: Centralized control for the entire platform's social features.
+- **Global Control**: Disable the Community Hub platform-wide if needed.
+- **Tenant Management**: Enable/disable the Community Hub for specific tenants (e.g., restricted to higher-tier plans).
+- **Adoption Tracking**: Real-time stats on community adoption across the tenant network.
+
+### 2. Global Platform Community (Legacy/Note)
+- **Note**: The platform-wide community feed is accessible via tenant-specific views if needed, but the admin portal now focuses on management rather than posting.
 
 ### 2. Per-Tenant Studio Community
 - **Access**: Studio owners and students can access their studio's private community at `/studio/:slug/community`.
