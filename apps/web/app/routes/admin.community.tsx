@@ -160,8 +160,8 @@ export default function AdminCommunityDashboard() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="flex items-center justify-between p-5 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800/50">
                                 <div>
-                                    <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-50">Global Email Alerts</h4>
-                                    <p className="text-xs text-zinc-500 mt-1">Master switch for email notifications.</p>
+                                    <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-50">Global Community Email</h4>
+                                    <p className="text-xs text-zinc-500 mt-1">Master switch for community-specific email notifications (new posts, milestones etc.).</p>
                                 </div>
                                 <button
                                     onClick={toggleEmail}
@@ -174,8 +174,8 @@ export default function AdminCommunityDashboard() {
 
                             <div className="flex items-center justify-between p-5 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800/50">
                                 <div>
-                                    <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-50">Global SMS Alerts</h4>
-                                    <p className="text-xs text-zinc-500 mt-1">Master switch for SMS notifications.</p>
+                                    <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-50">Global Community SMS</h4>
+                                    <p className="text-xs text-zinc-500 mt-1">Master switch for community-specific SMS/text notifications.</p>
                                 </div>
                                 <button
                                     onClick={toggleSms}

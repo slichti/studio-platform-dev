@@ -73,7 +73,7 @@ app.put('/global', async (c) => {
         await db.insert(platformConfig).values({
             key: 'feature_community_email',
             enabled: !!emailEnabled,
-            description: 'Enable global email notifications for community interactions.',
+            description: 'Enable global email notifications specifically for community hub interactions (posts, comments, etc.).',
             updatedAt: new Date()
         }).onConflictDoUpdate({
             target: [platformConfig.key],
@@ -85,7 +85,7 @@ app.put('/global', async (c) => {
         await db.insert(platformConfig).values({
             key: 'feature_community_sms',
             enabled: !!smsEnabled,
-            description: 'Enable global SMS notifications for community interactions.',
+            description: 'Enable global SMS notifications specifically for community hub interactions (posts, comments, etc.).',
             updatedAt: new Date()
         }).onConflictDoUpdate({
             target: [platformConfig.key],
