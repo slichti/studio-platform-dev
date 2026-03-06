@@ -65,7 +65,7 @@ export function useCommunity(slug: string, filters: { type?: string; limit?: num
     const generateAIContent = useMutation({
         mutationFn: async (prompt: string) => {
             const token = await getToken();
-            const res = await apiRequest(`/community/generate`, token, {
+            const res = await apiRequest(`/community/ai-generate`, token, {
                 method: 'POST',
                 headers: { 'X-Tenant-Slug': slug },
                 body: JSON.stringify({ prompt })

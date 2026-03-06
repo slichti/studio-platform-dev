@@ -137,8 +137,8 @@ app.post('/', async (c) => {
     return c.json({ id }, 201);
 });
 
-// POST / community/generate - AI Assist for posts
-app.post('/generate', async (c) => {
+// POST / community/ai-generate - AI Assist for posts
+app.post('/ai-generate', async (c) => {
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 

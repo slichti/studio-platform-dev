@@ -101,6 +101,20 @@ import { sentryMiddleware } from './middleware/sentry';
 
 const app = createOpenAPIApp()
 
+app.use('*', cors({
+  origin: (origin, c) => {
+    if (!origin) return 'https://studio-platform-web.pages.dev';
+    if (origin.endsWith('.pages.dev') || origin.endsWith('.slichti.org') || origin.includes('localhost')) {
+      return origin;
+    }
+    return 'https://studio-platform-web.pages.dev';
+  },
+  allowHeaders: ['Authorization', 'Content-Type', 'X-Tenant-Slug', 'X-Tenant-Id', 'X-Request-Id', 'X-Impersonate-User', 'Stripe-Signature', 'Svix-Id', 'Svix-Timestamp', 'Svix-Signature'],
+  allowMethods: ['POST', 'GET', 'OPTIONS', 'DELETE', 'PUT', 'PATCH'],
+  exposeHeaders: ['Content-Length', 'X-Request-Id', 'X-MFA-Warning'],
+  maxAge: 86400,
+}));
+
 // ISOLATED GOOGLE OAUTH ROUTES
 app.get('/studios/gc-connect', authMiddleware, tenantMiddleware, async (c) => {
   const tenantId = c.req.query('tenantId');
@@ -296,19 +310,6 @@ app.onError((err: any, c) => {
   }, 500);
 });
 
-app.use('*', cors({
-  origin: (origin, c) => {
-    if (!origin) return 'https://studio-platform-web.pages.dev';
-    if (origin.endsWith('.pages.dev') || origin.endsWith('.slichti.org') || origin.includes('localhost')) {
-      return origin;
-    }
-    return 'https://studio-platform-web.pages.dev';
-  },
-  allowHeaders: ['Authorization', 'Content-Type', 'X-Tenant-Slug', 'X-Tenant-Id', 'X-Request-Id', 'X-Impersonate-User', 'Stripe-Signature', 'Svix-Id', 'Svix-Timestamp', 'Svix-Signature'],
-  allowMethods: ['POST', 'GET', 'OPTIONS', 'DELETE', 'PUT', 'PATCH'],
-  exposeHeaders: ['Content-Length', 'X-Request-Id', 'X-MFA-Warning'],
-  maxAge: 86400,
-}));
 
 
 app.get('/', (c) => {
