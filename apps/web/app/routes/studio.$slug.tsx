@@ -598,5 +598,3 @@ function NavItem({ to, children, icon, end }: { to: string, children: React.Reac
         </NavLink>
     );
 }
-
-

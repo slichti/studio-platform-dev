@@ -84,6 +84,12 @@ const KNOWN_FEATURES = [
         label: 'Course Management',
         description: 'Enable standalone Course Management — hybrid curriculum, VOD + live sessions, enrollment, and progress tracking for tenants.',
         icon: BookOpen
+    },
+    {
+        key: 'feature_community',
+        label: 'Community Hub',
+        description: 'Enable rich social engagement, media sharing, and AI-assisted community building.',
+        icon: MessagesSquare
     }
 ];
 

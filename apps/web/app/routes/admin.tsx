@@ -91,6 +91,7 @@ export default function AdminLayout() {
         { label: "Tenants", href: "/admin/tenants", icon: "🏢" },
         { label: "Video Manager", href: "/admin/videos", icon: "🎬" },
         { label: "Website Builder", href: "/admin/website", icon: "🌐" },
+        { label: "Community Hub", href: "/admin/community", icon: "💬" },
     ];
 
     return (

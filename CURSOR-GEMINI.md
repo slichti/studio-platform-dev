@@ -813,5 +813,11 @@ Full SDK migration from Expo 54 to 55:
   - Synchronized `platform_plans` with a base `application_fee_percent` per tier level.
   - Verified that fees are correctly calculated for both one-time POS transactions and recurring Stripe subscriptions.
 - **Verification & Testing**:
+  - Implemented **Community Hub Feature Toggles** at platform and tenant levels.
+  - Added "Community Hub" as a self-service feature in API `ALLOWED_FEATURES`.
+  - Updated `SettingsIndex.tsx` with a dedicated Community Hub toggle for studio owners.
+  - Gated the studio sidebar link based on the tenant's `community` feature status.
+  - Verified administrative master toggle in the platform admin features list.
+
   - Fixed persistent test failures in `booking-integration.test.ts` and `debug_fixes.test.ts` by synchronizing manual SQL schemas with the production D1 schema.
   - Validated the entire non-mobile monorepo test suite (47/47 API tests, all Web tests passing).

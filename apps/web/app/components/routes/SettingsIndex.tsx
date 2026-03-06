@@ -1,7 +1,7 @@
 
 import { useSubmit, Link, Form, useOutletContext, useParams } from "react-router";
 import { useState, useEffect } from "react";
-import { Settings, Save, MapPin, Plus, Trash2, CreditCard, ShoppingBag, Globe, Search, Mail } from "lucide-react";
+import { Settings, Save, MapPin, Plus, Trash2, CreditCard, ShoppingBag, Globe, Search, Mail, MessagesSquare } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmationDialog } from "~/components/Dialogs";
 import { apiRequest, API_URL } from "~/utils/api";
@@ -251,6 +251,65 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                         </div>
                     </Link>
                 )}
+            </div>
+
+            {/* Community Hub Settings */}
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 shadow-sm mb-8">
+                <div className="flex justify-between items-start mb-4">
+                    <div>
+                        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                            <MessagesSquare className="h-5 w-5 text-blue-500" />
+                            Community Hub
+                        </h2>
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Enable rich social engagement, media sharing, and AI-assisted community building.</p>
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                    <div>
+                        <div className="font-medium text-zinc-900 dark:text-zinc-100">Enable Community Hub</div>
+                        <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                            {tenant.features?.includes('community')
+                                ? "Community Hub is active. Students can interact in the app."
+                                : "Community Hub is currently disabled."}
+                        </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={tenant.features?.includes('community') || false}
+                            onChange={async (e) => {
+                                const checked = e.target.checked;
+                                setTenant((prev: any) => ({
+                                    ...prev,
+                                    features: checked
+                                        ? [...(prev.features || []), 'community']
+                                        : (prev.features || []).filter((f: string) => f !== 'community')
+                                }));
+                                try {
+                                    const token = await (window as any).Clerk?.session?.getToken();
+                                    await apiRequest(`/tenant/features`, token, {
+                                        method: "POST",
+                                        headers: { 'X-Tenant-Slug': slug || tenant.slug || '' },
+                                        body: JSON.stringify({ featureKey: 'community', enabled: checked })
+                                    });
+                                    toast.success(checked ? "Community Hub enabled" : "Community Hub disabled");
+                                } catch (err: any) {
+                                    toast.error(err.message || "Failed to toggle Community Hub");
+                                    // Revert
+                                    setTenant((prev: any) => ({
+                                        ...prev,
+                                        features: !checked
+                                            ? [...(prev.features || []), 'community']
+                                            : (prev.features || []).filter((f: string) => f !== 'community')
+                                    }));
+                                }
+                            }}
+                        />
+                        <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
             </div>
 
             {/* Kiosk Mode Settings */}
