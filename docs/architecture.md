@@ -119,6 +119,7 @@ flowchart TD
         STU -->|Commerce| PACK[Purchase & View Packs]
         STU -->|Courses| LMS[Enroll · Watch · Submit Quiz/Assignment]
         STU -->|Membership| MEM[Browse Plans · Subscribe · Cancel Own]
+        STU -->|Community| SOC[Post · Comment · React · Join Topics]
         STU -->|Profile| PROF[View & Edit Own Name / Phone]
     end
 
@@ -365,9 +366,12 @@ erDiagram
     CLASSES }|--o| COURSES : "linked to"
     VIDEO_COLLECTION_ITEMS ||--o{ QUIZ_SUBMISSIONS : "assessed by"
     VIDEO_COLLECTION_ITEMS ||--o{ ASSIGNMENT_SUBMISSIONS : "assessed by"
-    VIDEO_COLLECTION_ITEMS ||--o{ COURSE_ITEM_COMPLETIONS : "completed in"
+    COURSE_ITEM_COMPLETIONS ||--o{ COMMUNITY_POSTS : "notifies in"
     COMMUNITY_POSTS ||--o{ COMMUNITY_COMMENTS : "has"
     COMMUNITY_POSTS ||--o{ COMMUNITY_REACTIONS : "receives"
+    COMMUNITY_POSTS }|--o| COMMUNITY_TOPICS : "categorized by"
+    COMMUNITY_TOPICS ||--o{ COMMUNITY_TOPIC_MEMBERSHIPS : "has members"
+    USERS ||--o{ COMMUNITY_TOPIC_MEMBERSHIPS : "joined via rules"
     TENANTS ||--o{ AI_USAGE_LOGS : "records"
 ```
 

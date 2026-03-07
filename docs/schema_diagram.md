@@ -491,6 +491,26 @@ erDiagram
         timestamp created_at
     }
 
+    community_topics {
+        string id PK
+        string tenant_id FK
+        string name
+        string description
+        string emoji
+        enum visibility
+        json metadata
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    community_topic_memberships {
+        string id PK
+        string topic_id FK
+        string user_id FK
+        enum source
+        timestamp created_at
+    }
+
     tenants ||--o{ community_posts : "hosts"
     tenant_members ||--o{ community_posts : "authors"
 
@@ -512,6 +532,9 @@ erDiagram
     }
     community_posts ||--o{ community_comments : "has"
     community_posts ||--o{ community_reactions : "receives"
+    community_posts }|--o| community_topics : "categorized in"
+    community_topics ||--o{ community_topic_memberships : "has"
+    users ||--o{ community_topic_memberships : "joined via eligibility"
 
     %% ─────────────────────────────────────────────
     %% SEO Content Automation (Tier 7)

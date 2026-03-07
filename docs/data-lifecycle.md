@@ -16,8 +16,9 @@ This document describes retention expectations, PII locations, and procedures fo
 | **webhook_logs** | 30–90 days | Request/response bodies may contain PII; truncate or delete. |
 | **automation_logs** | 90 days | Tracks sends; may reference userId. |
 | **bookings** | Indefinite (business) | Required for history; consider soft-delete or archive flag for very old. |
-| **tenant_members / users** | Indefinite while active | See “Anonymization” below for inactive. |
 | **pos_orders, subscriptions, purchased_packs** | Indefinite (financial) | Legal/tax; retain per jurisdiction. |
+| **community_posts / comments** | Indefinite (content) | User-generated content; anonymize on user request. |
+| **community_topics** | Indefinite | Structural metadata; no PII. |
 
 ---
 
@@ -31,6 +32,7 @@ This document describes retention expectations, PII locations, and procedures fo
 - **audit_logs**: actorId, targetId; details JSON may contain names/emails.
 - **webhook_logs**: payload may contain member/booking/customer PII.
 - **support / widget**: customerEmail, message content.
+- **community_posts / comments**: authorId, user-generated text content, media URLs.
 
 ---
 
