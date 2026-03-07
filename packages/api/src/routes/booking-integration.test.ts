@@ -25,7 +25,7 @@ describe('Booking Lifecycle Integration', () => {
         // 1. Tenants
         sqlite.exec(`CREATE TABLE tenants (
             id TEXT PRIMARY KEY, slug TEXT, name TEXT, owner_id TEXT, tier TEXT, status TEXT, created_at INTEGER,
-            custom_domain TEXT, branding TEXT, mobile_app_config TEXT, settings TEXT, custom_field_definitions TEXT,
+            custom_domain TEXT, community_custom_domain TEXT, branding TEXT, mobile_app_config TEXT, settings TEXT, custom_field_definitions TEXT,
             stripe_account_id TEXT, stripe_customer_id TEXT, stripe_subscription_id TEXT, current_period_end INTEGER,
             marketing_provider TEXT DEFAULT 'system', resend_credentials TEXT, twilio_credentials TEXT, flodesk_credentials TEXT,
             currency TEXT DEFAULT 'usd', zoom_credentials TEXT, mailchimp_credentials TEXT, zapier_credentials TEXT,

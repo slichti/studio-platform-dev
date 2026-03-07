@@ -23,24 +23,13 @@ describe('getSubdomain', () => {
         });
     });
 
-    it('returns null for unrelated domains', () => {
+    it('returns the hostname for unrelated domains (custom domains)', () => {
         const req = new Request('https://google.com/');
-        expect(getSubdomain(req)).toBeNull();
+        expect(getSubdomain(req)).toBe('google.com');
     });
 
-    it('returns null for domains that just end with base but are not subdomains', () => {
-        // e.g. "not-studio-platform-dev.slichti.org" is technically a different domain if we consider the dot
-        // depending on logic.
-        // The implementation: hostname.endsWith(BASE_DOMAIN)
-        // "fake-studio-platform-dev.slichti.org".endsWith(...) -> True
-        // .replace -> "fake-"
-        // This test case ensures we handle the dot check if necessary.
-        // Current implementation: hostname.replace(`.${BASE_DOMAIN}`, '')
-        // If hostname is "fake-studio-platform-dev.slichti.org", replace returns "fake-studio-platform-dev.slichti.org" because pattern includes leading dot.
-        // Wait, `.${BASE_DOMAIN}` matches ".studio-platform-dev.slichti.org".
-        // "fake-studio-platform-dev.slichti.org" does NOT contain ".studio-platform-dev..."
-
+    it('returns the hostname for domains that just end with base but are not subdomains', () => {
         const req = new Request(`https://fake-${BASE}/`);
-        expect(getSubdomain(req)).toBeNull();
+        expect(getSubdomain(req)).toBe(`fake-${BASE}`);
     });
 });

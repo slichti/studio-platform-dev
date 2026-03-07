@@ -41,7 +41,7 @@ export async function setupTestDb(d1: D1Database) {
     await d1.batch([
         d1.prepare(`CREATE TABLE tenants (
             id TEXT PRIMARY KEY, slug TEXT NOT NULL UNIQUE, name TEXT NOT NULL, 
-            custom_domain TEXT UNIQUE, branding TEXT, mobile_app_config TEXT, settings TEXT, 
+            custom_domain TEXT UNIQUE, community_custom_domain TEXT UNIQUE, branding TEXT, mobile_app_config TEXT, settings TEXT, 
             custom_field_definitions TEXT, stripe_account_id TEXT, stripe_customer_id TEXT, 
             stripe_subscription_id TEXT, current_period_end INTEGER, marketing_provider TEXT DEFAULT 'system', 
             resend_credentials TEXT, twilio_credentials TEXT, flodesk_credentials TEXT, currency TEXT DEFAULT 'usd', 
