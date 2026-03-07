@@ -260,7 +260,7 @@ Draft Idea: ${prompt}`;
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    contents: [{ parts: [{ text: `${defaultCommunityPrompt}\n\nDraft Idea: ${prompt}` }] }],
+                    contents: [{ parts: [{ text: defaultCommunityPrompt }] }],
                     generationConfig: {
                         temperature: 0.8,
                         topK: 40,
@@ -272,15 +272,17 @@ Draft Idea: ${prompt}`;
 
             if (!response.ok) {
                 const error = await response.text();
-                throw new Error(`Gemini API error: ${response.status} - ${error}`);
+                console.error(`Gemini API Error (${response.status}):`, error);
+                throw new Error(`Gemini API error: ${response.status}`);
             }
 
             const data = (await response.json()) as any;
             let text = (data.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
-            const usage = (data.usageMetadata as AIUsageMetadata) || {
-                promptTokenCount: 0,
-                candidatesTokenCount: 0,
-                totalTokenCount: 0,
+            const usageMeta = data.usageMetadata || {};
+            const usage: AIUsageMetadata = {
+                promptTokenCount: usageMeta.promptTokenCount || 0,
+                candidatesTokenCount: usageMeta.candidatesTokenCount || 0,
+                totalTokenCount: usageMeta.totalTokenCount || 0,
             };
 
             // Remove any potential surrounding quotes or markdown

@@ -182,13 +182,16 @@ app.post('/ai-generate', async (c) => {
                 promptTokens: usage.promptTokenCount,
                 completionTokens: usage.candidatesTokenCount,
                 totalTokens: usage.totalTokenCount,
-            }).run()
+            }).run().catch(err => console.error('Failed to log AI usage:', err))
         );
 
         return c.json({ content });
     } catch (e: any) {
-        console.error('AI Generation Failed:', e);
-        return c.json({ error: 'AI was unable to help this time.' }, 500);
+        console.error('AI Generation Failed Trace:', e);
+        return c.json({
+            error: 'AI was unable to help this time.',
+            details: e.message
+        }, 500);
     }
 });
 
