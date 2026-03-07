@@ -1,5 +1,5 @@
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link, useParams } from "react-router";
 import {
     MessageSquare,
@@ -62,6 +62,12 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
 
     const [newPostContent, setNewPostContent] = useState("");
     const [selectedPostTopicId, setSelectedPostTopicId] = useState<string | null>(null);
+
+    // Sync selectedPostTopicId with selectedTopicId when switching views
+    useEffect(() => {
+        setSelectedPostTopicId(selectedTopicId);
+    }, [selectedTopicId]);
+
     const [isGenerating, setIsGenerating] = useState(false);
     const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
     const [commentText, setCommentText] = useState("");
