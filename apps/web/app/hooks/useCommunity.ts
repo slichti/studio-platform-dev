@@ -65,6 +65,33 @@ export function useCommunity(slug: string, filters: { type?: string; topicId?: s
         }
     });
 
+    const updatePost = useMutation({
+        mutationFn: async ({ postId, data }: { postId: string, data: { content?: string; topicId?: string | null } }) => {
+            const token = await getToken();
+            return apiRequest(`/community/${postId}`, token, {
+                method: 'PATCH',
+                headers: { 'X-Tenant-Slug': slug },
+                body: JSON.stringify(data)
+            });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['community', slug] });
+        }
+    });
+
+    const deletePost = useMutation({
+        mutationFn: async (postId: string) => {
+            const token = await getToken();
+            return apiRequest(`/community/${postId}`, token, {
+                method: 'DELETE',
+                headers: { 'X-Tenant-Slug': slug }
+            });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['community', slug] });
+        }
+    });
+
     const generateAIContent = useMutation({
         mutationFn: async (prompt: string) => {
             const token = await getToken();
@@ -81,6 +108,8 @@ export function useCommunity(slug: string, filters: { type?: string; topicId?: s
         posts: query.data as any[] || [],
         isLoading: query.isLoading,
         createPost,
+        updatePost,
+        deletePost,
         reactToPost,
         commentOnPost,
         generateAIContent

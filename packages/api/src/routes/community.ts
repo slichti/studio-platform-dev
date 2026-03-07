@@ -508,6 +508,34 @@ app.patch('/:id/pin', async (c) => {
     return c.json({ isPinned: !post.isPinned });
 });
 
+// PATCH / community/:id
+app.patch('/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const member = c.get('member');
+    if (!member) return c.json({ error: 'Member required' }, 403);
+
+    const postId = c.req.param('id');
+    const { content, topicId } = await c.req.json();
+
+    const post = await db.select().from(communityPosts).where(and(eq(communityPosts.id, postId), eq(communityPosts.tenantId, c.get('tenant')!.id))).get();
+    if (!post) return c.json({ error: 'Post not found' }, 404);
+
+    if (post.authorId !== member.id && !c.get('can')('manage_marketing')) {
+        return c.json({ error: 'Access denied' }, 403);
+    }
+
+    const updateData: any = {};
+    if (content !== undefined) updateData.content = content;
+    if (topicId !== undefined) updateData.topicId = topicId; // can be null
+
+    await db.update(communityPosts)
+        .set(updateData)
+        .where(eq(communityPosts.id, postId))
+        .run();
+
+    return c.json({ success: true });
+});
+
 // GET / community/members/:id/preview
 app.get('/members/:id/preview', async (c) => {
     const db = createDb(c.env.DB);

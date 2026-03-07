@@ -49,7 +49,7 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
     const { slug: paramsSlug } = useParams();
     const slug = propsSlug || paramsSlug;
     const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
-    const { posts, isLoading, createPost, reactToPost, commentOnPost, generateAIContent } = useCommunity(slug!, { topicId: selectedTopicId || undefined });
+    const { posts, isLoading, createPost, updatePost, deletePost, reactToPost, commentOnPost, generateAIContent } = useCommunity(slug!, { topicId: selectedTopicId || undefined });
     const { topics, isLoading: isLoadingTopics, createTopic, deleteTopic, updateTopic } = useCommunityTopics(slug!);
 
     const { getToken } = useAuth();
@@ -77,6 +77,10 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
     const [isCreateTopicOpen, setIsCreateTopicOpen] = useState(false);
     const [isEditTopicOpen, setIsEditTopicOpen] = useState(false);
     const [editingTopic, setEditingTopic] = useState<any>(null);
+    const [editingPost, setEditingPost] = useState<any>(null);
+    const [isEditPostOpen, setIsEditPostOpen] = useState(false);
+    const [editPostContent, setEditPostContent] = useState("");
+    const [editPostTopicId, setEditPostTopicId] = useState<string | null>(null);
     const [newTopic, setNewTopic] = useState({ name: '', description: '', icon: 'Hash', color: '#3b82f6' });
 
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -128,10 +132,38 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
             });
             setNewPostContent("");
             setSelectedMedia([]);
-            setSelectedPostTopicId(null);
+            setSelectedPostTopicId(selectedTopicId); // keep synced if we are in a topic
             toast.success("Post shared with the community!");
         } catch (e) {
             toast.error("Failed to share post");
+        }
+    };
+
+    const handleEditPost = async () => {
+        if (!editingPost || !editPostContent.trim()) return;
+        try {
+            await updatePost.mutateAsync({
+                postId: editingPost.id,
+                data: {
+                    content: editPostContent,
+                    topicId: editPostTopicId
+                }
+            });
+            setIsEditPostOpen(false);
+            setEditingPost(null);
+            toast.success("Post updated!");
+        } catch (e) {
+            toast.error("Failed to update post");
+        }
+    };
+
+    const handleDeletePost = async (postId: string) => {
+        if (!window.confirm("Are you sure you want to delete this post?")) return;
+        try {
+            await deletePost.mutateAsync(postId);
+            toast.success("Post deleted");
+        } catch (e) {
+            toast.error("Failed to delete post");
         }
     };
 
@@ -232,11 +264,11 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
     );
 
     return (
-        <div className="max-w-6xl mx-auto p-4 md:p-8">
-            <header className="mb-8 flex items-center justify-between">
+        <div className="p-6 min-h-screen">
+            <div className="flex justify-between items-center mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Community Hub</h1>
-                    <p className="text-muted-foreground">Connect and grow with your studio family.</p>
+                    <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Community Hub</h1>
+                    <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">Connect and grow with your studio family.</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <Button variant="outline" size="icon" className="md:hidden">
@@ -249,7 +281,7 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
                         <Settings size={20} />
                     </Link>
                 </div>
-            </header>
+            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                 {/* Left Sidebar: Topics */}
@@ -268,13 +300,13 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
                             <button
                                 onClick={() => setSelectedTopicId(null)}
                                 className={cn(
-                                    "w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all font-bold text-sm",
+                                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-medium text-xs",
                                     !selectedTopicId
-                                        ? "bg-primary text-primary-foreground shadow-xl shadow-primary/30 scale-[1.02] ring-2 ring-primary ring-offset-2"
+                                        ? "bg-primary text-primary-foreground shadow-md ring-1 ring-primary"
                                         : "hover:bg-muted text-muted-foreground"
                                 )}
                             >
-                                <Users size={18} />
+                                <Users size={16} />
                                 Everyone
                             </button>
                             {topics.map((topic: any) => (
@@ -282,14 +314,14 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
                                     <button
                                         onClick={() => setSelectedTopicId(topic.id)}
                                         className={cn(
-                                            "w-full flex items-center justify-between px-3 py-3 rounded-xl transition-all font-bold text-sm",
+                                            "w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all font-medium text-xs",
                                             selectedTopicId === topic.id
-                                                ? "bg-primary text-primary-foreground shadow-xl shadow-primary/30 scale-[1.02] ring-2 ring-primary ring-offset-2"
+                                                ? "bg-primary text-primary-foreground shadow-md ring-1 ring-primary"
                                                 : "hover:bg-muted text-muted-foreground"
                                         )}
                                     >
                                         <div className="flex items-center gap-3">
-                                            <Hash size={18} className={cn(selectedTopicId === topic.id ? "text-primary-foreground" : "text-primary")} />
+                                            <Hash size={16} className={cn(selectedTopicId === topic.id ? "text-primary-foreground" : "text-primary")} />
                                             {topic.name}
                                         </div>
                                         {topic.isNew && <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />}
@@ -379,31 +411,20 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
 
                                     {/* Topic Selector */}
                                     <div className="flex flex-wrap gap-2">
-                                        <button
-                                            onClick={() => setSelectedPostTopicId(null)}
-                                            className={cn(
-                                                "px-3 py-1.5 rounded-full text-xs font-bold transition-all border",
-                                                selectedPostTopicId === null
-                                                    ? "bg-primary border-primary text-primary-foreground shadow-md"
-                                                    : "bg-background border-border text-muted-foreground hover:border-primary/50"
-                                            )}
-                                        >
-                                            <Users size={12} className="inline mr-1" />
-                                            Everyone
-                                        </button>
                                         {topics.map((topic: any) => (
                                             <button
                                                 key={topic.id}
-                                                onClick={() => setSelectedPostTopicId(topic.id)}
+                                                onClick={() => setSelectedPostTopicId(selectedPostTopicId === topic.id ? null : topic.id)}
                                                 className={cn(
-                                                    "px-3 py-1.5 rounded-full text-xs font-bold transition-all border",
+                                                    "px-3 py-1.5 rounded-full text-xs font-medium transition-all border flex items-center gap-1",
                                                     selectedPostTopicId === topic.id
-                                                        ? "bg-primary border-primary text-primary-foreground shadow-md"
+                                                        ? "bg-primary border-primary text-primary-foreground shadow-sm"
                                                         : "bg-background border-border text-muted-foreground hover:border-primary/50"
                                                 )}
                                             >
-                                                <Hash size={12} className="inline mr-1" />
+                                                <Hash size={12} />
                                                 {topic.name}
+                                                {selectedPostTopicId === topic.id && <X size={10} className="ml-1 opacity-70" />}
                                             </button>
                                         ))}
                                     </div>
@@ -493,9 +514,16 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
                                 key={post.id}
                                 post={post}
                                 slug={slug!}
-                                onReact={handleReact}
-                                onComment={handleComment}
+                                onReact={reactToPost.mutate}
+                                onComment={commentOnPost.mutateAsync}
                                 onPreview={() => setPreviewMemberId(post.authorId)}
+                                onEdit={(p: any) => {
+                                    setEditingPost(p);
+                                    setEditPostContent(p.content);
+                                    setEditPostTopicId(p.topicId);
+                                    setIsEditPostOpen(true);
+                                }}
+                                onDelete={handleDeletePost}
                                 reactionTypes={REACTION_TYPES}
                             />
                         ))}
@@ -607,16 +635,75 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Edit Post Dialog */}
+            <Dialog open={isEditPostOpen} onOpenChange={setIsEditPostOpen}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Edit Post</DialogTitle>
+                        <DialogDescription>Update your post content or change its topic.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>Content</Label>
+                            <textarea
+                                className="w-full min-h-[150px] p-3 rounded-xl border bg-muted/30 focus:ring-1 focus:ring-primary outline-none text-sm resize-none"
+                                value={editPostContent}
+                                onChange={(e) => setEditPostContent(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Topic</Label>
+                            <div className="flex flex-wrap gap-2">
+                                {topics.map((topic: any) => (
+                                    <button
+                                        key={topic.id}
+                                        onClick={() => setEditPostTopicId(editPostTopicId === topic.id ? null : topic.id)}
+                                        className={cn(
+                                            "px-3 py-1.5 rounded-full text-xs font-medium transition-all border flex items-center gap-1",
+                                            editPostTopicId === topic.id
+                                                ? "bg-primary border-primary text-primary-foreground shadow-sm"
+                                                : "bg-background border-border text-muted-foreground hover:border-primary/50"
+                                        )}
+                                    >
+                                        <Hash size={12} />
+                                        {topic.name}
+                                        {editPostTopicId === topic.id && <X size={10} className="ml-1 opacity-70" />}
+                                    </button>
+                                ))}
+                                {editPostTopicId !== null && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 text-xs text-muted-foreground"
+                                        onClick={() => setEditPostTopicId(null)}
+                                    >
+                                        Clear Topic
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsEditPostOpen(false)}>Cancel</Button>
+                        <Button onClick={handleEditPost} disabled={updatePost.isPending}>
+                            {updatePost.isPending ? "Updating..." : "Save Changes"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
 
-function PostCard({ post, slug, onReact, onComment, onPreview, reactionTypes }: {
+function PostCard({ post, slug, onReact, onComment, onPreview, onEdit, onDelete, reactionTypes }: {
     post: any,
     slug: string,
     onReact: any,
     onComment: any,
     onPreview: any,
+    onEdit: any,
+    onDelete: any,
     reactionTypes: any
 }) {
     const [showComments, setShowComments] = useState(false);
@@ -646,9 +733,31 @@ function PostCard({ post, slug, onReact, onComment, onPreview, reactionTypes }: 
                         {formatDistanceToNow(new Date(post.createdAt))} ago
                     </span>
                 </div>
-                <Button variant="ghost" size="icon" className="text-muted-foreground h-8 w-8">
-                    <MoreVertical className="h-4 w-4" />
-                </Button>
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" className="text-muted-foreground h-8 w-8 rounded-full">
+                            <MoreVertical className="h-4 w-4" />
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-40 p-1 rounded-xl" align="end">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full justify-start gap-2 h-9 text-xs rounded-lg"
+                            onClick={() => onEdit(post)}
+                        >
+                            <Pencil size={14} /> Edit Post
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full justify-start gap-2 h-9 text-xs text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg"
+                            onClick={() => onDelete(post.id)}
+                        >
+                            <Trash2 size={14} /> Delete Post
+                        </Button>
+                    </PopoverContent>
+                </Popover>
             </CardHeader>
             <CardContent className="p-4 space-y-4">
                 <div className="text-base leading-relaxed whitespace-pre-wrap">
