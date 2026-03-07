@@ -116,13 +116,14 @@ app.post('/:id/draft-reply', async (c) => {
 
     const gemini = new GeminiService(apiKey, configAi);
     try {
-        const { content: draft, usage } = await gemini.generateReviewReplyDraft({
+        const aiResult = await gemini.generateReviewReplyDraft({
             reviewContent: row.content,
             rating: row.rating,
             studioName: tenant.name,
             businessType: seo.businessType || 'fitness studio',
             city: seo.location,
         });
+        const draft = aiResult.content;
 
         // Log Usage asynchronously
         c.executionCtx.waitUntil(
@@ -130,11 +131,11 @@ app.post('/:id/draft-reply', async (c) => {
                 id: crypto.randomUUID(),
                 tenantId: tenant.id,
                 userId: c.get('auth').userId || null,
-                model: configAi?.model || 'gemini-2.0-flash',
+                model: aiResult.model,
                 feature: 'review_reply',
-                promptTokens: usage.promptTokenCount,
-                completionTokens: usage.candidatesTokenCount,
-                totalTokens: usage.totalTokenCount,
+                promptTokens: aiResult.usage.promptTokenCount,
+                completionTokens: aiResult.usage.candidatesTokenCount,
+                totalTokens: aiResult.usage.totalTokenCount,
             }).run()
         );
 

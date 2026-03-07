@@ -65,23 +65,23 @@ export class ContentAutomationService {
                 };
 
                 // 3. Generate content
-                const { content: aiResult, usage } = await gemini.generateBlogPost(
+                const aiResult = await gemini.generateBlogPost(
                     item.topic.name,
                     item.topic.description || '',
                     localeInfo
                 );
-                const { title, content, imagePrompt } = aiResult;
+                const { title, content, imagePrompt } = aiResult.content;
 
                 // Log Usage
                 await db.insert(aiUsageLogs).values({
                     id: crypto.randomUUID(),
                     tenantId: item.tenant.id,
                     userId: null,
-                    model: configAi?.model || 'gemini-1.5-flash',
+                    model: aiResult.model,
                     feature: 'blog_generation',
-                    promptTokens: usage.promptTokenCount,
-                    completionTokens: usage.candidatesTokenCount,
-                    totalTokens: usage.totalTokenCount,
+                    promptTokens: aiResult.usage.promptTokenCount,
+                    completionTokens: aiResult.usage.candidatesTokenCount,
+                    totalTokens: aiResult.usage.totalTokenCount,
                 }).run().catch((err: any) => console.error('Failed to log AI usage:', err));
 
                 // 4. Find an author (usually the owner)

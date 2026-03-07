@@ -175,22 +175,22 @@ app.post('/ai-generate', async (c) => {
     const gemini = new GeminiService(apiKey, configAi);
 
     try {
-        const { content, usage } = await gemini.generateCommunityPost(prompt, tenant.name);
+        const aiResult = await gemini.generateCommunityPost(prompt, tenant.name);
 
         c.executionCtx.waitUntil(
             db.insert(aiUsageLogs).values({
                 id: crypto.randomUUID(),
                 tenantId: tenant.id,
                 userId: auth?.userId || null,
-                model: configAi?.model || 'gemini-1.5-flash',
+                model: aiResult.model,
                 feature: 'community_hub',
-                promptTokens: usage.promptTokenCount,
-                completionTokens: usage.candidatesTokenCount,
-                totalTokens: usage.totalTokenCount,
+                promptTokens: aiResult.usage.promptTokenCount,
+                completionTokens: aiResult.usage.candidatesTokenCount,
+                totalTokens: aiResult.usage.totalTokenCount,
             }).run().catch(err => console.error('Failed to log AI usage:', err))
         );
 
-        return c.json({ content });
+        return c.json({ content: aiResult.content });
     } catch (e: any) {
         console.error('AI Generation Failed Trace:', e);
         return c.json({

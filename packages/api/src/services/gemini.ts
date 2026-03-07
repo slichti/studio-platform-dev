@@ -8,6 +8,12 @@ export interface IAIGenBlogPostOptions {
 
 export interface GeminiConfig {
     model?: string;
+    modelOverrides?: {
+        blogPost?: string;
+        reviewReply?: string;
+        emailCopy?: string;
+        communityPost?: string;
+    };
     prompts?: {
         blogPost?: string;
         reviewReply?: string;
@@ -24,6 +30,7 @@ export interface AIUsageMetadata {
 export interface AIGenerationResult<T> {
     content: T;
     usage: AIUsageMetadata;
+    model: string;
 }
 
 export class GeminiService {
@@ -67,7 +74,7 @@ export class GeminiService {
             .replace(/{{topicName}}/g, topicName)
             .replace(/{{topicDesc}}/g, topicDesc);
 
-        const model = this.config?.model || 'gemini-2.0-flash';
+        const model = this.config?.modelOverrides?.blogPost || this.config?.model || 'gemini-1.5-flash';
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`;
 
         try {
@@ -98,17 +105,17 @@ export class GeminiService {
             const jsonMatch = text.match(/\{[\s\S]*\}/);
             let content;
             if (jsonMatch) {
-                content = JSON.parse(jsonMatch[0]);
+                try {
+                    content = JSON.parse(jsonMatch[0]);
+                } catch (e) {
+                    console.error("Failed to parse JSON from Gemini response:", text);
+                    throw new Error("AI returned invalid JSON format");
+                }
             } else {
-                // Fallback if not pure JSON
-                content = {
-                    title: `${topicName} at ${localeInfo.studioName}`,
-                    content: text,
-                    imagePrompt: `A high-end, aesthetic photograph representing ${topicName} for ${localeInfo.studioName}.`
-                };
+                throw new Error("AI response did not contain JSON");
             }
 
-            return { content, usage };
+            return { content, usage, model };
         } catch (err) {
             console.error('Failed to generate blog post:', err);
             throw err;
@@ -173,7 +180,8 @@ Output only the reply text, no quotes or labels.`;
 
             return {
                 content: text.replace(/^["']|["']$/g, ''),
-                usage
+                usage,
+                model
             };
         } catch (err) {
             console.error('Failed to generate review reply draft:', err);
@@ -200,7 +208,7 @@ Specific Context for this email:
 ${context}` : ''}`;
 
         const systemPrompt = this.config?.prompts?.emailCopy || defaultEmailCopyPrompt;
-        const model = this.config?.model || 'gemini-2.0-flash';
+        const model = this.config?.modelOverrides?.emailCopy || this.config?.model || 'gemini-2.0-flash';
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`;
 
         try {
@@ -230,7 +238,7 @@ ${context}` : ''}`;
             // Strip potential markdown wrappers
             text = text.replace(/^```html\n?/, '').replace(/```$/, '').trim();
 
-            return { content: text, usage };
+            return { content: text, usage, model };
         } catch (err) {
             console.error('Failed to generate email copy:', err);
             throw err;
@@ -254,7 +262,7 @@ Requirements:
 
 Draft Idea: ${prompt}`;
 
-        const model = this.config?.model || "gemini-1.5-flash";
+        const model = this.config?.modelOverrides?.communityPost || this.config?.model || "gemini-1.5-flash";
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`;
 
         try {
@@ -293,6 +301,7 @@ Draft Idea: ${prompt}`;
             return {
                 content: text,
                 usage,
+                model
             };
         } catch (err) {
             console.error("Failed to generate community post:", err);

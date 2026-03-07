@@ -50,7 +50,7 @@ flowchart TB
     
     subgraph "Automation Engine"
         AUTO[Automation Service]
-        CONTENT[Content Automation Engine<br/>Gemini AI Blogging]
+        CONTENT[AI Services Engine<br/>Gemini AI Multi-Feature]
         QUEUE[Task Queue]
         CRON[Cron Triggers<br/>*/15 * * * *]
         ENROLL[(Automation Enrollments<br/>Sequence State)]
@@ -366,6 +366,9 @@ erDiagram
     VIDEO_COLLECTION_ITEMS ||--o{ QUIZ_SUBMISSIONS : "assessed by"
     VIDEO_COLLECTION_ITEMS ||--o{ ASSIGNMENT_SUBMISSIONS : "assessed by"
     VIDEO_COLLECTION_ITEMS ||--o{ COURSE_ITEM_COMPLETIONS : "completed in"
+    COMMUNITY_POSTS ||--o{ COMMUNITY_COMMENTS : "has"
+    COMMUNITY_POSTS ||--o{ COMMUNITY_REACTIONS : "receives"
+    TENANTS ||--o{ AI_USAGE_LOGS : "records"
 ```
 
 ## Performance & Optimization

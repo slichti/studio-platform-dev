@@ -178,24 +178,24 @@ marketing.post('/generate-email', zValidator('json', generateEmailSchema), async
     const gemini = new GeminiService(apiKey, configAi);
 
     try {
-        const { content, usage } = await gemini.generateEmailCopy(prompt, tenant?.name, context);
+        const aiResult = await gemini.generateEmailCopy(prompt, tenant?.name, context);
 
-        // Log Usage asynchronously (don't block response)
+        // Log Usage
         const db = createDb(c.env.DB);
         c.executionCtx.waitUntil(
             db.insert(aiUsageLogs).values({
                 id: crypto.randomUUID(),
                 tenantId: tenant?.id || null,
-                userId: c.get('auth').userId || null,
-                model: configAi?.model || 'gemini-2.0-flash',
-                feature: 'email_marketing',
-                promptTokens: usage.promptTokenCount,
-                completionTokens: usage.candidatesTokenCount,
-                totalTokens: usage.totalTokenCount,
-            }).run()
+                userId: c.get('auth')?.userId || null,
+                model: aiResult.model,
+                feature: 'email_copy',
+                promptTokens: aiResult.usage.promptTokenCount,
+                completionTokens: aiResult.usage.candidatesTokenCount,
+                totalTokens: aiResult.usage.totalTokenCount,
+            }).run().catch(err => console.error('Failed to log AI usage:', err))
         );
 
-        return c.json({ html: content });
+        return c.json({ html: aiResult.content });
     } catch (e: any) {
         console.error('Failed to generate AI email:', e);
         return c.json({ error: 'Failed to generate content' }, 500);

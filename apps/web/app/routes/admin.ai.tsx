@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/Card";
 import { Label } from "../components/ui/label";
 import { Input } from "../components/ui/input";
+import { Select } from "../components/ui/select";
 import { Button } from "../components/ui/button";
 import { Textarea } from "../components/ui/textarea";
 import { Activity, DollarSign, Zap, Clock, User, Building2 } from "lucide-react";
@@ -67,12 +68,25 @@ Requirements:
 6. Keep it concise, usually 2-4 short paragraphs unless otherwise instructed.`
 };
 
+const AVAILABLE_MODELS = [
+    { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash (Cheapest & Fastest)" },
+    { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro (Better reasoning)" },
+    { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash (Latest generation)" },
+    { value: "gemini-2.0-pro-exp-02-05", label: "Gemini 2.0 Pro Experimental" },
+];
+
 export default function AdminAIConfiguration() {
     const { initialConfig, usage, error } = useLoaderData<any>();
     const { getToken } = useAuth();
 
     const [isSaving, setIsSaving] = useState(false);
-    const [model, setModel] = useState(initialConfig.model || "gemini-2.0-flash");
+    const [model, setModel] = useState(initialConfig.model || "gemini-1.5-flash");
+    const [modelOverrides, setModelOverrides] = useState(initialConfig.modelOverrides || {
+        blogPost: "",
+        reviewReply: "",
+        emailCopy: "",
+        communityPost: ""
+    });
 
     const [blogPrompt, setBlogPrompt] = useState(initialConfig.prompts?.blogPost || "");
     const [reviewPrompt, setReviewPrompt] = useState(initialConfig.prompts?.reviewReply || "");
@@ -86,7 +100,14 @@ export default function AdminAIConfiguration() {
                 enabled: true,
                 description: "AI Configuration settings mapping models and prompts.",
                 value: {
+                    enabled: true,
                     model: model.trim(),
+                    modelOverrides: {
+                        blogPost: modelOverrides.blogPost || undefined,
+                        reviewReply: modelOverrides.reviewReply || undefined,
+                        emailCopy: modelOverrides.emailCopy || undefined,
+                        communityPost: modelOverrides.communityPost || undefined,
+                    },
                     prompts: {
                         blogPost: blogPrompt.trim() || undefined,
                         reviewReply: reviewPrompt.trim() || undefined,
@@ -297,22 +318,93 @@ export default function AdminAIConfiguration() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Model Settings</CardTitle>
+                        <CardTitle>Global Model Settings</CardTitle>
                         <CardDescription>
-                            Define the API model alias used by the Google Generative Language endpoints.
+                            Default fallback model for all AI features.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="grid gap-2">
-                            <Label>Gemini API Model</Label>
-                            <Input
+                            <Label>Default Gemini Model</Label>
+                            <Select
                                 value={model}
                                 onChange={(e) => setModel(e.target.value)}
-                                placeholder="gemini-2.0-flash"
-                            />
+                            >
+                                {AVAILABLE_MODELS.map(m => (
+                                    <option key={m.value} value={m.value}>{m.label}</option>
+                                ))}
+                            </Select>
                             <p className="text-xs text-zinc-500">
-                                This overrides the default <code>gemini-2.0-flash</code>. Ensure the model is available on the v1beta endpoint.
+                                This acts as the fallback if no feature-specific model is defined below.
                             </p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Feature Model Overrides</CardTitle>
+                        <CardDescription>
+                            Optimize cost and quality by assigning specific models to different tasks.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <Label>Blog Post Generation</Label>
+                                <Select
+                                    value={modelOverrides.blogPost}
+                                    onChange={(e) => setModelOverrides({ ...modelOverrides, blogPost: e.target.value })}
+                                >
+                                    <option value="">Use Global Default</option>
+                                    {AVAILABLE_MODELS.map(m => (
+                                        <option key={m.value} value={m.value}>{m.label}</option>
+                                    ))}
+                                </Select>
+                                <p className="text-[10px] text-zinc-500 italic">Recommended: Gemini 1.5 Pro</p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Review Replies</Label>
+                                <Select
+                                    value={modelOverrides.reviewReply}
+                                    onChange={(e) => setModelOverrides({ ...modelOverrides, reviewReply: e.target.value })}
+                                >
+                                    <option value="">Use Global Default</option>
+                                    {AVAILABLE_MODELS.map(m => (
+                                        <option key={m.value} value={m.value}>{m.label}</option>
+                                    ))}
+                                </Select>
+                                <p className="text-[10px] text-zinc-500 italic">Recommended: Gemini 1.5 Flash</p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Email & Campaign Copy</Label>
+                                <Select
+                                    value={modelOverrides.emailCopy}
+                                    onChange={(e) => setModelOverrides({ ...modelOverrides, emailCopy: e.target.value })}
+                                >
+                                    <option value="">Use Global Default</option>
+                                    {AVAILABLE_MODELS.map(m => (
+                                        <option key={m.value} value={m.value}>{m.label}</option>
+                                    ))}
+                                </Select>
+                                <p className="text-[10px] text-zinc-500 italic">Recommended: Gemini 1.5 Pro</p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Community AI Assist</Label>
+                                <Select
+                                    value={modelOverrides.communityPost}
+                                    onChange={(e) => setModelOverrides({ ...modelOverrides, communityPost: e.target.value })}
+                                >
+                                    <option value="">Use Global Default</option>
+                                    {AVAILABLE_MODELS.map(m => (
+                                        <option key={m.value} value={m.value}>{m.label}</option>
+                                    ))}
+                                </Select>
+                                <p className="text-[10px] text-zinc-500 italic">Recommended: Gemini 1.5 Flash</p>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>

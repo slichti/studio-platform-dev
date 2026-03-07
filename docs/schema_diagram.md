@@ -494,6 +494,25 @@ erDiagram
     tenants ||--o{ community_posts : "hosts"
     tenant_members ||--o{ community_posts : "authors"
 
+    community_comments {
+        string id PK
+        string tenant_id FK
+        string post_id FK
+        string author_id FK
+        string content
+        timestamp created_at
+    }
+    community_reactions {
+        string id PK
+        string tenant_id FK
+        string post_id FK
+        string user_id FK
+        string emoji
+        timestamp created_at
+    }
+    community_posts ||--o{ community_comments : "has"
+    community_posts ||--o{ community_reactions : "receives"
+
     %% ─────────────────────────────────────────────
     %% SEO Content Automation (Tier 7)
     %% ─────────────────────────────────────────────
@@ -600,6 +619,20 @@ erDiagram
         boolean enabled
         timestamp created_at
     }
+    ai_usage_logs {
+        string id PK
+        string tenant_id FK
+        string user_id FK
+        string model
+        string feature
+        integer prompt_tokens
+        integer completion_tokens
+        integer total_tokens
+        timestamp created_at
+    }
+
+    tenants ||--o{ tenant_features : "enables"
+    tenants ||--o{ ai_usage_logs : "records"
     platform_plans {
         string id PK
         string name
