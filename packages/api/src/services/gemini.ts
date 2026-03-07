@@ -252,7 +252,7 @@ Requirements:
 
 Draft Idea: ${prompt}`;
 
-        const model = this.config?.model || "gemini-2.0-flash";
+        const model = this.config?.model || "gemini-1.5-flash";
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`;
 
         try {

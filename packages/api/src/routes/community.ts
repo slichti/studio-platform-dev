@@ -189,7 +189,7 @@ app.post('/ai-generate', async (c) => {
     } catch (e: any) {
         console.error('AI Generation Failed Trace:', e);
         return c.json({
-            error: 'AI was unable to help this time.',
+            error: `AI Error: ${e.message}`,
             details: e.message
         }, 500);
     }
