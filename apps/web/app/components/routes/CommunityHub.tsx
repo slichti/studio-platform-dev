@@ -78,12 +78,13 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
             });
 
             setSelectedMedia(prev => [...prev, { url: res.url, type }]);
-            toast.success(`${type === 'image' ? 'Photo' : 'Video'} attached!`);
-        } catch (err) {
-            toast.error("Failed to upload file");
+            toast.success(`${type === 'image' ? 'Photo' : 'Video'} attached: ${file.name}`);
+        } catch (err: any) {
+            console.error("Upload failed:", err);
+            toast.error(err.message || "Failed to upload file");
         } finally {
             setIsUploading(false);
-            e.target.value = '';
+            if (e.target) e.target.value = '';
         }
     };
 
@@ -110,9 +111,14 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
         setIsGenerating(true);
         try {
             const res = await generateAIContent.mutateAsync(newPostContent);
-            setNewPostContent(res.content);
-            toast.success("AI helper active! ✨");
-        } catch (e) {
+            if (res.content) {
+                setNewPostContent(res.content);
+                toast.success("AI helper active! ✨");
+            } else {
+                throw new Error("AI returned empty content");
+            }
+        } catch (e: any) {
+            console.error("AI Assist failed:", e);
             toast.error("AI was unable to help this time.");
         } finally {
             setIsGenerating(false);

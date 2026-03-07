@@ -260,7 +260,7 @@ Draft Idea: ${prompt}`;
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    contents: [{ parts: [{ text: defaultCommunityPrompt }] }],
+                    contents: [{ parts: [{ text: `${defaultCommunityPrompt}\n\nDraft Idea: ${prompt}` }] }],
                     generationConfig: {
                         temperature: 0.8,
                         topK: 40,
@@ -276,15 +276,18 @@ Draft Idea: ${prompt}`;
             }
 
             const data = (await response.json()) as any;
-            const text = (data.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
+            let text = (data.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
             const usage = (data.usageMetadata as AIUsageMetadata) || {
                 promptTokenCount: 0,
                 candidatesTokenCount: 0,
                 totalTokenCount: 0,
             };
 
+            // Remove any potential surrounding quotes or markdown
+            text = text.replace(/^["']|["']$/g, "").replace(/^```text\n?/, "").replace(/```$/, "").trim();
+
             return {
-                content: text.replace(/^["']|["']$/g, ""),
+                content: text,
                 usage,
             };
         } catch (err) {

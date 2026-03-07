@@ -7,6 +7,60 @@ import { HonoContext } from '../types';
 
 const app = new Hono<HonoContext>();
 
+// [NEW] Generic Upload to R2 (Supports images and videos for Community Hub)
+app.post('/', async (c) => {
+    try {
+        const tenant = c.get('tenant');
+        if (!tenant) return c.json({ error: 'Tenant context missing' }, 400);
+
+        const body = await c.req.parseBody();
+        const file = body['file'] as File;
+        if (!file) return c.json({ error: 'File required' }, 400);
+
+        const { UsageService } = await import('../services/pricing');
+        const usageService = new UsageService(createDb(c.env.DB), tenant.id);
+        const canUpload = await usageService.checkLimit('storageGB', tenant.tier || 'launch');
+
+        if (!canUpload) return c.json({ error: "Storage limit reached", code: "LIMIT_REACHED" }, 403);
+
+        const type = file.type.startsWith('video/') ? 'video' : 'image';
+        const extension = file.type.split('/')[1] || (type === 'video' ? 'mp4' : 'jpg');
+        const folder = type === 'video' ? 'videos' : 'images';
+        const objectKey = `tenants/${tenant.slug}/${folder}/${crypto.randomUUID()}.${extension}`;
+
+        await c.env.R2!.put(objectKey, await file.arrayBuffer(), {
+            httpMetadata: { contentType: file.type }
+        });
+
+        const db = createDb(c.env.DB);
+        const titleVal = body['title'];
+        const title = typeof titleVal === 'string' ? titleVal : file.name;
+
+        await db.insert(uploads).values({
+            id: crypto.randomUUID(),
+            tenantId: tenant.id,
+            fileKey: objectKey,
+            fileUrl: `/uploads/${objectKey}`,
+            sizeBytes: file.size,
+            mimeType: file.type,
+            originalName: file.name,
+            uploadedBy: c.get('auth')?.userId,
+            title: title,
+            createdAt: new Date()
+        }).run();
+
+        await db.update(tenants)
+            .set({ storageUsage: sql`${tenants.storageUsage} + ${file.size}` })
+            .where(eq(tenants.id, tenant.id))
+            .run();
+
+        const fullUrl = `${new URL(c.req.url).origin}/uploads/${objectKey}`;
+        return c.json({ key: objectKey, url: fullUrl });
+    } catch (e: any) {
+        return c.json({ error: e.message }, 500);
+    }
+});
+
 // Cloudflare Images
 app.post('/image', async (c) => {
     try {

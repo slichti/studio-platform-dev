@@ -51,8 +51,13 @@ export class CommunityService {
             return acc;
         }, {});
 
+        const totalLikes = reactions.reduce((sum: number, r: any) => sum + r.count, 0);
+
         await this.db.update(communityPosts)
-            .set({ reactionsJson })
+            .set({
+                reactionsJson,
+                likesCount: totalLikes
+            })
             .where(eq(communityPosts.id, postId))
             .run();
 
