@@ -81,8 +81,9 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
     const [isEditPostOpen, setIsEditPostOpen] = useState(false);
     const [editPostContent, setEditPostContent] = useState("");
     const [editPostTopicId, setEditPostTopicId] = useState<string | null>(null);
+    const [isDeletePostOpen, setIsDeletePostOpen] = useState(false);
+    const [postToDeleteId, setPostToDeleteId] = useState<string | null>(null);
     const [newTopic, setNewTopic] = useState({ name: '', description: '', icon: 'Hash', color: '#3b82f6' });
-
     const fileInputRef = useRef<HTMLInputElement>(null);
     const videoInputRef = useRef<HTMLInputElement>(null);
 
@@ -157,10 +158,12 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
         }
     };
 
-    const handleDeletePost = async (postId: string) => {
-        if (!window.confirm("Are you sure you want to delete this post?")) return;
+    const handleDeletePost = async () => {
+        if (!postToDeleteId) return;
         try {
-            await deletePost.mutateAsync(postId);
+            await deletePost.mutateAsync(postToDeleteId);
+            setIsDeletePostOpen(false);
+            setPostToDeleteId(null);
             toast.success("Post deleted");
         } catch (e) {
             toast.error("Failed to delete post");
@@ -530,7 +533,10 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
                                     setEditPostTopicId(p.topicId);
                                     setIsEditPostOpen(true);
                                 }}
-                                onDelete={handleDeletePost}
+                                onDelete={(id: string) => {
+                                    setPostToDeleteId(id);
+                                    setIsDeletePostOpen(true);
+                                }}
                                 reactionTypes={REACTION_TYPES}
                             />
                         ))}
@@ -695,6 +701,24 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
                         <Button variant="outline" onClick={() => setIsEditPostOpen(false)}>Cancel</Button>
                         <Button onClick={handleEditPost} disabled={updatePost.isPending}>
                             {updatePost.isPending ? "Updating..." : "Save Changes"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Post Confirmation Dialog */}
+            <Dialog open={isDeletePostOpen} onOpenChange={setIsDeletePostOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Delete Post</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete this post? This action cannot be undone and will remove all comments and reactions associated with it.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button variant="outline" onClick={() => setIsDeletePostOpen(false)}>Cancel</Button>
+                        <Button variant="destructive" onClick={handleDeletePost} disabled={deletePost.isPending}>
+                            {deletePost.isPending ? "Deleting..." : "Delete Post"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
