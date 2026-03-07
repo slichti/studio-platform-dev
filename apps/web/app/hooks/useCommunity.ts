@@ -129,10 +129,25 @@ export function useCommunityTopics(slug: string) {
         }
     });
 
+    const updateTopic = useMutation({
+        mutationFn: async ({ id, data }: { id: string, data: { name?: string; description?: string; icon?: string; color?: string; visibility?: string; isArchived?: boolean } }) => {
+            const token = await getToken();
+            return apiRequest(`/community/topics/${id}`, token, {
+                method: 'PATCH',
+                headers: { 'X-Tenant-Slug': slug },
+                body: JSON.stringify(data)
+            });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['community', 'topics', slug] });
+        }
+    });
+
     return {
         topics: query.data as any[] || [],
         isLoading: query.isLoading,
         createTopic,
+        updateTopic,
         deleteTopic
     };
 }

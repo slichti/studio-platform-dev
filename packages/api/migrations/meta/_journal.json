@@ -239,6 +239,13 @@
       "when": 1772902034573,
       "tag": "0033_lovely_gamora",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1772904600553,
+      "tag": "0034_wakeful_hiroim",
+      "breakpoints": true
     }
   ]
 }

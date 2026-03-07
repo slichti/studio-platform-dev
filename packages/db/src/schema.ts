@@ -1686,6 +1686,7 @@ export const communityTopics = sqliteTable('community_topics', {
     icon: text('icon'), // Lucide icon name
     color: text('color'), // e.g., 'blue', 'green', '#FF5733'
     visibility: text('visibility', { enum: ['public', 'private'] }).default('public').notNull(),
+    isArchived: integer('is_archived', { mode: 'boolean' }).default(false).notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     tenantIdx: index('community_topic_tenant_idx').on(table.tenantId),

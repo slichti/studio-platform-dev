@@ -126,7 +126,7 @@ app.get('/topics', async (c) => {
 
     const communityService = new CommunityService(db);
     const topics = await communityService.getVisibleTopics(tenant.id, member.id);
-    return c.json(topics);
+    return c.json(topics.filter(t => !t.isArchived));
 });
 
 // GET /community/topics/:id - Get topic details (including rules/members for admins)
@@ -165,13 +165,26 @@ app.post('/topics', async (c) => {
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
     const { name, description, icon, color, visibility } = await c.req.json();
-    if (!name) return c.json({ error: 'Name required' }, 400);
+    if (!name?.trim()) return c.json({ error: 'Name required' }, 400);
+
+    // Sanity check: Check for duplicate name in same tenant
+    const existing = await db.query.communityTopics.findFirst({
+        where: and(
+            eq(communityTopics.tenantId, tenant.id),
+            sql`lower(${communityTopics.name}) = ${name.trim().toLowerCase()}`,
+            eq(communityTopics.isArchived, false)
+        )
+    });
+
+    if (existing) {
+        return c.json({ error: `A topic named "${name}" already exists.` }, 409);
+    }
 
     const id = crypto.randomUUID();
     await db.insert(communityTopics).values({
         id,
         tenantId: tenant.id,
-        name,
+        name: name.trim(),
         description,
         icon,
         color,
@@ -179,6 +192,48 @@ app.post('/topics', async (c) => {
     }).run();
 
     return c.json({ id }, 201);
+});
+
+// PATCH /community/topics/:id - Update topic
+app.patch('/topics/:id', async (c) => {
+    if (!c.get('can')('manage_marketing')) return c.json({ error: 'Access denied' }, 403);
+
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const id = c.req.param('id');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const { name, description, icon, color, visibility, isArchived } = await c.req.json();
+
+    const topic = await db.query.communityTopics.findFirst({
+        where: and(eq(communityTopics.id, id), eq(communityTopics.tenantId, tenant.id))
+    });
+
+    if (!topic) return c.json({ error: 'Topic not found' }, 404);
+
+    if (name && name.trim() !== topic.name) {
+        // Check for duplicate if renaming
+        const existing = await db.query.communityTopics.findFirst({
+            where: and(
+                eq(communityTopics.tenantId, tenant.id),
+                sql`lower(${communityTopics.name}) = ${name.trim().toLowerCase()}`,
+                eq(communityTopics.isArchived, false),
+                sql`${communityTopics.id} != ${topic.id}`
+            )
+        });
+        if (existing) return c.json({ error: `A topic named "${name}" already exists.` }, 409);
+    }
+
+    await db.update(communityTopics).set({
+        ...(name !== undefined ? { name: name.trim() } : {}),
+        ...(description !== undefined ? { description } : {}),
+        ...(icon !== undefined ? { icon } : {}),
+        ...(color !== undefined ? { color } : {}),
+        ...(visibility !== undefined ? { visibility } : {}),
+        ...(isArchived !== undefined ? { isArchived } : {}),
+    }).where(eq(communityTopics.id, id)).run();
+
+    return c.json({ success: true });
 });
 
 // POST /community/topics/:id/rules - Add access rule

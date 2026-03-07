@@ -25,10 +25,13 @@ import {
     Search,
     PlusCircle,
     LayoutGrid,
+    Trash2,
+    Archive,
+    Pencil,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "~/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "~/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
 
 import { Button } from "~/components/ui/button";
@@ -36,6 +39,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/Card";
 import { Input } from "~/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/Avatar";
 import { Badge } from "~/components/ui/Badge";
+import { Label } from "~/components/ui/label";
 import { useCommunity, useCommunityTopics, useCommunityComments, useMemberPreview } from "~/hooks/useCommunity";
 import { cn } from "~/lib/utils";
 import { apiRequest } from "~/utils/api";
@@ -46,7 +50,7 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
     const slug = propsSlug || paramsSlug;
     const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
     const { posts, isLoading, createPost, reactToPost, commentOnPost, generateAIContent } = useCommunity(slug!, { topicId: selectedTopicId || undefined });
-    const { topics, isLoading: isLoadingTopics, createTopic, deleteTopic } = useCommunityTopics(slug!);
+    const { topics, isLoading: isLoadingTopics, createTopic, deleteTopic, updateTopic } = useCommunityTopics(slug!);
 
     const { getToken } = useAuth();
     const { user } = useUser();
@@ -65,6 +69,8 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
     const [selectedMedia, setSelectedMedia] = useState<{ url: string; type: 'image' | 'video' }[]>([]);
     const [isUploading, setIsUploading] = useState(false);
     const [isCreateTopicOpen, setIsCreateTopicOpen] = useState(false);
+    const [isEditTopicOpen, setIsEditTopicOpen] = useState(false);
+    const [editingTopic, setEditingTopic] = useState<any>(null);
     const [newTopic, setNewTopic] = useState({ name: '', description: '', icon: 'Hash', color: '#3b82f6' });
 
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -167,8 +173,48 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
             setNewTopic({ name: '', description: '', icon: 'Hash', color: '#3b82f6' });
             setIsCreateTopicOpen(false);
             toast.success("Topic created!");
+        } catch (e: any) {
+            toast.error(e.message || "Failed to create topic");
+        }
+    };
+
+    const handleDeleteTopic = async (topicId: string) => {
+        if (!confirm("Are you sure you want to delete this topic? All posts in this topic will be removed.")) return;
+        try {
+            await deleteTopic.mutateAsync(topicId);
+            if (selectedTopicId === topicId) setSelectedTopicId(null);
+            toast.success("Topic deleted");
         } catch (e) {
-            toast.error("Failed to create topic");
+            toast.error("Failed to delete topic");
+        }
+    };
+
+    const handleArchiveTopic = async (topicId: string) => {
+        try {
+            await updateTopic.mutateAsync({ id: topicId, data: { isArchived: true } });
+            if (selectedTopicId === topicId) setSelectedTopicId(null);
+            toast.success("Topic archived");
+        } catch (e) {
+            toast.error("Failed to archive topic");
+        }
+    };
+
+    const handleEditTopic = async () => {
+        if (!editingTopic || !editingTopic.name.trim()) return;
+        try {
+            await updateTopic.mutateAsync({
+                id: editingTopic.id,
+                data: {
+                    name: editingTopic.name,
+                    description: editingTopic.description,
+                    visibility: editingTopic.visibility
+                }
+            });
+            setIsEditTopicOpen(false);
+            setEditingTopic(null);
+            toast.success("Topic updated");
+        } catch (e: any) {
+            toast.error(e.message || "Failed to update topic");
         }
     };
 
@@ -224,20 +270,62 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
                                 Everyone
                             </button>
                             {topics.map((topic: any) => (
-                                <button
-                                    key={topic.id}
-                                    onClick={() => setSelectedTopicId(topic.id)}
-                                    className={cn(
-                                        "w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all font-medium text-sm",
-                                        selectedTopicId === topic.id ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "hover:bg-muted text-muted-foreground"
-                                    )}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <Hash size={18} className={cn(selectedTopicId === topic.id ? "text-primary-foreground" : "text-primary")} />
-                                        {topic.name}
+                                <div key={topic.id} className="group relative">
+                                    <button
+                                        onClick={() => setSelectedTopicId(topic.id)}
+                                        className={cn(
+                                            "w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all font-medium text-sm",
+                                            selectedTopicId === topic.id ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "hover:bg-muted text-muted-foreground"
+                                        )}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <Hash size={18} className={cn(selectedTopicId === topic.id ? "text-primary-foreground" : "text-primary")} />
+                                            {topic.name}
+                                        </div>
+                                        {topic.isNew && <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />}
+                                    </button>
+
+                                    {/* Admin Controls */}
+                                    <div className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-1">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 rounded-full hover:bg-background/20 text-current"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setEditingTopic(topic);
+                                                setIsEditTopicOpen(true);
+                                            }}
+                                            title="Edit Topic"
+                                        >
+                                            <Pencil size={12} />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 rounded-full hover:bg-background/20 text-current"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleArchiveTopic(topic.id);
+                                            }}
+                                            title="Archive Topic"
+                                        >
+                                            <Archive size={12} />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 rounded-full hover:bg-destructive/10 text-destructive"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteTopic(topic.id);
+                                            }}
+                                            title="Delete Topic"
+                                        >
+                                            <Trash2 size={12} />
+                                        </Button>
                                     </div>
-                                    {topic.isNew && <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />}
-                                </button>
+                                </div>
                             ))}
                             {topics.length === 0 && (
                                 <div className="p-4 text-center space-y-2 opacity-50">
@@ -438,6 +526,62 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
                             <Button onClick={handleCreateTopic} disabled={createTopic.isPending}>Create Topic</Button>
                         </div>
                     </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Topic Dialog */}
+            <Dialog open={isEditTopicOpen} onOpenChange={setIsEditTopicOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Topic</DialogTitle>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Topic Name</label>
+                            <Input
+                                placeholder="e.g. Nature, Announcements"
+                                value={editingTopic?.name || ''}
+                                onChange={(e) => setEditingTopic({ ...editingTopic, name: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Description (Optional)</label>
+                            <Input
+                                placeholder="What is this topic about?"
+                                value={editingTopic?.description || ''}
+                                onChange={(e) => setEditingTopic({ ...editingTopic, description: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Visibility</label>
+                            <div className="flex gap-2">
+                                <Button
+                                    type="button"
+                                    variant={editingTopic?.visibility === 'public' ? 'default' : 'outline'}
+                                    className="flex-1"
+                                    onClick={() => setEditingTopic({ ...editingTopic, visibility: 'public' })}
+                                >
+                                    Public
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant={editingTopic?.visibility === 'private' ? 'default' : 'outline'}
+                                    className="flex-1"
+                                    onClick={() => setEditingTopic({ ...editingTopic, visibility: 'private' })}
+                                >
+                                    Private
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsEditTopicOpen(false)}>Cancel</Button>
+                        <Button onClick={handleEditTopic} disabled={updateTopic.isPending}>
+                            {updateTopic.isPending ? "Updating..." : "Update Topic"}
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>
