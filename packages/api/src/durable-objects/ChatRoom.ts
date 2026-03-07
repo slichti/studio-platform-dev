@@ -27,22 +27,19 @@ interface ConnectedUser {
     joinedAt: number;
 }
 
-export class ChatRoom {
+export class ChatRoom extends DurableObject {
     private users: Map<WebSocket, ConnectedUser> = new Map();
     private messageBuffer: ChatMessage[] = [];
     private roomId: string | null = null;
     private tenantId: string | null = null;
-    private state: DurableObjectState;
-    private env: any;
 
-    constructor(state: DurableObjectState, env: any) {
-        this.state = state;
-        this.env = env;
+    constructor(ctx: DurableObjectState, env: any) {
+        super(ctx, env);
         try {
             console.log('[ChatRoom] Constructor initiated');
 
             // Restore any hibernated connections
-            this.state.getWebSockets().forEach((ws: WebSocket) => {
+            this.ctx.getWebSockets().forEach((ws: WebSocket) => {
                 try {
                     const meta = ws.deserializeAttachment() as ConnectedUser | null;
                     if (meta) {
@@ -101,7 +98,7 @@ export class ChatRoom {
         };
 
         // Store in hibernation-safe way
-        this.state.acceptWebSocket(server);
+        this.ctx.acceptWebSocket(server);
         server.serializeAttachment(connectedUser);
         this.users.set(server, connectedUser);
 
@@ -237,7 +234,7 @@ export class ChatRoom {
         try {
             // Note: In production, you'd inject DB binding here
             // For now, we store in alarm-based batch persistence
-            await this.state.storage.put(`msg:${message.id}`, message);
+            await this.ctx.storage.put(`msg:${message.id}`, message);
         } catch (e) {
             console.error("Persist error:", e);
         }

@@ -1,6 +1,6 @@
 
 import { useState, useRef } from "react";
-import { useParams } from "react-router";
+import { Link, useParams } from "react-router";
 import {
     MessageSquare,
     Heart,
@@ -190,12 +190,12 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
                     <Button variant="outline" size="icon" className="md:hidden">
                         <Users size={20} />
                     </Button>
-                    <a
-                        href={`/studio/${slug}/community/settings`}
+                    <Link
+                        to={`/studio/${slug}/community/settings`}
                         className="p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all text-zinc-500"
                     >
                         <Settings size={20} />
-                    </a>
+                    </Link>
                 </div>
             </header>
 
