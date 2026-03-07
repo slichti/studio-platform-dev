@@ -1,14 +1,4 @@
-CREATE TABLE `community_reactions` (
-	`post_id` text NOT NULL,
-	`member_id` text NOT NULL,
-	`type` text DEFAULT 'like' NOT NULL,
-	`created_at` integer DEFAULT (strftime('%s', 'now')),
-	PRIMARY KEY(`post_id`, `member_id`, `type`),
-	FOREIGN KEY (`post_id`) REFERENCES `community_posts`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`member_id`) REFERENCES `tenant_members`(`id`) ON UPDATE no action ON DELETE no action
-);
 --> statement-breakpoint
-CREATE INDEX `community_reaction_post_idx` ON `community_reactions` (`post_id`);--> statement-breakpoint
 CREATE TABLE `community_topic_access_rules` (
 	`id` text PRIMARY KEY NOT NULL,
 	`topic_id` text NOT NULL,
@@ -30,19 +20,7 @@ CREATE TABLE `community_topic_memberships` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `community_topic_member_idx` ON `community_topic_memberships` (`topic_id`,`member_id`);--> statement-breakpoint
-CREATE TABLE `community_topics` (
-	`id` text PRIMARY KEY NOT NULL,
-	`tenant_id` text NOT NULL,
-	`name` text NOT NULL,
-	`description` text,
-	`icon` text,
-	`color` text,
-	`visibility` text DEFAULT 'public' NOT NULL,
-	`created_at` integer DEFAULT (strftime('%s', 'now')),
-	FOREIGN KEY (`tenant_id`) REFERENCES `tenants`(`id`) ON UPDATE no action ON DELETE no action
-);
---> statement-breakpoint
-CREATE INDEX `community_topic_tenant_idx` ON `community_topics` (`tenant_id`);--> statement-breakpoint
+ALTER TABLE `community_topics` ADD `visibility` text DEFAULT 'public' NOT NULL;--> statement-breakpoint
 DROP TABLE `community_likes`;--> statement-breakpoint
 PRAGMA foreign_keys=OFF;--> statement-breakpoint
 CREATE TABLE `__new_community_posts` (
