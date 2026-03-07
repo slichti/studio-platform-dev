@@ -24,6 +24,9 @@ app.get('/', async (c) => {
     }
     if (topicId) {
         whereClause = and(whereClause, eq(communityPosts.topicId, topicId));
+    } else {
+        // "Everyone" view - only show general posts (no topic)
+        whereClause = and(whereClause, sql`${communityPosts.topicId} IS NULL`);
     }
 
     const posts = await db.select({

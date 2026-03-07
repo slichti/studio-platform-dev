@@ -268,8 +268,10 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
                             <button
                                 onClick={() => setSelectedTopicId(null)}
                                 className={cn(
-                                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-medium text-sm",
-                                    !selectedTopicId ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "hover:bg-muted text-muted-foreground"
+                                    "w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all font-bold text-sm",
+                                    !selectedTopicId
+                                        ? "bg-primary text-primary-foreground shadow-xl shadow-primary/30 scale-[1.02] ring-2 ring-primary ring-offset-2"
+                                        : "hover:bg-muted text-muted-foreground"
                                 )}
                             >
                                 <Users size={18} />
@@ -280,8 +282,10 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
                                     <button
                                         onClick={() => setSelectedTopicId(topic.id)}
                                         className={cn(
-                                            "w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all font-medium text-sm",
-                                            selectedTopicId === topic.id ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "hover:bg-muted text-muted-foreground"
+                                            "w-full flex items-center justify-between px-3 py-3 rounded-xl transition-all font-bold text-sm",
+                                            selectedTopicId === topic.id
+                                                ? "bg-primary text-primary-foreground shadow-xl shadow-primary/30 scale-[1.02] ring-2 ring-primary ring-offset-2"
+                                                : "hover:bg-muted text-muted-foreground"
                                         )}
                                     >
                                         <div className="flex items-center gap-3">
@@ -375,18 +379,31 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
 
                                     {/* Topic Selector */}
                                     <div className="flex flex-wrap gap-2">
+                                        <button
+                                            onClick={() => setSelectedPostTopicId(null)}
+                                            className={cn(
+                                                "px-3 py-1.5 rounded-full text-xs font-bold transition-all border",
+                                                selectedPostTopicId === null
+                                                    ? "bg-primary border-primary text-primary-foreground shadow-md"
+                                                    : "bg-background border-border text-muted-foreground hover:border-primary/50"
+                                            )}
+                                        >
+                                            <Users size={12} className="inline mr-1" />
+                                            Everyone
+                                        </button>
                                         {topics.map((topic: any) => (
                                             <button
                                                 key={topic.id}
-                                                onClick={() => setSelectedPostTopicId(selectedPostTopicId === topic.id ? null : topic.id)}
+                                                onClick={() => setSelectedPostTopicId(topic.id)}
                                                 className={cn(
-                                                    "px-3 py-1.5 rounded-full text-xs font-semibold transition-all border",
+                                                    "px-3 py-1.5 rounded-full text-xs font-bold transition-all border",
                                                     selectedPostTopicId === topic.id
                                                         ? "bg-primary border-primary text-primary-foreground shadow-md"
                                                         : "bg-background border-border text-muted-foreground hover:border-primary/50"
                                                 )}
                                             >
-                                                # {topic.name}
+                                                <Hash size={12} className="inline mr-1" />
+                                                {topic.name}
                                             </button>
                                         ))}
                                     </div>
