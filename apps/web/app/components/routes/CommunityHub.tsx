@@ -268,461 +268,463 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
 
     return (
         <div className="p-6 min-h-screen">
-            <div className="flex justify-between items-center mb-8">
-                <div>
-                    <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Community Hub</h1>
-                    <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">Connect and grow with your studio family.</p>
+            <div className="max-w-6xl mx-auto">
+                <div className="flex justify-between items-center mb-8">
+                    <div>
+                        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Community Hub</h1>
+                        <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">Connect and grow with your studio family.</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" size="icon" className="md:hidden">
+                            <Users size={20} />
+                        </Button>
+                        <Link
+                            to={`/studio/${slug}/community/settings`}
+                            className="p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all text-zinc-500"
+                        >
+                            <Settings size={20} />
+                        </Link>
+                    </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Button variant="outline" size="icon" className="md:hidden">
-                        <Users size={20} />
-                    </Button>
-                    <Link
-                        to={`/studio/${slug}/community/settings`}
-                        className="p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all text-zinc-500"
-                    >
-                        <Settings size={20} />
-                    </Link>
-                </div>
-            </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                {/* Left Sidebar: Topics */}
-                <aside className="hidden lg:block space-y-6">
-                    <Card className="border-none shadow-md bg-muted/20">
-                        <CardHeader className="p-4 flex flex-row items-center justify-between">
-                            <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                                <LayoutGrid size={16} /> Topics
-                            </CardTitle>
-                            {/* Only admins can manage topics? For now generic marketing permission */}
-                            <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={() => setIsCreateTopicOpen(true)}>
-                                <PlusCircle size={14} />
-                            </Button>
-                        </CardHeader>
-                        <CardContent className="p-2 space-y-1">
-                            <button
-                                onClick={() => setSelectedTopicId(null)}
-                                className={cn(
-                                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-medium text-xs",
-                                    !selectedTopicId
-                                        ? "bg-primary text-primary-foreground shadow-md ring-1 ring-primary"
-                                        : "hover:bg-muted text-muted-foreground"
-                                )}
-                            >
-                                <Users size={16} />
-                                Everyone
-                            </button>
-                            {topics.map((topic: any) => (
-                                <div key={topic.id} className="group relative">
-                                    <button
-                                        onClick={() => setSelectedTopicId(topic.id)}
-                                        className={cn(
-                                            "w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all font-medium text-xs",
-                                            selectedTopicId === topic.id
-                                                ? "bg-primary text-primary-foreground shadow-md ring-1 ring-primary"
-                                                : "hover:bg-muted text-muted-foreground"
-                                        )}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <Hash size={16} className={cn(selectedTopicId === topic.id ? "text-primary-foreground" : "text-primary")} />
-                                            {topic.name}
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                    {/* Left Sidebar: Topics */}
+                    <aside className="hidden lg:block space-y-6">
+                        <Card className="border-none shadow-md bg-muted/20">
+                            <CardHeader className="p-4 flex flex-row items-center justify-between">
+                                <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                                    <LayoutGrid size={16} /> Topics
+                                </CardTitle>
+                                {/* Only admins can manage topics? For now generic marketing permission */}
+                                <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={() => setIsCreateTopicOpen(true)}>
+                                    <PlusCircle size={14} />
+                                </Button>
+                            </CardHeader>
+                            <CardContent className="p-2 space-y-1">
+                                <button
+                                    onClick={() => setSelectedTopicId(null)}
+                                    className={cn(
+                                        "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-medium text-xs",
+                                        !selectedTopicId
+                                            ? "bg-primary text-primary-foreground shadow-md ring-1 ring-primary"
+                                            : "hover:bg-muted text-muted-foreground"
+                                    )}
+                                >
+                                    <Users size={16} />
+                                    Everyone
+                                </button>
+                                {topics.map((topic: any) => (
+                                    <div key={topic.id} className="group relative">
+                                        <button
+                                            onClick={() => setSelectedTopicId(topic.id)}
+                                            className={cn(
+                                                "w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all font-medium text-xs",
+                                                selectedTopicId === topic.id
+                                                    ? "bg-primary text-primary-foreground shadow-md ring-1 ring-primary"
+                                                    : "hover:bg-muted text-muted-foreground"
+                                            )}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <Hash size={16} className={cn(selectedTopicId === topic.id ? "text-primary-foreground" : "text-primary")} />
+                                                {topic.name}
+                                            </div>
+                                            {topic.isNew && <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />}
+                                        </button>
+
+                                        {/* Admin Controls */}
+                                        <div className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-1">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7 rounded-full hover:bg-background/20 text-current"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setEditingTopic(topic);
+                                                    setIsEditTopicOpen(true);
+                                                }}
+                                                title="Edit Topic"
+                                            >
+                                                <Pencil size={12} />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7 rounded-full hover:bg-background/20 text-current"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleArchiveTopic(topic.id);
+                                                }}
+                                                title="Archive Topic"
+                                            >
+                                                <Archive size={12} />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7 rounded-full hover:bg-destructive/10 text-destructive"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDeleteTopic(topic.id);
+                                                }}
+                                                title="Delete Topic"
+                                            >
+                                                <Trash2 size={12} />
+                                            </Button>
                                         </div>
-                                        {topic.isNew && <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />}
-                                    </button>
+                                    </div>
+                                ))}
+                                {topics.length === 0 && (
+                                    <div className="p-4 text-center space-y-2 opacity-50">
+                                        <p className="text-xs">No specific topics created yet.</p>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
 
-                                    {/* Admin Controls */}
-                                    <div className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-1">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7 rounded-full hover:bg-background/20 text-current"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setEditingTopic(topic);
-                                                setIsEditTopicOpen(true);
-                                            }}
-                                            title="Edit Topic"
-                                        >
-                                            <Pencil size={12} />
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7 rounded-full hover:bg-background/20 text-current"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleArchiveTopic(topic.id);
-                                            }}
-                                            title="Archive Topic"
-                                        >
-                                            <Archive size={12} />
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7 rounded-full hover:bg-destructive/10 text-destructive"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleDeleteTopic(topic.id);
-                                            }}
-                                            title="Delete Topic"
-                                        >
-                                            <Trash2 size={12} />
-                                        </Button>
+                        <Card className="border-none shadow-md bg-gradient-to-br from-indigo-500/10 to-purple-500/10">
+                            <CardContent className="p-6 text-center space-y-3">
+                                <div className="h-10 w-10 bg-indigo-500 rounded-xl flex items-center justify-center mx-auto shadow-lg shadow-indigo-500/20">
+                                    <Trophy className="text-white" size={20} />
+                                </div>
+                                <h3 className="font-bold text-sm">Community Goals</h3>
+                                <p className="text-xs text-muted-foreground">We've completed 450 classes together this month!</p>
+                                <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                                    <div className="h-full bg-indigo-500 w-[65%]" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </aside>
+
+                    {/* Main Feed */}
+                    <main className="lg:col-span-3 space-y-8">
+                        {/* Create Post Card */}
+                        <Card className="border-none shadow-xl bg-gradient-to-br from-background to-muted/30 overflow-hidden ring-1 ring-border/50">
+                            <CardContent className="p-6">
+                                <div className="flex gap-4">
+                                    <Avatar className="h-10 w-10 ring-2 ring-primary/20">
+                                        {user?.imageUrl && <AvatarImage src={user.imageUrl} />}
+                                        <AvatarFallback>{initials}</AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1 space-y-4">
+                                        <textarea
+                                            placeholder="What's on your mind? Share a thought, photo, or update..."
+                                            className="w-full bg-transparent border-none focus:ring-0 resize-none text-lg min-h-[100px]"
+                                            value={newPostContent}
+                                            onChange={(e) => setNewPostContent(e.target.value)}
+                                        />
+
+                                        {/* Topic Selector - Only visible when a topic is selected in the sidebar */}
+                                        {selectedTopicId && (
+                                            <div className="flex flex-wrap gap-2">
+                                                {topics.filter((t: any) => t.id === selectedTopicId).map((topic: any) => (
+                                                    <button
+                                                        key={topic.id}
+                                                        onClick={() => setSelectedPostTopicId(selectedPostTopicId === topic.id ? null : topic.id)}
+                                                        className={cn(
+                                                            "px-3 py-1.5 rounded-full text-xs font-medium transition-all border flex items-center gap-1",
+                                                            selectedPostTopicId === topic.id
+                                                                ? "bg-primary border-primary text-primary-foreground shadow-sm"
+                                                                : "bg-background border-border text-muted-foreground hover:border-primary/50"
+                                                        )}
+                                                    >
+                                                        <Hash size={12} />
+                                                        {topic.name}
+                                                        {selectedPostTopicId === topic.id && <X size={10} className="ml-1 opacity-70" />}
+                                                    </button>
+                                                ))}
+                                                {selectedPostTopicId === null && (
+                                                    <span className="text-[10px] text-muted-foreground flex items-center italic">
+                                                        Topic removed. This will post to Everyone.
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Media Previews */}
+                                        {selectedMedia.length > 0 && (
+                                            <div className="flex flex-wrap gap-2">
+                                                {selectedMedia.map((media, idx) => (
+                                                    <div key={idx} className="relative h-20 w-20 rounded-lg overflow-hidden border group">
+                                                        {media.type === 'image' ? (
+                                                            <img src={media.url} className="h-full w-full object-cover" />
+                                                        ) : (
+                                                            <div className="h-full w-full bg-muted flex items-center justify-center">
+                                                                <Video className="h-6 w-6 text-muted-foreground" />
+                                                            </div>
+                                                        )}
+                                                        <button
+                                                            onClick={() => setSelectedMedia(prev => prev.filter((_, i) => i !== idx))}
+                                                            className="absolute top-1 right-1 p-0.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        >
+                                                            <X size={12} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        <div className="flex items-center justify-between border-t pt-4">
+                                            <div className="flex items-center gap-2">
+                                                <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={(e) => handleFileUpload(e, 'image')} />
+                                                <input type="file" accept="video/*" className="hidden" ref={videoInputRef} onChange={(e) => handleFileUpload(e, 'video')} />
+                                                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary transition-colors" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+                                                    <ImageIcon className="h-5 w-5" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary transition-colors" onClick={() => videoInputRef.current?.click()} disabled={isUploading}>
+                                                    <Video className="h-5 w-5" />
+                                                </Button>
+
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary transition-colors">
+                                                            <Smile className="h-5 w-5" />
+                                                        </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-64 p-2">
+                                                        <div className="grid grid-cols-5 gap-1">
+                                                            {EMOJIS.map(emoji => (
+                                                                <button key={emoji} onClick={() => setNewPostContent(prev => prev + emoji)} className="h-10 text-xl hover:bg-muted rounded-md transition-colors">
+                                                                    {emoji}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </PopoverContent>
+                                                </Popover>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="gap-2 border-primary/20 hover:bg-primary/5 text-primary"
+                                                    onClick={handleAiAssist}
+                                                    disabled={isGenerating || !newPostContent.trim()}
+                                                >
+                                                    <Sparkles className={cn("h-4 w-4", isGenerating && "animate-pulse")} />
+                                                    {isGenerating ? "Thinking..." : "AI Assist"}
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    className="gap-2 px-6 shadow-lg shadow-primary/20"
+                                                    onClick={handleCreatePost}
+                                                    disabled={createPost.isPending || (!newPostContent.trim() && selectedMedia.length === 0)}
+                                                >
+                                                    <Send className="h-4 w-4" />
+                                                    Post
+                                                </Button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Feed */}
+                        <div className="space-y-6">
+                            {posts.map((post) => (
+                                <PostCard
+                                    key={post.id}
+                                    post={post}
+                                    slug={slug!}
+                                    onReact={reactToPost.mutate}
+                                    onComment={commentOnPost.mutateAsync}
+                                    onPreview={() => setPreviewMemberId(post.authorId)}
+                                    onEdit={(p: any) => {
+                                        setEditingPost(p);
+                                        setEditPostContent(p.content);
+                                        setEditPostTopicId(p.topicId);
+                                        setIsEditPostOpen(true);
+                                    }}
+                                    onDelete={(id: string) => {
+                                        setPostToDeleteId(id);
+                                        setIsDeletePostOpen(true);
+                                    }}
+                                    reactionTypes={REACTION_TYPES}
+                                />
                             ))}
-                            {topics.length === 0 && (
-                                <div className="p-4 text-center space-y-2 opacity-50">
-                                    <p className="text-xs">No specific topics created yet.</p>
+
+                            {!isLoading && posts.length === 0 && (
+                                <div className="py-20 text-center space-y-4 border-2 border-dashed rounded-3xl opacity-50 bg-muted/10">
+                                    <div className="h-12 w-12 bg-muted rounded-full flex items-center justify-center mx-auto">
+                                        <MessageSquare className="h-6 w-6 text-muted-foreground" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="font-semibold text-lg">No posts yet</p>
+                                        <p className="text-sm text-muted-foreground">Be the first to share something in this topic!</p>
+                                    </div>
                                 </div>
                             )}
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </main>
+                </div>
 
-                    <Card className="border-none shadow-md bg-gradient-to-br from-indigo-500/10 to-purple-500/10">
-                        <CardContent className="p-6 text-center space-y-3">
-                            <div className="h-10 w-10 bg-indigo-500 rounded-xl flex items-center justify-center mx-auto shadow-lg shadow-indigo-500/20">
-                                <Trophy className="text-white" size={20} />
+                <MemberPreviewModal
+                    slug={slug!}
+                    memberId={previewMemberId}
+                    onClose={() => setPreviewMemberId(null)}
+                />
+
+                {/* Create Topic Dialog */}
+                <Dialog open={isCreateTopicOpen} onOpenChange={setIsCreateTopicOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Create a Community Topic</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Topic Name</label>
+                                <Input
+                                    placeholder="e.g., Workout Tips"
+                                    value={newTopic.name}
+                                    onChange={(e) => setNewTopic(prev => ({ ...prev, name: e.target.value }))}
+                                />
                             </div>
-                            <h3 className="font-bold text-sm">Community Goals</h3>
-                            <p className="text-xs text-muted-foreground">We've completed 450 classes together this month!</p>
-                            <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                                <div className="h-full bg-indigo-500 w-[65%]" />
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Description</label>
+                                <Input
+                                    placeholder="What is this space for?"
+                                    value={newTopic.description}
+                                    onChange={(e) => setNewTopic(prev => ({ ...prev, description: e.target.value }))}
+                                />
                             </div>
-                        </CardContent>
-                    </Card>
-                </aside>
-
-                {/* Main Feed */}
-                <main className="lg:col-span-3 space-y-8">
-                    {/* Create Post Card */}
-                    <Card className="border-none shadow-xl bg-gradient-to-br from-background to-muted/30 overflow-hidden ring-1 ring-border/50">
-                        <CardContent className="p-6">
-                            <div className="flex gap-4">
-                                <Avatar className="h-10 w-10 ring-2 ring-primary/20">
-                                    {user?.imageUrl && <AvatarImage src={user.imageUrl} />}
-                                    <AvatarFallback>{initials}</AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1 space-y-4">
-                                    <textarea
-                                        placeholder="What's on your mind? Share a thought, photo, or update..."
-                                        className="w-full bg-transparent border-none focus:ring-0 resize-none text-lg min-h-[100px]"
-                                        value={newPostContent}
-                                        onChange={(e) => setNewPostContent(e.target.value)}
-                                    />
-
-                                    {/* Topic Selector - Only visible when a topic is selected in the sidebar */}
-                                    {selectedTopicId && (
-                                        <div className="flex flex-wrap gap-2">
-                                            {topics.filter((t: any) => t.id === selectedTopicId).map((topic: any) => (
-                                                <button
-                                                    key={topic.id}
-                                                    onClick={() => setSelectedPostTopicId(selectedPostTopicId === topic.id ? null : topic.id)}
-                                                    className={cn(
-                                                        "px-3 py-1.5 rounded-full text-xs font-medium transition-all border flex items-center gap-1",
-                                                        selectedPostTopicId === topic.id
-                                                            ? "bg-primary border-primary text-primary-foreground shadow-sm"
-                                                            : "bg-background border-border text-muted-foreground hover:border-primary/50"
-                                                    )}
-                                                >
-                                                    <Hash size={12} />
-                                                    {topic.name}
-                                                    {selectedPostTopicId === topic.id && <X size={10} className="ml-1 opacity-70" />}
-                                                </button>
-                                            ))}
-                                            {selectedPostTopicId === null && (
-                                                <span className="text-[10px] text-muted-foreground flex items-center italic">
-                                                    Topic removed. This will post to Everyone.
-                                                </span>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    {/* Media Previews */}
-                                    {selectedMedia.length > 0 && (
-                                        <div className="flex flex-wrap gap-2">
-                                            {selectedMedia.map((media, idx) => (
-                                                <div key={idx} className="relative h-20 w-20 rounded-lg overflow-hidden border group">
-                                                    {media.type === 'image' ? (
-                                                        <img src={media.url} className="h-full w-full object-cover" />
-                                                    ) : (
-                                                        <div className="h-full w-full bg-muted flex items-center justify-center">
-                                                            <Video className="h-6 w-6 text-muted-foreground" />
-                                                        </div>
-                                                    )}
-                                                    <button
-                                                        onClick={() => setSelectedMedia(prev => prev.filter((_, i) => i !== idx))}
-                                                        className="absolute top-1 right-1 p-0.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    >
-                                                        <X size={12} />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-
-                                    <div className="flex items-center justify-between border-t pt-4">
-                                        <div className="flex items-center gap-2">
-                                            <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={(e) => handleFileUpload(e, 'image')} />
-                                            <input type="file" accept="video/*" className="hidden" ref={videoInputRef} onChange={(e) => handleFileUpload(e, 'video')} />
-                                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary transition-colors" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
-                                                <ImageIcon className="h-5 w-5" />
-                                            </Button>
-                                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary transition-colors" onClick={() => videoInputRef.current?.click()} disabled={isUploading}>
-                                                <Video className="h-5 w-5" />
-                                            </Button>
-
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary transition-colors">
-                                                        <Smile className="h-5 w-5" />
-                                                    </Button>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-64 p-2">
-                                                    <div className="grid grid-cols-5 gap-1">
-                                                        {EMOJIS.map(emoji => (
-                                                            <button key={emoji} onClick={() => setNewPostContent(prev => prev + emoji)} className="h-10 text-xl hover:bg-muted rounded-md transition-colors">
-                                                                {emoji}
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                </PopoverContent>
-                                            </Popover>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="gap-2 border-primary/20 hover:bg-primary/5 text-primary"
-                                                onClick={handleAiAssist}
-                                                disabled={isGenerating || !newPostContent.trim()}
-                                            >
-                                                <Sparkles className={cn("h-4 w-4", isGenerating && "animate-pulse")} />
-                                                {isGenerating ? "Thinking..." : "AI Assist"}
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                className="gap-2 px-6 shadow-lg shadow-primary/20"
-                                                onClick={handleCreatePost}
-                                                disabled={createPost.isPending || (!newPostContent.trim() && selectedMedia.length === 0)}
-                                            >
-                                                <Send className="h-4 w-4" />
-                                                Post
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Feed */}
-                    <div className="space-y-6">
-                        {posts.map((post) => (
-                            <PostCard
-                                key={post.id}
-                                post={post}
-                                slug={slug!}
-                                onReact={reactToPost.mutate}
-                                onComment={commentOnPost.mutateAsync}
-                                onPreview={() => setPreviewMemberId(post.authorId)}
-                                onEdit={(p: any) => {
-                                    setEditingPost(p);
-                                    setEditPostContent(p.content);
-                                    setEditPostTopicId(p.topicId);
-                                    setIsEditPostOpen(true);
-                                }}
-                                onDelete={(id: string) => {
-                                    setPostToDeleteId(id);
-                                    setIsDeletePostOpen(true);
-                                }}
-                                reactionTypes={REACTION_TYPES}
-                            />
-                        ))}
-
-                        {!isLoading && posts.length === 0 && (
-                            <div className="py-20 text-center space-y-4 border-2 border-dashed rounded-3xl opacity-50 bg-muted/10">
-                                <div className="h-12 w-12 bg-muted rounded-full flex items-center justify-center mx-auto">
-                                    <MessageSquare className="h-6 w-6 text-muted-foreground" />
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="font-semibold text-lg">No posts yet</p>
-                                    <p className="text-sm text-muted-foreground">Be the first to share something in this topic!</p>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </main>
-            </div>
-
-            <MemberPreviewModal
-                slug={slug!}
-                memberId={previewMemberId}
-                onClose={() => setPreviewMemberId(null)}
-            />
-
-            {/* Create Topic Dialog */}
-            <Dialog open={isCreateTopicOpen} onOpenChange={setIsCreateTopicOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Create a Community Topic</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">Topic Name</label>
-                            <Input
-                                placeholder="e.g., Workout Tips"
-                                value={newTopic.name}
-                                onChange={(e) => setNewTopic(prev => ({ ...prev, name: e.target.value }))}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">Description</label>
-                            <Input
-                                placeholder="What is this space for?"
-                                value={newTopic.description}
-                                onChange={(e) => setNewTopic(prev => ({ ...prev, description: e.target.value }))}
-                            />
-                        </div>
-                        <div className="flex justify-end gap-3 pt-4">
-                            <Button variant="outline" onClick={() => setIsCreateTopicOpen(false)}>Cancel</Button>
-                            <Button onClick={handleCreateTopic} disabled={createTopic.isPending}>Create Topic</Button>
-                        </div>
-                    </div>
-                </DialogContent>
-            </Dialog>
-
-            {/* Edit Topic Dialog */}
-            <Dialog open={isEditTopicOpen} onOpenChange={setIsEditTopicOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Edit Topic</DialogTitle>
-                    </DialogHeader>
-
-                    <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">Topic Name</label>
-                            <Input
-                                placeholder="e.g. Nature, Announcements"
-                                value={editingTopic?.name || ''}
-                                onChange={(e) => setEditingTopic({ ...editingTopic, name: e.target.value })}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">Description (Optional)</label>
-                            <Input
-                                placeholder="What is this topic about?"
-                                value={editingTopic?.description || ''}
-                                onChange={(e) => setEditingTopic({ ...editingTopic, description: e.target.value })}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">Visibility</label>
-                            <div className="flex gap-2">
-                                <Button
-                                    type="button"
-                                    variant={editingTopic?.visibility === 'public' ? 'default' : 'outline'}
-                                    className="flex-1"
-                                    onClick={() => setEditingTopic({ ...editingTopic, visibility: 'public' })}
-                                >
-                                    Public
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant={editingTopic?.visibility === 'private' ? 'default' : 'outline'}
-                                    className="flex-1"
-                                    onClick={() => setEditingTopic({ ...editingTopic, visibility: 'private' })}
-                                >
-                                    Private
-                                </Button>
+                            <div className="flex justify-end gap-3 pt-4">
+                                <Button variant="outline" onClick={() => setIsCreateTopicOpen(false)}>Cancel</Button>
+                                <Button onClick={handleCreateTopic} disabled={createTopic.isPending}>Create Topic</Button>
                             </div>
                         </div>
-                    </div>
+                    </DialogContent>
+                </Dialog>
 
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsEditTopicOpen(false)}>Cancel</Button>
-                        <Button onClick={handleEditTopic} disabled={updateTopic.isPending}>
-                            {updateTopic.isPending ? "Updating..." : "Update Topic"}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                {/* Edit Topic Dialog */}
+                <Dialog open={isEditTopicOpen} onOpenChange={setIsEditTopicOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Edit Topic</DialogTitle>
+                        </DialogHeader>
 
-            {/* Edit Post Dialog */}
-            <Dialog open={isEditPostOpen} onOpenChange={setIsEditPostOpen}>
-                <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                        <DialogTitle>Edit Post</DialogTitle>
-                        <DialogDescription>Update your post content or change its topic.</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <Label>Content</Label>
-                            <textarea
-                                className="w-full min-h-[150px] p-3 rounded-xl border bg-muted/30 focus:ring-1 focus:ring-primary outline-none text-sm resize-none"
-                                value={editPostContent}
-                                onChange={(e) => setEditPostContent(e.target.value)}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Topic</Label>
-                            <div className="flex flex-wrap gap-2">
-                                {topics.map((topic: any) => (
-                                    <button
-                                        key={topic.id}
-                                        onClick={() => setEditPostTopicId(editPostTopicId === topic.id ? null : topic.id)}
-                                        className={cn(
-                                            "px-3 py-1.5 rounded-full text-xs font-medium transition-all border flex items-center gap-1",
-                                            editPostTopicId === topic.id
-                                                ? "bg-primary border-primary text-primary-foreground shadow-sm"
-                                                : "bg-background border-border text-muted-foreground hover:border-primary/50"
-                                        )}
-                                    >
-                                        <Hash size={12} />
-                                        {topic.name}
-                                        {editPostTopicId === topic.id && <X size={10} className="ml-1 opacity-70" />}
-                                    </button>
-                                ))}
-                                {editPostTopicId !== null && (
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Topic Name</label>
+                                <Input
+                                    placeholder="e.g. Nature, Announcements"
+                                    value={editingTopic?.name || ''}
+                                    onChange={(e) => setEditingTopic({ ...editingTopic, name: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Description (Optional)</label>
+                                <Input
+                                    placeholder="What is this topic about?"
+                                    value={editingTopic?.description || ''}
+                                    onChange={(e) => setEditingTopic({ ...editingTopic, description: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Visibility</label>
+                                <div className="flex gap-2">
                                     <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-7 text-xs text-muted-foreground"
-                                        onClick={() => setEditPostTopicId(null)}
+                                        type="button"
+                                        variant={editingTopic?.visibility === 'public' ? 'default' : 'outline'}
+                                        className="flex-1"
+                                        onClick={() => setEditingTopic({ ...editingTopic, visibility: 'public' })}
                                     >
-                                        Clear Topic
+                                        Public
                                     </Button>
-                                )}
+                                    <Button
+                                        type="button"
+                                        variant={editingTopic?.visibility === 'private' ? 'default' : 'outline'}
+                                        className="flex-1"
+                                        onClick={() => setEditingTopic({ ...editingTopic, visibility: 'private' })}
+                                    >
+                                        Private
+                                    </Button>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsEditPostOpen(false)}>Cancel</Button>
-                        <Button onClick={handleEditPost} disabled={updatePost.isPending}>
-                            {updatePost.isPending ? "Updating..." : "Save Changes"}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
 
-            {/* Delete Post Confirmation Dialog */}
-            <Dialog open={isDeletePostOpen} onOpenChange={setIsDeletePostOpen}>
-                <DialogContent className="max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Delete Post</DialogTitle>
-                        <DialogDescription>
-                            Are you sure you want to delete this post? This action cannot be undone and will remove all comments and reactions associated with it.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter className="gap-2 sm:gap-0">
-                        <Button variant="outline" onClick={() => setIsDeletePostOpen(false)}>Cancel</Button>
-                        <Button variant="destructive" onClick={handleDeletePost} disabled={deletePost.isPending}>
-                            {deletePost.isPending ? "Deleting..." : "Delete Post"}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsEditTopicOpen(false)}>Cancel</Button>
+                            <Button onClick={handleEditTopic} disabled={updateTopic.isPending}>
+                                {updateTopic.isPending ? "Updating..." : "Update Topic"}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Edit Post Dialog */}
+                <Dialog open={isEditPostOpen} onOpenChange={setIsEditPostOpen}>
+                    <DialogContent className="max-w-2xl">
+                        <DialogHeader>
+                            <DialogTitle>Edit Post</DialogTitle>
+                            <DialogDescription>Update your post content or change its topic.</DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <Label>Content</Label>
+                                <textarea
+                                    className="w-full min-h-[150px] p-3 rounded-xl border bg-muted/30 focus:ring-1 focus:ring-primary outline-none text-sm resize-none"
+                                    value={editPostContent}
+                                    onChange={(e) => setEditPostContent(e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Topic</Label>
+                                <div className="flex flex-wrap gap-2">
+                                    {topics.map((topic: any) => (
+                                        <button
+                                            key={topic.id}
+                                            onClick={() => setEditPostTopicId(editPostTopicId === topic.id ? null : topic.id)}
+                                            className={cn(
+                                                "px-3 py-1.5 rounded-full text-xs font-medium transition-all border flex items-center gap-1",
+                                                editPostTopicId === topic.id
+                                                    ? "bg-primary border-primary text-primary-foreground shadow-sm"
+                                                    : "bg-background border-border text-muted-foreground hover:border-primary/50"
+                                            )}
+                                        >
+                                            <Hash size={12} />
+                                            {topic.name}
+                                            {editPostTopicId === topic.id && <X size={10} className="ml-1 opacity-70" />}
+                                        </button>
+                                    ))}
+                                    {editPostTopicId !== null && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 text-xs text-muted-foreground"
+                                            onClick={() => setEditPostTopicId(null)}
+                                        >
+                                            Clear Topic
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsEditPostOpen(false)}>Cancel</Button>
+                            <Button onClick={handleEditPost} disabled={updatePost.isPending}>
+                                {updatePost.isPending ? "Updating..." : "Save Changes"}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Delete Post Confirmation Dialog */}
+                <Dialog open={isDeletePostOpen} onOpenChange={setIsDeletePostOpen}>
+                    <DialogContent className="max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Delete Post</DialogTitle>
+                            <DialogDescription>
+                                Are you sure you want to delete this post? This action cannot be undone and will remove all comments and reactions associated with it.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter className="gap-2 sm:gap-0">
+                            <Button variant="outline" onClick={() => setIsDeletePostOpen(false)}>Cancel</Button>
+                            <Button variant="destructive" onClick={handleDeletePost} disabled={deletePost.isPending}>
+                                {deletePost.isPending ? "Deleting..." : "Delete Post"}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </div>
         </div>
     );
 }

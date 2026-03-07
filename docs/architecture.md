@@ -439,6 +439,7 @@ To adhere to the Cloudflare Worker 1MB bundle size limit, the application employ
 
 ### Perceived Performance & UX
 *   **Skeleton Loading**: The platform uses a centralized `SkeletonLoader` component to provide consistent visual feedback across the Dashboard, Analytics, and Student Portal during initial data hydration.
+*   **Optimized Layouts**: Core content areas (e.g., Community Hub) employ `max-width` constraints and horizontal centering on large displays to ensure optimal readability and a premium aesthetic, preventing content from feeling "stretched" on ultra-wide monitors.
 *   **Pagination & Infinite Scroll**: To handle large datasets (e.g., hundreds of scheduled classes), list views implement `useInfiniteQuery` (Admin) or custom `useFetcher` patterns (Portal) to load data in chunks, significantly reducing initial payload size and Time-to-Interactive (TTI).
 
 ### Mobile Optimization

@@ -31,6 +31,10 @@ Topics can have different visibility levels regulated by a dynamic eligibility e
 - **Deletion**: Clean, modal-based deletion confirmation.
 - **Engagement**: Rich reactions (Like, Love, Celebrate, Fire) and nested comments.
 
+### 6. UX & Layout Architecture
+- **Optimized Readability**: The content area is constrained to a `max-width` (centered) on large monitors to prevent line-length fatigue and maintain a premium, balanced feel.
+- **Responsive Design**: Sidebar topics collapse into a mobile-friendly menu on smaller viewports.
+
 ## API Architecture
 
 ### Posts & Topics
