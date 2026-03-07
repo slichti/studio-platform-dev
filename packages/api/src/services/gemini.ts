@@ -30,10 +30,12 @@ export class GeminiService {
     private apiKey: string;
     private config?: GeminiConfig;
 
-    constructor(apiKey: string, config?: GeminiConfig) {
-        if (!apiKey) throw new Error("GEMINI_API_KEY is required.");
-        this.apiKey = apiKey;
+    constructor(apiKey: string | null | undefined, config?: GeminiConfig) {
         this.config = config;
+        this.apiKey = apiKey || (config as any)?.apiKey;
+        if (!this.apiKey) {
+            throw new Error("GEMINI_API_KEY is required.");
+        }
     }
 
     /**

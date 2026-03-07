@@ -1,5 +1,5 @@
 import { eq, and, sql, lt, or, isNotNull } from 'drizzle-orm';
-import { tenantSeoContentSettings, platformSeoTopics, tenants, communityPosts, tenantMembers, users, locations, aiUsageLogs } from '@studio/db/src/schema';
+import { tenantSeoContentSettings, platformSeoTopics, tenants, communityPosts, tenantMembers, users, locations, aiUsageLogs, platformConfig } from '@studio/db/src/schema';
 import { GeminiService } from './gemini';
 import { PushService } from './push';
 
@@ -30,7 +30,17 @@ export class ContentAutomationService {
 
         if (pending.length === 0) return { processed: 0 };
 
-        const gemini = new GeminiService(geminiApiKey);
+        const aiConfigRow = await db.query.platformConfig.findFirst({
+            where: eq(platformConfig.key, 'config_ai')
+        });
+        const configAi = aiConfigRow?.value as any;
+
+        if (!geminiApiKey && !configAi?.apiKey) {
+            console.error('[ContentAutomation] AI features not configured (missing GEMINI_API_KEY)');
+            return { processed: 0 };
+        }
+
+        const gemini = new GeminiService(geminiApiKey, configAi);
         let processedCount = 0;
 
         for (const item of pending) {
@@ -67,12 +77,12 @@ export class ContentAutomationService {
                     id: crypto.randomUUID(),
                     tenantId: item.tenant.id,
                     userId: null,
-                    model: 'gemini-2.0-flash',
+                    model: configAi?.model || 'gemini-1.5-flash',
                     feature: 'blog_generation',
                     promptTokens: usage.promptTokenCount,
                     completionTokens: usage.candidatesTokenCount,
                     totalTokens: usage.totalTokenCount,
-                }).run();
+                }).run().catch((err: any) => console.error('Failed to log AI usage:', err));
 
                 // 4. Find an author (usually the owner)
                 const author = await db.select().from(tenantMembers).where(eq(tenantMembers.tenantId, item.tenant.id)).limit(1).get();

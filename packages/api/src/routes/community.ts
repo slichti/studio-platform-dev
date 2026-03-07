@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { communityPosts, communityComments, communityReactions, tenantMembers, users, tenants, bookings } from '@studio/db/src/schema';
+import { communityPosts, communityComments, communityReactions, tenantMembers, users, tenants, bookings, platformConfig, aiUsageLogs } from '@studio/db/src/schema';
 import { eq, and, desc, sql, isNotNull } from 'drizzle-orm';
 import { HonoContext } from '../types';
 import { CommunityService } from '../services/community';
@@ -152,7 +152,6 @@ app.post('/', async (c) => {
 
 // POST / community/ai-generate - AI Assist for posts
 import { GeminiService } from '../services/gemini';
-import { aiUsageLogs } from '@studio/db/src/schema';
 
 app.post('/ai-generate', async (c) => {
     const tenant = c.get('tenant');
@@ -162,22 +161,28 @@ app.post('/ai-generate', async (c) => {
     const { prompt } = await c.req.json();
     if (!prompt) return c.json({ error: 'Prompt required' }, 400);
 
-    const apiKey = c.env.GEMINI_API_KEY;
-    if (!apiKey) return c.json({ error: 'AI features not configured' }, 503);
+    const db = createDb(c.env.DB);
+    const aiConfigRow = await db.query.platformConfig.findFirst({
+        where: eq(platformConfig.key, 'config_ai')
+    });
+    const configAi = aiConfigRow?.value as any;
 
-    const gemini = new GeminiService(apiKey);
+    const apiKey = c.env.GEMINI_API_KEY;
+    if (!apiKey && !configAi?.apiKey) {
+        return c.json({ error: 'AI features not configured (missing GEMINI_API_KEY)' }, 503);
+    }
+
+    const gemini = new GeminiService(apiKey, configAi);
 
     try {
         const { content, usage } = await gemini.generateCommunityPost(prompt, tenant.name);
 
-        // Log AI Usage
-        const db = createDb(c.env.DB);
         c.executionCtx.waitUntil(
             db.insert(aiUsageLogs).values({
                 id: crypto.randomUUID(),
                 tenantId: tenant.id,
                 userId: auth?.userId || null,
-                model: 'gemini-2.0-flash',
+                model: configAi?.model || 'gemini-1.5-flash',
                 feature: 'community_hub',
                 promptTokens: usage.promptTokenCount,
                 completionTokens: usage.candidatesTokenCount,
