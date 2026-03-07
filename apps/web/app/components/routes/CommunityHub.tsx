@@ -33,13 +33,19 @@ import { Badge } from "~/components/ui/Badge";
 import { useCommunity, useMemberPreview } from "~/hooks/useCommunity";
 import { cn } from "~/lib/utils";
 import { apiRequest } from "~/utils/api";
-import { useAuth } from "@clerk/react-router";
+import { useAuth, useUser } from "@clerk/react-router";
 
 export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
     const { slug: paramsSlug } = useParams();
     const slug = propsSlug || paramsSlug;
     const { posts, isLoading, createPost, reactToPost, commentOnPost, generateAIContent } = useCommunity(slug!);
     const { getToken } = useAuth();
+    const { user } = useUser();
+
+    // Get user initials for avatar fallback
+    const initials = user
+        ? `${user.firstName?.charAt(0) || ''}${user.lastName?.charAt(0) || ''}`.toUpperCase() || user.emailAddresses[0]?.emailAddress?.charAt(0).toUpperCase()
+        : "??";
 
     const [newPostContent, setNewPostContent] = useState("");
     const [isGenerating, setIsGenerating] = useState(false);
@@ -163,7 +169,8 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
                 <CardContent className="p-6">
                     <div className="flex gap-4">
                         <Avatar className="h-10 w-10 ring-2 ring-primary/20">
-                            <AvatarFallback>YO</AvatarFallback>
+                            {user?.imageUrl && <AvatarImage src={user.imageUrl} />}
+                            <AvatarFallback>{initials}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1 space-y-4">
                             <textarea
