@@ -609,7 +609,15 @@ function PostCard({ post, slug, onReact, onComment, onPreview, reactionTypes }: 
                     <div className="flex items-center gap-2">
                         <span className="font-semibold">{post.author?.user?.profile?.firstName} {post.author?.user?.profile?.lastName}</span>
                         {post.isPinned && <Badge variant="secondary" className="gap-1 text-[10px] uppercase font-bold tracking-wider rounded-lg"><Pin className="h-3 w-3" /> Pinned</Badge>}
-                        {post.topicId && <Badge variant="outline" className="text-[10px] text-primary/70 border-primary/20">#{post.topic?.name || 'Topic'}</Badge>}
+                        {post.topic?.name && (
+                            <Badge
+                                variant="outline"
+                                className="text-[10px] uppercase font-bold tracking-wider rounded-lg"
+                                style={post.topic.color ? { color: post.topic.color, borderColor: `${post.topic.color}40`, backgroundColor: `${post.topic.color}10` } : undefined}
+                            >
+                                #{post.topic.name}
+                            </Badge>
+                        )}
                     </div>
                     <span className="text-xs text-muted-foreground lowercase">
                         {formatDistanceToNow(new Date(post.createdAt))} ago

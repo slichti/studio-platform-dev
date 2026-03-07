@@ -123,7 +123,7 @@ export class CommunityService {
      */
     async getVisibleTopics(tenantId: string, memberId: string) {
         const allTopics = await this.db.select().from(communityTopics)
-            .where(eq(communityTopics.tenantId, tenantId))
+            .where(and(eq(communityTopics.tenantId, tenantId), sql`${communityTopics.isArchived} IS NOT TRUE`))
             .all();
 
         const results = [];

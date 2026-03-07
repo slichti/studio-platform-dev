@@ -33,9 +33,19 @@ app.get('/', async (c) => {
         isPinned: communityPosts.isPinned,
         topicId: communityPosts.topicId,
         mediaJson: communityPosts.mediaJson,
-        createdAt: communityPosts.createdAt, authorId: tenantMembers.id, authorEmail: users.email, authorProfile: users.profile
+        createdAt: communityPosts.createdAt,
+        authorId: tenantMembers.id, authorEmail: users.email, authorProfile: users.profile,
+        topic: {
+            id: communityTopics.id,
+            name: communityTopics.name,
+            color: communityTopics.color,
+            icon: communityTopics.icon
+        }
     })
-        .from(communityPosts).innerJoin(tenantMembers, eq(communityPosts.authorId, tenantMembers.id)).innerJoin(users, eq(tenantMembers.userId, users.id))
+        .from(communityPosts)
+        .innerJoin(tenantMembers, eq(communityPosts.authorId, tenantMembers.id))
+        .innerJoin(users, eq(tenantMembers.userId, users.id))
+        .leftJoin(communityTopics, eq(communityPosts.topicId, communityTopics.id))
         .where(whereClause).orderBy(desc(communityPosts.isPinned), desc(communityPosts.createdAt)).limit(limit).all();
 
     let userReactions = new Map<string, string>(); // postId -> reactionType
@@ -108,25 +118,28 @@ app.get('/topics', async (c) => {
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
     const canManage = c.get('can')('manage_marketing');
+    // Filter out archived topics for everyone
+    let topics;
     if (canManage) {
-        const topics = await db.select()
+        topics = await db.select()
             .from(communityTopics)
-            .where(eq(communityTopics.tenantId, tenant.id))
+            .where(and(eq(communityTopics.tenantId, tenant.id), sql`${communityTopics.isArchived} IS NOT TRUE`))
             .orderBy(communityTopics.name)
             .all();
-        return c.json(topics);
-    }
-
-    if (!member) {
-        const topics = await db.select().from(communityTopics)
-            .where(and(eq(communityTopics.tenantId, tenant.id), eq(communityTopics.visibility, 'public')))
+    } else if (!member) {
+        topics = await db.select().from(communityTopics)
+            .where(and(
+                eq(communityTopics.tenantId, tenant.id),
+                eq(communityTopics.visibility, 'public'),
+                sql`${communityTopics.isArchived} IS NOT TRUE`
+            ))
             .all();
-        return c.json(topics);
+    } else {
+        const communityService = new CommunityService(db);
+        topics = await communityService.getVisibleTopics(tenant.id, member.id);
     }
 
-    const communityService = new CommunityService(db);
-    const topics = await communityService.getVisibleTopics(tenant.id, member.id);
-    return c.json(topics.filter(t => !t.isArchived));
+    return c.json(topics);
 });
 
 // GET /community/topics/:id - Get topic details (including rules/members for admins)
@@ -288,6 +301,12 @@ app.delete('/topics/:id', async (c) => {
     const tenant = c.get('tenant');
     const id = c.req.param('id');
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    // Nullify topicId on posts before deleting topic to avoid dangling references
+    await db.update(communityPosts)
+        .set({ topicId: null })
+        .where(eq(communityPosts.topicId, id))
+        .run();
 
     await db.delete(communityTopics)
         .where(and(eq(communityTopics.id, id), eq(communityTopics.tenantId, tenant.id)))
