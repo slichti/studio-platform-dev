@@ -267,8 +267,8 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
     );
 
     return (
-        <div className="p-6 min-h-screen">
-            <div className="max-w-6xl mx-auto">
+        <div className="p-6 min-h-screen flex flex-col items-center">
+            <div className="w-full max-w-4xl">
                 <div className="flex justify-between items-center mb-8">
                     <div>
                         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Community Hub</h1>
