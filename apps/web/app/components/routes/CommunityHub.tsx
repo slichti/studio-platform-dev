@@ -409,25 +409,32 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
                                         onChange={(e) => setNewPostContent(e.target.value)}
                                     />
 
-                                    {/* Topic Selector */}
-                                    <div className="flex flex-wrap gap-2">
-                                        {topics.map((topic: any) => (
-                                            <button
-                                                key={topic.id}
-                                                onClick={() => setSelectedPostTopicId(selectedPostTopicId === topic.id ? null : topic.id)}
-                                                className={cn(
-                                                    "px-3 py-1.5 rounded-full text-xs font-medium transition-all border flex items-center gap-1",
-                                                    selectedPostTopicId === topic.id
-                                                        ? "bg-primary border-primary text-primary-foreground shadow-sm"
-                                                        : "bg-background border-border text-muted-foreground hover:border-primary/50"
-                                                )}
-                                            >
-                                                <Hash size={12} />
-                                                {topic.name}
-                                                {selectedPostTopicId === topic.id && <X size={10} className="ml-1 opacity-70" />}
-                                            </button>
-                                        ))}
-                                    </div>
+                                    {/* Topic Selector - Only visible when a topic is selected in the sidebar */}
+                                    {selectedTopicId && (
+                                        <div className="flex flex-wrap gap-2">
+                                            {topics.filter((t: any) => t.id === selectedTopicId).map((topic: any) => (
+                                                <button
+                                                    key={topic.id}
+                                                    onClick={() => setSelectedPostTopicId(selectedPostTopicId === topic.id ? null : topic.id)}
+                                                    className={cn(
+                                                        "px-3 py-1.5 rounded-full text-xs font-medium transition-all border flex items-center gap-1",
+                                                        selectedPostTopicId === topic.id
+                                                            ? "bg-primary border-primary text-primary-foreground shadow-sm"
+                                                            : "bg-background border-border text-muted-foreground hover:border-primary/50"
+                                                    )}
+                                                >
+                                                    <Hash size={12} />
+                                                    {topic.name}
+                                                    {selectedPostTopicId === topic.id && <X size={10} className="ml-1 opacity-70" />}
+                                                </button>
+                                            ))}
+                                            {selectedPostTopicId === null && (
+                                                <span className="text-[10px] text-muted-foreground flex items-center italic">
+                                                    Topic removed. This will post to Everyone.
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
 
                                     {/* Media Previews */}
                                     {selectedMedia.length > 0 && (
