@@ -1685,9 +1685,30 @@ export const communityTopics = sqliteTable('community_topics', {
     description: text('description'),
     icon: text('icon'), // Lucide icon name
     color: text('color'), // e.g., 'blue', 'green', '#FF5733'
+    visibility: text('visibility', { enum: ['public', 'private'] }).default('public').notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     tenantIdx: index('community_topic_tenant_idx').on(table.tenantId),
+}));
+
+export const communityTopicMemberships = sqliteTable('community_topic_memberships', {
+    id: text('id').primaryKey(),
+    topicId: text('topic_id').notNull().references(() => communityTopics.id, { onDelete: 'cascade' }),
+    memberId: text('member_id').notNull().references(() => tenantMembers.id, { onDelete: 'cascade' }),
+    role: text('role', { enum: ['member', 'moderator', 'admin'] }).default('member').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    uniqueMembership: uniqueIndex('community_topic_member_idx').on(table.topicId, table.memberId),
+}));
+
+export const communityTopicAccessRules = sqliteTable('community_topic_access_rules', {
+    id: text('id').primaryKey(),
+    topicId: text('topic_id').notNull().references(() => communityTopics.id, { onDelete: 'cascade' }),
+    type: text('type', { enum: ['course', 'membership_plan', 'group'] }).notNull(),
+    targetId: text('target_id').notNull(), // courseId, planId, etc.
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    topicRuleIdx: index('community_topic_rule_idx').on(table.topicId),
 }));
 
 export const communityComments = sqliteTable('community_comments', {

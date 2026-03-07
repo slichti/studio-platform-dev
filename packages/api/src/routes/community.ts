@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { communityPosts, communityComments, communityReactions, tenantMembers, users, tenants, bookings, platformConfig, aiUsageLogs, communityTopics } from '@studio/db/src/schema';
+import { communityPosts, communityComments, communityReactions, tenantMembers, users, tenants, bookings, platformConfig, aiUsageLogs, communityTopics, communityTopicMemberships, communityTopicAccessRules } from '@studio/db/src/schema';
 import { eq, and, desc, sql, isNotNull } from 'drizzle-orm';
 import { HonoContext } from '../types';
 import { CommunityService } from '../services/community';
@@ -51,28 +51,6 @@ app.get('/', async (c) => {
         userReaction: userReactions.get(p.id) || null,
         isLiked: userReactions.has(p.id) // keep for backward compatibility
     })));
-});
-
-// GET / community/:id - Get single post
-app.get('/:id', async (c) => {
-    const db = createDb(c.env.DB);
-    const tenant = c.get('tenant');
-    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
-
-    const post = await db.select({
-        id: communityPosts.id, content: communityPosts.content, type: communityPosts.type, imageUrl: communityPosts.imageUrl,
-        likesCount: communityPosts.likesCount, commentsCount: communityPosts.commentsCount, isPinned: communityPosts.isPinned,
-        media: communityPosts.mediaJson,
-        createdAt: communityPosts.createdAt, authorId: tenantMembers.id, authorEmail: users.email, authorProfile: users.profile
-    })
-        .from(communityPosts).innerJoin(tenantMembers, eq(communityPosts.authorId, tenantMembers.id)).innerJoin(users, eq(tenantMembers.userId, users.id))
-        .where(and(eq(communityPosts.id, c.req.param('id')), eq(communityPosts.tenantId, tenant.id))).get();
-
-    if (!post) return c.json({ error: 'Post not found' }, 404);
-
-    return c.json({
-        ...post, author: { id: post.authorId, user: { email: post.authorEmail, profile: post.authorProfile } }
-    });
 });
 
 // GET /community/settings - Get tenant community settings
@@ -126,15 +104,56 @@ app.patch('/settings', async (c) => {
 app.get('/topics', async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
+    const member = c.get('member');
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
-    const topics = await db.select()
-        .from(communityTopics)
-        .where(eq(communityTopics.tenantId, tenant.id))
-        .orderBy(communityTopics.name)
-        .all();
+    const canManage = c.get('can')('manage_marketing');
+    if (canManage) {
+        const topics = await db.select()
+            .from(communityTopics)
+            .where(eq(communityTopics.tenantId, tenant.id))
+            .orderBy(communityTopics.name)
+            .all();
+        return c.json(topics);
+    }
 
+    if (!member) {
+        const topics = await db.select().from(communityTopics)
+            .where(and(eq(communityTopics.tenantId, tenant.id), eq(communityTopics.visibility, 'public')))
+            .all();
+        return c.json(topics);
+    }
+
+    const communityService = new CommunityService(db);
+    const topics = await communityService.getVisibleTopics(tenant.id, member.id);
     return c.json(topics);
+});
+
+// GET /community/topics/:id - Get topic details (including rules/members for admins)
+app.get('/topics/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const id = c.req.param('id');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const topic = await db.query.communityTopics.findFirst({
+        where: and(eq(communityTopics.id, id), eq(communityTopics.tenantId, tenant.id))
+    });
+
+    if (!topic) return c.json({ error: 'Topic not found' }, 404);
+
+    if (c.get('can')('manage_marketing')) {
+        const rules = await db.query.communityTopicAccessRules.findMany({
+            where: eq(communityTopicAccessRules.topicId, id)
+        });
+        const memberships = await db.query.communityTopicMemberships.findMany({
+            where: eq(communityTopicMemberships.topicId, id),
+            with: { member: { with: { user: true } } }
+        });
+        return c.json({ ...topic, rules, memberships });
+    }
+
+    return c.json(topic);
 });
 
 // POST /community/topics - Create community topic
@@ -145,7 +164,7 @@ app.post('/topics', async (c) => {
     const tenant = c.get('tenant');
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
-    const { name, description, icon, color } = await c.req.json();
+    const { name, description, icon, color, visibility } = await c.req.json();
     if (!name) return c.json({ error: 'Name required' }, 400);
 
     const id = crypto.randomUUID();
@@ -155,7 +174,52 @@ app.post('/topics', async (c) => {
         name,
         description,
         icon,
-        color
+        color,
+        visibility: visibility || 'public'
+    }).run();
+
+    return c.json({ id }, 201);
+});
+
+// POST /community/topics/:id/rules - Add access rule
+app.post('/topics/:id/rules', async (c) => {
+    if (!c.get('can')('manage_marketing')) return c.json({ error: 'Access denied' }, 403);
+    const db = createDb(c.env.DB);
+    const topicId = c.req.param('id');
+    const { type, targetId } = await c.req.json();
+
+    const id = crypto.randomUUID();
+    await db.insert(communityTopicAccessRules).values({
+        id,
+        topicId,
+        type,
+        targetId
+    }).run();
+
+    return c.json({ id }, 201);
+});
+
+// DELETE /community/topics/rules/:ruleId - Remove access rule
+app.delete('/topics/rules/:ruleId', async (c) => {
+    if (!c.get('can')('manage_marketing')) return c.json({ error: 'Access denied' }, 403);
+    const db = createDb(c.env.DB);
+    await db.delete(communityTopicAccessRules).where(eq(communityTopicAccessRules.id, c.req.param('ruleId'))).run();
+    return c.json({ success: true });
+});
+
+// POST /community/topics/:id/members - Add manual member
+app.post('/topics/:id/members', async (c) => {
+    if (!c.get('can')('manage_marketing')) return c.json({ error: 'Access denied' }, 403);
+    const db = createDb(c.env.DB);
+    const topicId = c.req.param('id');
+    const { memberId, role } = await c.req.json();
+
+    const id = crypto.randomUUID();
+    await db.insert(communityTopicMemberships).values({
+        id,
+        topicId,
+        memberId,
+        role: role || 'member'
     }).run();
 
     return c.json({ id }, 201);
@@ -177,6 +241,28 @@ app.delete('/topics/:id', async (c) => {
     return c.json({ success: true });
 });
 
+// GET / community/:id - Get single post
+app.get('/:id', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const post = await db.select({
+        id: communityPosts.id, content: communityPosts.content, type: communityPosts.type, imageUrl: communityPosts.imageUrl,
+        likesCount: communityPosts.likesCount, commentsCount: communityPosts.commentsCount, isPinned: communityPosts.isPinned,
+        media: communityPosts.mediaJson,
+        createdAt: communityPosts.createdAt, authorId: tenantMembers.id, authorEmail: users.email, authorProfile: users.profile
+    })
+        .from(communityPosts).innerJoin(tenantMembers, eq(communityPosts.authorId, tenantMembers.id)).innerJoin(users, eq(tenantMembers.userId, users.id))
+        .where(and(eq(communityPosts.id, c.req.param('id')), eq(communityPosts.tenantId, tenant.id))).get();
+
+    if (!post) return c.json({ error: 'Post not found' }, 404);
+
+    return c.json({
+        ...post, author: { id: post.authorId, user: { email: post.authorEmail, profile: post.authorProfile } }
+    });
+});
+
 // POST / community - Create post
 app.post('/', async (c) => {
     const db = createDb(c.env.DB);
@@ -188,6 +274,13 @@ app.post('/', async (c) => {
     if (!content) return c.json({ error: 'Content required' }, 400);
 
     const id = crypto.randomUUID();
+
+    if (topicId) {
+        const communityService = new CommunityService(db);
+        const hasAccess = await communityService.hasTopicAccess(tenant.id, member.id, topicId);
+        if (!hasAccess) return c.json({ error: 'You do not have access to this topic' }, 403);
+    }
+
     await db.insert(communityPosts).values({
         id,
         tenantId: tenant.id,
