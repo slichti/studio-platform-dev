@@ -1667,7 +1667,7 @@ export const communityPosts = sqliteTable('community_posts', {
     commentsCount: integer('comments_count').default(0),
     reactionsJson: text('reactions_json', { mode: 'json' }), // Cached emoji counts: { like: 5, heart: 2 }
     isPinned: integer('is_pinned', { mode: 'boolean' }).default(false),
-    topicId: text('topic_id').references(() => platformSeoTopics.id),
+    topicId: text('topic_id').references(() => communityTopics.id, { onDelete: 'set null' }),
     mediaJson: text('media_json', { mode: 'json' }), // Support for audio, video, gifs: { type: string, url: string }[]
     isGenerated: integer('is_generated', { mode: 'boolean' }).default(false),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
@@ -1677,14 +1677,28 @@ export const communityPosts = sqliteTable('community_posts', {
     topicIdx: index('community_post_topic_idx').on(table.topicId),
 }));
 
+export const communityTopics = sqliteTable('community_topics', {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    name: text('name').notNull(),
+    description: text('description'),
+    icon: text('icon'), // Lucide icon name
+    color: text('color'), // e.g., 'blue', 'green', '#FF5733'
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    tenantIdx: index('community_topic_tenant_idx').on(table.tenantId),
+}));
+
 export const communityComments = sqliteTable('community_comments', {
     id: text('id').primaryKey(),
     postId: text('post_id').notNull().references(() => communityPosts.id, { onDelete: 'cascade' }),
     authorId: text('author_id').notNull().references(() => tenantMembers.id),
+    parentId: text('parent_id').references((): any => communityComments.id, { onDelete: 'cascade' }),
     content: text('content').notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     postIdx: index('community_comment_post_idx').on(table.postId),
+    parentIdx: index('community_comment_parent_idx').on(table.parentId),
 }));
 
 export const communityReactions = sqliteTable('community_reactions', {

@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "../utils/api";
 import { useAuth } from "@clerk/react-router";
 
-export function useCommunity(slug: string, filters: { type?: string; limit?: number } = {}) {
+export function useCommunity(slug: string, filters: { type?: string; topicId?: string; limit?: number } = {}) {
     const { getToken } = useAuth();
     const queryClient = useQueryClient();
 
@@ -12,6 +12,7 @@ export function useCommunity(slug: string, filters: { type?: string; limit?: num
             const token = await getToken();
             const searchParams = new URLSearchParams();
             if (filters.type) searchParams.set('type', filters.type);
+            if (filters.topicId) searchParams.set('topicId', filters.topicId);
             if (filters.limit) searchParams.set('limit', String(filters.limit));
 
             return apiRequest(`/community?${searchParams.toString()}`, token, {
@@ -22,7 +23,7 @@ export function useCommunity(slug: string, filters: { type?: string; limit?: num
     });
 
     const createPost = useMutation({
-        mutationFn: async (data: { content: string; type?: string; imageUrl?: string; media?: any[] }) => {
+        mutationFn: async (data: { content: string; type?: string; imageUrl?: string; media?: any[]; topicId?: string }) => {
             const token = await getToken();
             return apiRequest(`/community`, token, {
                 method: 'POST',
@@ -50,16 +51,17 @@ export function useCommunity(slug: string, filters: { type?: string; limit?: num
     });
 
     const commentOnPost = useMutation({
-        mutationFn: async ({ postId, content }: { postId: string; content: string }) => {
+        mutationFn: async ({ postId, content, parentId }: { postId: string; content: string; parentId?: string }) => {
             const token = await getToken();
             return apiRequest(`/community/${postId}/comments`, token, {
                 method: 'POST',
                 headers: { 'X-Tenant-Slug': slug },
-                body: JSON.stringify({ content })
+                body: JSON.stringify({ content, parentId })
             });
         },
-        onSuccess: () => {
+        onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: ['community', slug] });
+            queryClient.invalidateQueries({ queryKey: ['community', 'comments', slug, variables.postId] });
         }
     });
 
@@ -83,6 +85,71 @@ export function useCommunity(slug: string, filters: { type?: string; limit?: num
         commentOnPost,
         generateAIContent
     };
+}
+
+export function useCommunityTopics(slug: string) {
+    const { getToken } = useAuth();
+    const queryClient = useQueryClient();
+
+    const query = useQuery({
+        queryKey: ['community', 'topics', slug],
+        queryFn: async () => {
+            const token = await getToken();
+            return apiRequest(`/community/topics`, token, {
+                headers: { 'X-Tenant-Slug': slug }
+            });
+        },
+        enabled: !!slug
+    });
+
+    const createTopic = useMutation({
+        mutationFn: async (data: { name: string; description?: string; icon?: string; color?: string }) => {
+            const token = await getToken();
+            return apiRequest(`/community/topics`, token, {
+                method: 'POST',
+                headers: { 'X-Tenant-Slug': slug },
+                body: JSON.stringify(data)
+            });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['community', 'topics', slug] });
+        }
+    });
+
+    const deleteTopic = useMutation({
+        mutationFn: async (id: string) => {
+            const token = await getToken();
+            return apiRequest(`/community/topics/${id}`, token, {
+                method: 'DELETE',
+                headers: { 'X-Tenant-Slug': slug }
+            });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['community', 'topics', slug] });
+        }
+    });
+
+    return {
+        topics: query.data as any[] || [],
+        isLoading: query.isLoading,
+        createTopic,
+        deleteTopic
+    };
+}
+
+export function useCommunityComments(slug: string, postId: string | null) {
+    const { getToken } = useAuth();
+
+    return useQuery({
+        queryKey: ['community', 'comments', slug, postId],
+        queryFn: async () => {
+            const token = await getToken();
+            return apiRequest(`/community/${postId}/comments`, token, {
+                headers: { 'X-Tenant-Slug': slug }
+            });
+        },
+        enabled: !!slug && !!postId
+    });
 }
 
 export function useMemberPreview(slug: string, memberId: string | null) {

@@ -18,7 +18,13 @@ import {
     Trophy,
     Calendar,
     Users,
-    X
+    X,
+    Hash,
+    ChevronDown,
+    ChevronRight,
+    Search,
+    PlusCircle,
+    LayoutGrid,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -30,7 +36,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/Card";
 import { Input } from "~/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/Avatar";
 import { Badge } from "~/components/ui/Badge";
-import { useCommunity, useMemberPreview } from "~/hooks/useCommunity";
+import { useCommunity, useCommunityTopics, useCommunityComments, useMemberPreview } from "~/hooks/useCommunity";
 import { cn } from "~/lib/utils";
 import { apiRequest } from "~/utils/api";
 import { useAuth, useUser } from "@clerk/react-router";
@@ -38,7 +44,10 @@ import { useAuth, useUser } from "@clerk/react-router";
 export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
     const { slug: paramsSlug } = useParams();
     const slug = propsSlug || paramsSlug;
-    const { posts, isLoading, createPost, reactToPost, commentOnPost, generateAIContent } = useCommunity(slug!);
+    const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
+    const { posts, isLoading, createPost, reactToPost, commentOnPost, generateAIContent } = useCommunity(slug!, { topicId: selectedTopicId || undefined });
+    const { topics, isLoading: isLoadingTopics, createTopic, deleteTopic } = useCommunityTopics(slug!);
+
     const { getToken } = useAuth();
     const { user } = useUser();
 
@@ -48,12 +57,15 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
         : "??";
 
     const [newPostContent, setNewPostContent] = useState("");
+    const [selectedPostTopicId, setSelectedPostTopicId] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
     const [commentText, setCommentText] = useState("");
     const [previewMemberId, setPreviewMemberId] = useState<string | null>(null);
     const [selectedMedia, setSelectedMedia] = useState<{ url: string; type: 'image' | 'video' }[]>([]);
     const [isUploading, setIsUploading] = useState(false);
+    const [isCreateTopicOpen, setIsCreateTopicOpen] = useState(false);
+    const [newTopic, setNewTopic] = useState({ name: '', description: '', icon: 'Hash', color: '#3b82f6' });
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const videoInputRef = useRef<HTMLInputElement>(null);
@@ -99,10 +111,12 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
         try {
             await createPost.mutateAsync({
                 content: newPostContent,
-                media: selectedMedia.length > 0 ? selectedMedia : undefined
+                media: selectedMedia.length > 0 ? selectedMedia : undefined,
+                topicId: selectedPostTopicId || undefined
             });
             setNewPostContent("");
             setSelectedMedia([]);
+            setSelectedPostTopicId(null);
             toast.success("Post shared with the community!");
         } catch (e) {
             toast.error("Failed to share post");
@@ -135,301 +149,538 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
         reactToPost.mutate({ postId, type });
     };
 
-    const handleComment = async (postId: string) => {
+    const handleComment = async (postId: string, parentId?: string) => {
         if (!commentText.trim()) return;
         try {
-            await commentOnPost.mutateAsync({ postId, content: commentText });
+            await commentOnPost.mutateAsync({ postId, content: commentText, parentId });
             setCommentText("");
-            setActiveCommentId(null);
             toast.success("Comment added");
         } catch (e) {
             toast.error("Failed to add comment");
         }
     };
 
-    if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading Community Hub...</div>;
+    const handleCreateTopic = async () => {
+        if (!newTopic.name.trim()) return;
+        try {
+            await createTopic.mutateAsync(newTopic);
+            setNewTopic({ name: '', description: '', icon: 'Hash', color: '#3b82f6' });
+            setIsCreateTopicOpen(false);
+            toast.success("Topic created!");
+        } catch (e) {
+            toast.error("Failed to create topic");
+        }
+    };
+
+    if (isLoading) return (
+        <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            <p className="text-muted-foreground animate-pulse">Gathering community updates...</p>
+        </div>
+    );
 
     return (
-        <div className="max-w-3xl mx-auto space-y-8 p-4 md:p-8">
-            <header className="flex items-center justify-between">
+        <div className="max-w-6xl mx-auto p-4 md:p-8">
+            <header className="mb-8 flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Community Hub</h1>
                     <p className="text-muted-foreground">Connect and grow with your studio family.</p>
                 </div>
-                <a
-                    href={`/studio/${slug}/community/settings`}
-                    className="p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all text-zinc-500"
-                >
-                    <Settings size={20} />
-                </a>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="icon" className="md:hidden">
+                        <Users size={20} />
+                    </Button>
+                    <a
+                        href={`/studio/${slug}/community/settings`}
+                        className="p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all text-zinc-500"
+                    >
+                        <Settings size={20} />
+                    </a>
+                </div>
             </header>
 
-            {/* Create Post Card */}
-            <Card className="border-none shadow-xl bg-gradient-to-br from-background to-muted/30 overflow-hidden">
-                <CardContent className="p-6">
-                    <div className="flex gap-4">
-                        <Avatar className="h-10 w-10 ring-2 ring-primary/20">
-                            {user?.imageUrl && <AvatarImage src={user.imageUrl} />}
-                            <AvatarFallback>{initials}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 space-y-4">
-                            <textarea
-                                placeholder="What's on your mind? Share a thought, photo, or update..."
-                                className="w-full bg-transparent border-none focus:ring-0 resize-none text-lg min-h-[100px]"
-                                value={newPostContent}
-                                onChange={(e) => setNewPostContent(e.target.value)}
-                            />
-
-                            {/* Media Previews */}
-                            {selectedMedia.length > 0 && (
-                                <div className="flex flex-wrap gap-2">
-                                    {selectedMedia.map((media, idx) => (
-                                        <div key={idx} className="relative h-20 w-20 rounded-lg overflow-hidden border group">
-                                            {media.type === 'image' ? (
-                                                <img src={media.url} className="h-full w-full object-cover" />
-                                            ) : (
-                                                <div className="h-full w-full bg-muted flex items-center justify-center">
-                                                    <Video className="h-6 w-6 text-muted-foreground" />
-                                                </div>
-                                            )}
-                                            <button
-                                                onClick={() => setSelectedMedia(prev => prev.filter((_, i) => i !== idx))}
-                                                className="absolute top-1 right-1 p-0.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                            >
-                                                <X size={12} />
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            <div className="flex items-center justify-between border-t pt-4">
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        className="hidden"
-                                        ref={fileInputRef}
-                                        onChange={(e) => handleFileUpload(e, 'image')}
-                                    />
-                                    <input
-                                        type="file"
-                                        accept="video/*"
-                                        className="hidden"
-                                        ref={videoInputRef}
-                                        onChange={(e) => handleFileUpload(e, 'video')}
-                                    />
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="text-muted-foreground hover:text-primary transition-colors"
-                                        onClick={() => fileInputRef.current?.click()}
-                                        disabled={isUploading}
-                                    >
-                                        <ImageIcon className="h-5 w-5" />
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="text-muted-foreground hover:text-primary transition-colors"
-                                        onClick={() => videoInputRef.current?.click()}
-                                        disabled={isUploading}
-                                    >
-                                        <Video className="h-5 w-5" />
-                                    </Button>
-
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary transition-colors">
-                                                <Smile className="h-5 w-5" />
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-64 p-2">
-                                            <div className="grid grid-cols-5 gap-1">
-                                                {EMOJIS.map(emoji => (
-                                                    <button
-                                                        key={emoji}
-                                                        onClick={() => setNewPostContent(prev => prev + emoji)}
-                                                        className="h-10 text-xl hover:bg-muted rounded-md transition-colors"
-                                                    >
-                                                        {emoji}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="gap-2 border-primary/20 hover:bg-primary/5 text-primary"
-                                        onClick={handleAiAssist}
-                                        disabled={isGenerating || !newPostContent.trim()}
-                                    >
-                                        <Sparkles className={cn("h-4 w-4", isGenerating && "animate-pulse")} />
-                                        {isGenerating ? "Thinking..." : "AI Assist"}
-                                    </Button>
-                                    <Button
-                                        size="sm"
-                                        className="gap-2 px-6 shadow-lg shadow-primary/20"
-                                        onClick={handleCreatePost}
-                                        disabled={createPost.isPending || !newPostContent.trim()}
-                                    >
-                                        <Send className="h-4 w-4" />
-                                        Post
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Feed */}
-            <div className="space-y-6">
-                {posts.map((post) => (
-                    <Card key={post.id} className={cn("border-none shadow-lg transition-all hover:shadow-xl", post.isPinned && "ring-1 ring-primary/20")}>
-                        <CardHeader className="flex flex-row items-center gap-4 p-4 pb-0">
-                            <Avatar className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={() => setPreviewMemberId(post.authorId)}>
-                                <AvatarImage src={post.author?.user?.profile?.portraitUrl} />
-                                <AvatarFallback>{post.author?.user?.profile?.firstName?.[0] || 'U'}</AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                    <span className="font-semibold">{post.author?.user?.profile?.firstName} {post.author?.user?.profile?.lastName}</span>
-                                    {post.isPinned && <Badge variant="secondary" className="gap-1 text-[10px] uppercase font-bold tracking-wider"><Pin className="h-3 w-3" /> Pinned</Badge>}
-                                </div>
-                                <span className="text-xs text-muted-foreground lowercase">
-                                    {formatDistanceToNow(new Date(post.createdAt))} ago
-                                </span>
-                            </div>
-                            <Button variant="ghost" size="icon" className="text-muted-foreground">
-                                <MoreVertical className="h-5 w-5" />
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                {/* Left Sidebar: Topics */}
+                <aside className="hidden lg:block space-y-6">
+                    <Card className="border-none shadow-md bg-muted/20">
+                        <CardHeader className="p-4 flex flex-row items-center justify-between">
+                            <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                                <LayoutGrid size={16} /> Topics
+                            </CardTitle>
+                            {/* Only admins can manage topics? For now generic marketing permission */}
+                            <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={() => setIsCreateTopicOpen(true)}>
+                                <PlusCircle size={14} />
                             </Button>
                         </CardHeader>
-                        <CardContent className="p-4 space-y-4">
-                            <div className="text-base leading-relaxed whitespace-pre-wrap">
-                                {post.content}
-                            </div>
-
-                            {/* Media Section */}
-                            {post.media && Array.isArray(post.media) && post.media.length > 0 && (
-                                <div className="grid gap-2 rounded-xl overflow-hidden border">
-                                    {post.media.map((item: any, idx: number) => (
-                                        <div key={idx} className="relative aspect-video bg-muted flex items-center justify-center">
-                                            {item.type === 'video' ? (
-                                                <video src={item.url} controls className="w-full h-full object-cover" />
-                                            ) : item.type === 'audio' ? (
-                                                <div className="flex flex-col items-center gap-2 p-8 w-full">
-                                                    <Music className="h-10 w-10 text-primary" />
-                                                    <audio src={item.url} controls className="w-full" />
-                                                </div>
-                                            ) : (
-                                                <img src={item.url} alt="Community media" className="w-full h-full object-cover" />
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            {/* Engagement Bar */}
-                            <div className="flex items-center justify-between border-t pt-2 mt-4">
-                                <div className="flex items-center gap-1">
-                                    <div className="flex items-center gap-1 group relative">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className={cn(
-                                                "gap-2",
-                                                post.userReaction && REACTION_TYPES.find(r => r.type === post.userReaction)?.color
-                                            )}
-                                            onClick={() => handleReact(post.id, (post.userReaction as any) || 'like')}
-                                        >
-                                            {(() => {
-                                                const r = REACTION_TYPES.find(rt => rt.type === post.userReaction) || REACTION_TYPES[0];
-                                                const Icon = r.icon;
-                                                return <Icon className={cn("h-5 w-5", post.userReaction && r.fill)} />;
-                                            })()}
-                                            {post.likesCount || 0}
-                                        </Button>
-
-                                        {/* Reaction Picker Popover (Simplified) */}
-                                        <div className="absolute bottom-full left-0 mb-2 hidden group-hover:flex items-center gap-1 p-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-full shadow-xl animate-in fade-in slide-in-from-bottom-2 z-10">
-                                            {REACTION_TYPES.map((r) => {
-                                                const Icon = r.icon;
-                                                return (
-                                                    <Button
-                                                        key={r.type}
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className={cn("h-8 w-8 rounded-full", r.bg, r.color)}
-                                                        onClick={() => handleReact(post.id, r.type)}
-                                                        title={r.label}
-                                                    >
-                                                        <Icon className={cn("h-4 w-4", post.userReaction === r.type && r.fill)} />
-                                                    </Button>
-                                                );
-                                            })}
-                                        </div>
+                        <CardContent className="p-2 space-y-1">
+                            <button
+                                onClick={() => setSelectedTopicId(null)}
+                                className={cn(
+                                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-medium text-sm",
+                                    !selectedTopicId ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "hover:bg-muted text-muted-foreground"
+                                )}
+                            >
+                                <Users size={18} />
+                                Everyone
+                            </button>
+                            {topics.map((topic: any) => (
+                                <button
+                                    key={topic.id}
+                                    onClick={() => setSelectedTopicId(topic.id)}
+                                    className={cn(
+                                        "w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all font-medium text-sm",
+                                        selectedTopicId === topic.id ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "hover:bg-muted text-muted-foreground"
+                                    )}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <Hash size={18} className={cn(selectedTopicId === topic.id ? "text-primary-foreground" : "text-primary")} />
+                                        {topic.name}
                                     </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="gap-2 hover:bg-blue-50 hover:text-blue-500"
-                                        onClick={() => setActiveCommentId(activeCommentId === post.id ? null : post.id)}
-                                    >
-                                        <MessageSquare className="h-5 w-5" />
-                                        {post.commentsCount || 0}
-                                    </Button>
-                                    <Button variant="ghost" size="sm" className="gap-2 hover:bg-green-50 hover:text-green-500">
-                                        <Share2 className="h-5 w-5" />
-                                    </Button>
-                                </div>
-                            </div>
-
-                            {/* Comment Section */}
-                            {activeCommentId === post.id && (
-                                <div className="space-y-4 pt-4 animate-in fade-in slide-in-from-top-2">
-                                    <div className="flex gap-3">
-                                        <Avatar className="h-8 w-8">
-                                            <AvatarFallback>YO</AvatarFallback>
-                                        </Avatar>
-                                        <div className="flex-1 flex gap-2">
-                                            <Input
-                                                placeholder="Write a reply..."
-                                                className="h-8 text-sm bg-muted/50 border-none focus-visible:ring-1"
-                                                value={commentText}
-                                                onChange={(e) => setCommentText(e.target.value)}
-                                                onKeyDown={(e) => e.key === 'Enter' && handleComment(post.id)}
-                                            />
-                                            <Button size="sm" className="h-8" onClick={() => handleComment(post.id)}>Reply</Button>
-                                        </div>
-                                    </div>
+                                    {topic.isNew && <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />}
+                                </button>
+                            ))}
+                            {topics.length === 0 && (
+                                <div className="p-4 text-center space-y-2 opacity-50">
+                                    <p className="text-xs">No specific topics created yet.</p>
                                 </div>
                             )}
                         </CardContent>
                     </Card>
-                ))}
-            </div>
 
-            {!isLoading && posts.length === 0 && (
-                <div className="py-20 text-center space-y-4 border-2 border-dashed rounded-3xl opacity-50">
-                    <div className="h-12 w-12 bg-muted rounded-full flex items-center justify-center mx-auto">
-                        <MessageSquare className="h-6 w-6 text-muted-foreground" />
+                    <Card className="border-none shadow-md bg-gradient-to-br from-indigo-500/10 to-purple-500/10">
+                        <CardContent className="p-6 text-center space-y-3">
+                            <div className="h-10 w-10 bg-indigo-500 rounded-xl flex items-center justify-center mx-auto shadow-lg shadow-indigo-500/20">
+                                <Trophy className="text-white" size={20} />
+                            </div>
+                            <h3 className="font-bold text-sm">Community Goals</h3>
+                            <p className="text-xs text-muted-foreground">We've completed 450 classes together this month!</p>
+                            <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                                <div className="h-full bg-indigo-500 w-[65%]" />
+                            </div>
+                        </CardContent>
+                    </Card>
+                </aside>
+
+                {/* Main Feed */}
+                <main className="lg:col-span-3 space-y-8">
+                    {/* Create Post Card */}
+                    <Card className="border-none shadow-xl bg-gradient-to-br from-background to-muted/30 overflow-hidden ring-1 ring-border/50">
+                        <CardContent className="p-6">
+                            <div className="flex gap-4">
+                                <Avatar className="h-10 w-10 ring-2 ring-primary/20">
+                                    {user?.imageUrl && <AvatarImage src={user.imageUrl} />}
+                                    <AvatarFallback>{initials}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 space-y-4">
+                                    <textarea
+                                        placeholder="What's on your mind? Share a thought, photo, or update..."
+                                        className="w-full bg-transparent border-none focus:ring-0 resize-none text-lg min-h-[100px]"
+                                        value={newPostContent}
+                                        onChange={(e) => setNewPostContent(e.target.value)}
+                                    />
+
+                                    {/* Topic Selector */}
+                                    <div className="flex flex-wrap gap-2">
+                                        {topics.map((topic: any) => (
+                                            <button
+                                                key={topic.id}
+                                                onClick={() => setSelectedPostTopicId(selectedPostTopicId === topic.id ? null : topic.id)}
+                                                className={cn(
+                                                    "px-3 py-1.5 rounded-full text-xs font-semibold transition-all border",
+                                                    selectedPostTopicId === topic.id
+                                                        ? "bg-primary border-primary text-primary-foreground shadow-md"
+                                                        : "bg-background border-border text-muted-foreground hover:border-primary/50"
+                                                )}
+                                            >
+                                                # {topic.name}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {/* Media Previews */}
+                                    {selectedMedia.length > 0 && (
+                                        <div className="flex flex-wrap gap-2">
+                                            {selectedMedia.map((media, idx) => (
+                                                <div key={idx} className="relative h-20 w-20 rounded-lg overflow-hidden border group">
+                                                    {media.type === 'image' ? (
+                                                        <img src={media.url} className="h-full w-full object-cover" />
+                                                    ) : (
+                                                        <div className="h-full w-full bg-muted flex items-center justify-center">
+                                                            <Video className="h-6 w-6 text-muted-foreground" />
+                                                        </div>
+                                                    )}
+                                                    <button
+                                                        onClick={() => setSelectedMedia(prev => prev.filter((_, i) => i !== idx))}
+                                                        className="absolute top-1 right-1 p-0.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    >
+                                                        <X size={12} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    <div className="flex items-center justify-between border-t pt-4">
+                                        <div className="flex items-center gap-2">
+                                            <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={(e) => handleFileUpload(e, 'image')} />
+                                            <input type="file" accept="video/*" className="hidden" ref={videoInputRef} onChange={(e) => handleFileUpload(e, 'video')} />
+                                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary transition-colors" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+                                                <ImageIcon className="h-5 w-5" />
+                                            </Button>
+                                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary transition-colors" onClick={() => videoInputRef.current?.click()} disabled={isUploading}>
+                                                <Video className="h-5 w-5" />
+                                            </Button>
+
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary transition-colors">
+                                                        <Smile className="h-5 w-5" />
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-64 p-2">
+                                                    <div className="grid grid-cols-5 gap-1">
+                                                        {EMOJIS.map(emoji => (
+                                                            <button key={emoji} onClick={() => setNewPostContent(prev => prev + emoji)} className="h-10 text-xl hover:bg-muted rounded-md transition-colors">
+                                                                {emoji}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </PopoverContent>
+                                            </Popover>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="gap-2 border-primary/20 hover:bg-primary/5 text-primary"
+                                                onClick={handleAiAssist}
+                                                disabled={isGenerating || !newPostContent.trim()}
+                                            >
+                                                <Sparkles className={cn("h-4 w-4", isGenerating && "animate-pulse")} />
+                                                {isGenerating ? "Thinking..." : "AI Assist"}
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                className="gap-2 px-6 shadow-lg shadow-primary/20"
+                                                onClick={handleCreatePost}
+                                                disabled={createPost.isPending || (!newPostContent.trim() && selectedMedia.length === 0)}
+                                            >
+                                                <Send className="h-4 w-4" />
+                                                Post
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Feed */}
+                    <div className="space-y-6">
+                        {posts.map((post) => (
+                            <PostCard
+                                key={post.id}
+                                post={post}
+                                slug={slug!}
+                                onReact={handleReact}
+                                onComment={handleComment}
+                                onPreview={() => setPreviewMemberId(post.authorId)}
+                                reactionTypes={REACTION_TYPES}
+                            />
+                        ))}
+
+                        {!isLoading && posts.length === 0 && (
+                            <div className="py-20 text-center space-y-4 border-2 border-dashed rounded-3xl opacity-50 bg-muted/10">
+                                <div className="h-12 w-12 bg-muted rounded-full flex items-center justify-center mx-auto">
+                                    <MessageSquare className="h-6 w-6 text-muted-foreground" />
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="font-semibold text-lg">No posts yet</p>
+                                    <p className="text-sm text-muted-foreground">Be the first to share something in this topic!</p>
+                                </div>
+                            </div>
+                        )}
                     </div>
-                    <div className="space-y-1">
-                        <p className="font-semibold text-lg">No posts yet</p>
-                        <p className="text-sm text-muted-foreground">Be the first to share something with the community!</p>
-                    </div>
-                </div>
-            )}
+                </main>
+            </div>
 
             <MemberPreviewModal
                 slug={slug!}
                 memberId={previewMemberId}
                 onClose={() => setPreviewMemberId(null)}
             />
+
+            {/* Create Topic Dialog */}
+            <Dialog open={isCreateTopicOpen} onOpenChange={setIsCreateTopicOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Create a Community Topic</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Topic Name</label>
+                            <Input
+                                placeholder="e.g., Workout Tips"
+                                value={newTopic.name}
+                                onChange={(e) => setNewTopic(prev => ({ ...prev, name: e.target.value }))}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Description</label>
+                            <Input
+                                placeholder="What is this space for?"
+                                value={newTopic.description}
+                                onChange={(e) => setNewTopic(prev => ({ ...prev, description: e.target.value }))}
+                            />
+                        </div>
+                        <div className="flex justify-end gap-3 pt-4">
+                            <Button variant="outline" onClick={() => setIsCreateTopicOpen(false)}>Cancel</Button>
+                            <Button onClick={handleCreateTopic} disabled={createTopic.isPending}>Create Topic</Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+        </div>
+    );
+}
+
+function PostCard({ post, slug, onReact, onComment, onPreview, reactionTypes }: {
+    post: any,
+    slug: string,
+    onReact: any,
+    onComment: any,
+    onPreview: any,
+    reactionTypes: any
+}) {
+    const [showComments, setShowComments] = useState(false);
+
+    return (
+        <Card className={cn("border-none shadow-lg transition-all hover:shadow-xl ring-1 ring-border/50", post.isPinned && "ring-primary/20 bg-primary/5")}>
+            <CardHeader className="flex flex-row items-center gap-4 p-4 pb-0">
+                <Avatar className="cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" onClick={onPreview}>
+                    <AvatarImage src={post.author?.user?.profile?.portraitUrl} />
+                    <AvatarFallback>{post.author?.user?.profile?.firstName?.[0] || 'U'}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                        <span className="font-semibold">{post.author?.user?.profile?.firstName} {post.author?.user?.profile?.lastName}</span>
+                        {post.isPinned && <Badge variant="secondary" className="gap-1 text-[10px] uppercase font-bold tracking-wider rounded-lg"><Pin className="h-3 w-3" /> Pinned</Badge>}
+                        {post.topicId && <Badge variant="outline" className="text-[10px] text-primary/70 border-primary/20">#{post.topic?.name || 'Topic'}</Badge>}
+                    </div>
+                    <span className="text-xs text-muted-foreground lowercase">
+                        {formatDistanceToNow(new Date(post.createdAt))} ago
+                    </span>
+                </div>
+                <Button variant="ghost" size="icon" className="text-muted-foreground h-8 w-8">
+                    <MoreVertical className="h-4 w-4" />
+                </Button>
+            </CardHeader>
+            <CardContent className="p-4 space-y-4">
+                <div className="text-base leading-relaxed whitespace-pre-wrap">
+                    {post.content}
+                </div>
+
+                {/* Media Section */}
+                {post.mediaJson && Array.isArray(post.mediaJson) && post.mediaJson.length > 0 && (
+                    <div className="grid gap-2 rounded-xl overflow-hidden border">
+                        {post.mediaJson.map((item: any, idx: number) => (
+                            <div key={idx} className="relative aspect-video bg-muted flex items-center justify-center">
+                                {item.type === 'video' ? (
+                                    <video src={item.url} controls className="w-full h-full object-cover" />
+                                ) : item.type === 'audio' ? (
+                                    <div className="flex flex-col items-center gap-2 p-8 w-full">
+                                        <Music className="h-10 w-10 text-primary" />
+                                        <audio src={item.url} controls className="w-full" />
+                                    </div>
+                                ) : (
+                                    <img src={item.url} alt="Community media" className="w-full h-full object-cover" />
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* Engagement Bar */}
+                <div className="flex items-center justify-between border-t pt-2 mt-4">
+                    <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 group relative">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className={cn(
+                                    "gap-2 hover:bg-muted font-medium h-9",
+                                    post.userReaction && reactionTypes.find((r: any) => r.type === post.userReaction)?.color
+                                )}
+                                onClick={() => onReact(post.id, (post.userReaction as any) || 'like')}
+                            >
+                                {(() => {
+                                    const r = reactionTypes.find((rt: any) => rt.type === post.userReaction) || reactionTypes[0];
+                                    const Icon = r.icon;
+                                    return <Icon className={cn("h-5 w-5", post.userReaction && r.fill)} />;
+                                })()}
+                                {post.likesCount || 0}
+                            </Button>
+
+                            <div className="absolute bottom-full left-0 mb-2 hidden group-hover:flex items-center gap-1 p-1.5 bg-background border border-border rounded-full shadow-2xl animate-in fade-in slide-in-from-bottom-2 z-20">
+                                {reactionTypes.map((r: any) => {
+                                    const Icon = r.icon;
+                                    return (
+                                        <Button
+                                            key={r.type}
+                                            variant="ghost"
+                                            size="icon"
+                                            className={cn("h-9 w-9 rounded-full transition-transform hover:scale-125", r.bg, r.color)}
+                                            onClick={() => onReact(post.id, r.type)}
+                                            title={r.label}
+                                        >
+                                            <Icon className={cn("h-5 w-5", post.userReaction === r.type && r.fill)} />
+                                        </Button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className={cn("gap-2 hover:bg-primary/5 hover:text-primary h-9 font-medium", showComments && "text-primary bg-primary/5")}
+                            onClick={() => setShowComments(!showComments)}
+                        >
+                            <MessageSquare className="h-5 w-5" />
+                            {post.commentsCount || 0}
+                        </Button>
+                        <Button variant="ghost" size="sm" className="gap-2 hover:bg-muted h-9 text-muted-foreground">
+                            <Share2 className="h-5 w-5" />
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Comment Section */}
+                {showComments && (
+                    <CommentSection slug={slug} postId={post.id} onComment={onComment} />
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+function CommentSection({ slug, postId, onComment }: { slug: string, postId: string, onComment: any }) {
+    const { data: comments = [], isLoading } = useCommunityComments(slug, postId);
+    const [replyText, setReplyText] = useState("");
+    const [replyToId, setReplyToId] = useState<string | null>(null);
+
+    const handleSubmit = async (parentId?: string) => {
+        if (!replyText.trim()) return;
+        await onComment(postId, replyText, parentId);
+        setReplyText("");
+        setReplyToId(null);
+    };
+
+    if (isLoading) return <div className="text-center py-4 text-xs text-muted-foreground animate-pulse">Loading conversation...</div>;
+
+    // Helper to build tree
+    const rootComments = comments.filter((c: any) => !c.parentId);
+
+    return (
+        <div className="space-y-6 pt-6 animate-in fade-in slide-in-from-top-2">
+            <div className="space-y-4">
+                {rootComments.map((comment: any) => (
+                    <CommentItem
+                        key={comment.id}
+                        comment={comment}
+                        allComments={comments}
+                        onReply={(id: string) => setReplyToId(id)}
+                        replyToId={replyToId}
+                        replyText={replyText}
+                        setReplyText={setReplyText}
+                        onSubmit={handleSubmit}
+                    />
+                ))}
+            </div>
+
+            {/* Main Reply Input */}
+            {!replyToId && (
+                <div className="flex gap-3 pt-2">
+                    <Avatar className="h-8 w-8">
+                        <AvatarFallback className="text-[10px]">YO</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 flex gap-2">
+                        <Input
+                            placeholder="Add a comment..."
+                            className="h-9 text-sm bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary/20"
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+                        />
+                        <Button size="sm" className="h-9 px-4 rounded-xl shadow-md shadow-primary/10" onClick={() => handleSubmit()}>Comment</Button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function CommentItem({ comment, allComments, onReply, replyToId, replyText, setReplyText, onSubmit, depth = 0 }: any) {
+    const replies = allComments.filter((c: any) => c.parentId === comment.id);
+    const isReplying = replyToId === comment.id;
+
+    return (
+        <div className={cn("space-y-3", depth > 0 && "ml-8 border-l border-border/50 pl-4")}>
+            <div className="flex gap-3">
+                <Avatar className="h-8 w-8 shadow-sm">
+                    <AvatarImage src={comment.author?.user?.profile?.portraitUrl} />
+                    <AvatarFallback className="text-xs bg-muted">{comment.author?.user?.profile?.firstName?.[0]}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 space-y-1">
+                    <div className="bg-muted/40 p-3 rounded-2xl rounded-tl-none">
+                        <div className="flex items-center gap-2 mb-0.5">
+                            <span className="text-sm font-bold">{comment.author?.user?.profile?.firstName} {comment.author?.user?.profile?.lastName}</span>
+                            <span className="text-[10px] text-muted-foreground uppercase">{formatDistanceToNow(new Date(comment.createdAt))}</span>
+                        </div>
+                        <p className="text-sm leading-relaxed">{comment.content}</p>
+                    </div>
+                    <div className="flex items-center gap-3 px-1">
+                        <button
+                            onClick={() => onReply(isReplying ? null : comment.id)}
+                            className="text-[11px] font-bold text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+                        >
+                            <MessageSquare size={12} /> Reply
+                        </button>
+                    </div>
+
+                    {isReplying && (
+                        <div className="flex gap-2 pt-2 animate-in slide-in-from-left-2 fade-in">
+                            <Input
+                                autoFocus
+                                placeholder={`Reply to ${comment.author?.user?.profile?.firstName}...`}
+                                className="h-8 text-xs bg-muted/60 border-none focus-visible:ring-1"
+                                value={replyText}
+                                onChange={(e) => setReplyText(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && onSubmit(comment.id)}
+                            />
+                            <Button size="sm" className="h-8 py-0 px-3 text-xs" onClick={() => onSubmit(comment.id)}>Send</Button>
+                            <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => onReply(null)}>Cancel</Button>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {replies.length > 0 && (
+                <div className="space-y-3">
+                    {replies.map((reply: any) => (
+                        <CommentItem
+                            key={reply.id}
+                            comment={reply}
+                            allComments={allComments}
+                            onReply={onReply}
+                            replyToId={replyToId}
+                            replyText={replyText}
+                            setReplyText={setReplyText}
+                            onSubmit={onSubmit}
+                            depth={depth + 1}
+                        />
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

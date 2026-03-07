@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { communityPosts, communityComments, communityReactions, tenantMembers, users, tenants, bookings, platformConfig, aiUsageLogs } from '@studio/db/src/schema';
+import { communityPosts, communityComments, communityReactions, tenantMembers, users, tenants, bookings, platformConfig, aiUsageLogs, communityTopics } from '@studio/db/src/schema';
 import { eq, and, desc, sql, isNotNull } from 'drizzle-orm';
 import { HonoContext } from '../types';
 import { CommunityService } from '../services/community';
@@ -14,19 +14,25 @@ app.get('/', async (c) => {
     const member = c.get('member');
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
-    const typeFilter = c.req.query('type') as 'post' | 'announcement' | 'event' | 'photo' | 'blog' | undefined;
+    const typeFilter = c.req.query('type') as 'post' | 'announcement' | 'event' | 'photo' | 'blog' | 'milestone' | undefined;
+    const topicId = c.req.query('topicId');
     const limit = Math.min(Number(c.req.query('limit') || 50), 100);
 
-    const whereClause = typeFilter
-        ? and(eq(communityPosts.tenantId, tenant.id), eq(communityPosts.type, typeFilter))
-        : eq(communityPosts.tenantId, tenant.id);
+    let whereClause: any = eq(communityPosts.tenantId, tenant.id);
+    if (typeFilter) {
+        whereClause = and(whereClause, eq(communityPosts.type, typeFilter));
+    }
+    if (topicId) {
+        whereClause = and(whereClause, eq(communityPosts.topicId, topicId));
+    }
 
     const posts = await db.select({
         id: communityPosts.id, content: communityPosts.content, type: communityPosts.type, imageUrl: communityPosts.imageUrl,
         likesCount: communityPosts.likesCount, commentsCount: communityPosts.commentsCount,
         reactions: communityPosts.reactionsJson,
         isPinned: communityPosts.isPinned,
-        media: communityPosts.mediaJson,
+        topicId: communityPosts.topicId,
+        mediaJson: communityPosts.mediaJson,
         createdAt: communityPosts.createdAt, authorId: tenantMembers.id, authorEmail: users.email, authorProfile: users.profile
     })
         .from(communityPosts).innerJoin(tenantMembers, eq(communityPosts.authorId, tenantMembers.id)).innerJoin(users, eq(tenantMembers.userId, users.id))
@@ -116,6 +122,61 @@ app.patch('/settings', async (c) => {
     return c.json({ success: true });
 });
 
+// GET /community/topics - List community topics
+app.get('/topics', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const topics = await db.select()
+        .from(communityTopics)
+        .where(eq(communityTopics.tenantId, tenant.id))
+        .orderBy(communityTopics.name)
+        .all();
+
+    return c.json(topics);
+});
+
+// POST /community/topics - Create community topic
+app.post('/topics', async (c) => {
+    if (!c.get('can')('manage_marketing')) return c.json({ error: 'Access denied' }, 403);
+
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    const { name, description, icon, color } = await c.req.json();
+    if (!name) return c.json({ error: 'Name required' }, 400);
+
+    const id = crypto.randomUUID();
+    await db.insert(communityTopics).values({
+        id,
+        tenantId: tenant.id,
+        name,
+        description,
+        icon,
+        color
+    }).run();
+
+    return c.json({ id }, 201);
+});
+
+// DELETE /community/topics/:id - Delete community topic
+app.delete('/topics/:id', async (c) => {
+    if (!c.get('can')('manage_marketing')) return c.json({ error: 'Access denied' }, 403);
+
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    const id = c.req.param('id');
+    if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+
+    await db.delete(communityTopics)
+        .where(and(eq(communityTopics.id, id), eq(communityTopics.tenantId, tenant.id)))
+        .run();
+
+    return c.json({ success: true });
+});
+
 // POST / community - Create post
 app.post('/', async (c) => {
     const db = createDb(c.env.DB);
@@ -123,7 +184,7 @@ app.post('/', async (c) => {
     const member = c.get('member');
     if (!tenant || !member) return c.json({ error: 'Context required' }, 400);
 
-    const { content, type, imageUrl, media } = await c.req.json();
+    const { content, type, imageUrl, media, topicId } = await c.req.json();
     if (!content) return c.json({ error: 'Content required' }, 400);
 
     const id = crypto.randomUUID();
@@ -134,6 +195,7 @@ app.post('/', async (c) => {
         content,
         type: type || 'post',
         imageUrl,
+        topicId: topicId || null,
         mediaJson: media || null
     }).run();
 
@@ -235,7 +297,15 @@ app.post('/:id/react', async (c) => {
 // GET / community/:id/comments
 app.get('/:id/comments', async (c) => {
     const db = createDb(c.env.DB);
-    const list = await db.select({ id: communityComments.id, content: communityComments.content, createdAt: communityComments.createdAt, authorId: tenantMembers.id, authorEmail: users.email, authorProfile: users.profile })
+    const list = await db.select({
+        id: communityComments.id,
+        content: communityComments.content,
+        createdAt: communityComments.createdAt,
+        parentId: communityComments.parentId,
+        authorId: tenantMembers.id,
+        authorEmail: users.email,
+        authorProfile: users.profile
+    })
         .from(communityComments).innerJoin(tenantMembers, eq(communityComments.authorId, tenantMembers.id)).innerJoin(users, eq(tenantMembers.userId, users.id))
         .where(eq(communityComments.postId, c.req.param('id'))).orderBy(communityComments.createdAt).all();
 
@@ -248,11 +318,11 @@ app.post('/:id/comments', async (c) => {
     const member = c.get('member');
     if (!member) return c.json({ error: 'Member required' }, 403);
 
-    const { content } = await c.req.json();
+    const { content, parentId } = await c.req.json();
     if (!content) return c.json({ error: 'Content required' }, 400);
 
     const id = crypto.randomUUID();
-    await db.insert(communityComments).values({ id, postId: c.req.param('id'), authorId: member.id, content }).run();
+    await db.insert(communityComments).values({ id, postId: c.req.param('id'), authorId: member.id, content, parentId: parentId || null }).run();
     await db.update(communityPosts).set({ commentsCount: sql`${communityPosts.commentsCount} + 1` }).where(eq(communityPosts.id, c.req.param('id'))).run();
     return c.json({ id }, 201);
 });
