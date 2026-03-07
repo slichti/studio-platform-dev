@@ -5,22 +5,22 @@ const RESERVED_SUBDOMAINS = ['www', 'api', 'admin', 'app', 'mail', 'staging', 'd
 
 export function getSubdomain(request: Request): string | null {
     const url = new URL(request.url);
-    const hostname = url.hostname;
-
-    const normalizedHostname = hostname.toLowerCase();
+    const hostname = url.hostname.toLowerCase();
 
     // Exact match for base domain -> no subdomain
-    if (normalizedHostname === BASE_DOMAIN) return null;
+    if (hostname === BASE_DOMAIN) return null;
 
     // Must end with .BASE_DOMAIN to be a subdomain
-    if (normalizedHostname.endsWith(`.${BASE_DOMAIN}`)) {
-        const subdomain = normalizedHostname.slice(0, -1 * (BASE_DOMAIN.length + 1)); // Remove .BASE_DOMAIN
+    if (hostname.endsWith(`.${BASE_DOMAIN}`)) {
+        const subdomain = hostname.slice(0, -1 * (BASE_DOMAIN.length + 1));
         if (RESERVED_SUBDOMAINS.includes(subdomain)) {
             return null;
         }
         return subdomain;
     }
-    return null;
+
+    // If it doesn't end with BASE_DOMAIN, it's a custom domain
+    return hostname;
 }
 
 export async function getStudioPage(tenantSlug: string, pageSlug: string) {

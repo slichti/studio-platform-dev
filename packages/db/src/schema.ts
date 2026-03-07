@@ -15,6 +15,7 @@ export const tenants = sqliteTable('tenants', {
     slug: text('slug').notNull().unique(), // subdomain
     name: text('name').notNull(),
     customDomain: text('custom_domain').unique(),
+    communityCustomDomain: text('community_custom_domain').unique(),
     branding: text('branding', { mode: 'json' }), // JSON: { primaryColor, logoUrl, font }
     mobileAppConfig: text('mobile_app_config', { mode: 'json' }), // JSON: { appName, iconUrl, splashUrl, primaryColor }
     settings: text('settings', { mode: 'json' }), // JSON: { enableStudentRegistration, noShowFeeEnabled, noShowFeeAmount, notifications, progressTracking: { studioType, enabledCategories, showLeaderboards } }

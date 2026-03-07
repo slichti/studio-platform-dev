@@ -190,4 +190,120 @@ app.openapi(createRoute({
     }
 });
 
+// GET /community-domain - Get community custom domain status
+app.openapi(createRoute({
+    method: 'get',
+    path: '/community',
+    tags: ['Tenant'],
+    summary: 'Get community custom domain',
+    responses: {
+        200: { content: { 'application/json': { schema: DomainSchema } }, description: 'Domain details' },
+        404: { description: 'No community domain connected' }
+    }
+}), async (c) => {
+    const tenant = c.get('tenant');
+    if (!tenant.communityCustomDomain) return c.json({ error: 'No community domain connected' } as any, 404);
+
+    const cloudflare = new CloudflareService(
+        c.env.CLOUDFLARE_ACCOUNT_ID,
+        c.env.CLOUDFLARE_API_TOKEN
+    );
+
+    try {
+        const domainData = await cloudflare.getDomain(tenant.communityCustomDomain);
+        if (!domainData) {
+            return c.json({
+                domain: tenant.communityCustomDomain,
+                status: 'pending',
+                dns_records: []
+            });
+        }
+        return c.json({
+            domain: domainData.name,
+            status: domainData.status,
+            dns_records: []
+        } as any);
+    } catch (e: any) {
+        return c.json({
+            domain: tenant.communityCustomDomain,
+            status: 'pending',
+            dns_records: []
+        });
+    }
+});
+
+// POST /community-domain - Add community custom domain
+app.openapi(createRoute({
+    method: 'post',
+    path: '/community',
+    tags: ['Tenant'],
+    summary: 'Add community custom domain',
+    request: {
+        body: { content: { 'application/json': { schema: AddDomainSchema } } }
+    },
+    responses: {
+        200: { content: { 'application/json': { schema: DomainSchema } }, description: 'Community domain added' },
+        400: { description: 'Invalid domain' },
+        403: { description: 'Upgrade required' }
+    }
+}), async (c) => {
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant not found" } as any, 404);
+
+    const { domain } = c.req.valid('json');
+
+    // Tier check (Scale only)
+    if (tenant.tier !== 'scale' && !tenant.billingExempt) {
+        return c.json({ error: "Custom domains are available on the Scale plan only." } as any, 403);
+    }
+
+    const db = createDb(c.env.DB);
+    const cloudflare = new CloudflareService(
+        c.env.CLOUDFLARE_ACCOUNT_ID,
+        c.env.CLOUDFLARE_API_TOKEN
+    );
+
+    try {
+        const domainData = await cloudflare.addDomain(domain);
+        await db.update(tenants).set({ communityCustomDomain: domain }).where(eq(tenants.id, tenant.id)).run();
+        return c.json({
+            domain: domainData.name,
+            status: domainData.status,
+            dns_records: []
+        } as any);
+    } catch (e: any) {
+        return c.json({ error: e.message } as any, 500);
+    }
+});
+
+// DELETE /community-domain - Remove community custom domain
+app.openapi(createRoute({
+    method: 'delete',
+    path: '/community',
+    tags: ['Tenant'],
+    summary: 'Remove community custom domain',
+    responses: {
+        200: { content: { 'application/json': { schema: z.object({ success: z.boolean() }) } }, description: 'Community domain removed' }
+    }
+}), async (c) => {
+    const tenant = c.get('tenant');
+    const db = createDb(c.env.DB);
+
+    if (!tenant.communityCustomDomain) return c.json({ success: true });
+
+    const cloudflare = new CloudflareService(
+        c.env.CLOUDFLARE_ACCOUNT_ID,
+        c.env.CLOUDFLARE_API_TOKEN
+    );
+
+    try {
+        await cloudflare.deleteDomain(tenant.communityCustomDomain);
+    } catch (e) {
+        console.error("Failed to delete community domain from Cloudflare", e);
+    }
+
+    await db.update(tenants).set({ communityCustomDomain: null }).where(eq(tenants.id, tenant.id)).run();
+    return c.json({ success: true });
+});
+
 export default app;

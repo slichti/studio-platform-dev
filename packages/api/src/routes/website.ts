@@ -48,6 +48,23 @@ app.get('/public/pages/:slug', async (c) => {
     return c.json({ ...page, tenantSettings: settings });
 });
 
+// Check if a hostname is a community custom domain
+app.get('/public/community-check', async (c) => {
+    const db = drizzle(c.env.DB, { schema });
+    const tenantSlug = c.req.header('X-Tenant-Slug');
+
+    if (!tenantSlug) {
+        return c.json({ isCommunityDomain: false });
+    }
+
+    // A tenantSlug from getSubdomain could be the slug OR the custom domain
+    const tenant = await db.query.tenants.findFirst({
+        where: eq(schema.tenants.communityCustomDomain, tenantSlug),
+    });
+
+    return c.json({ isCommunityDomain: !!tenant });
+});
+
 // --- AUTHENTICATED ROUTES ---
 // Apply auth & tenant middleware
 app.use('/*', authMiddleware);

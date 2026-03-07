@@ -1,13 +1,14 @@
 
 import { type LoaderFunctionArgs, type MetaFunction } from "react-router";
 
-import { Link, useLoaderData } from "react-router";
+import { Link, useLoaderData, redirect } from "react-router";
 import { SignedIn, SignedOut, useUser } from "@clerk/react-router";
 import { PublicNav } from "~/components/PublicNav";
 import { PublicFooter } from "~/components/PublicFooter";
 import { ChatWidget } from "~/components/chat/ChatWidget";
 import { getStudioPage, getSubdomain } from "~/utils/subdomain.server";
 import { lazy, Suspense } from "react";
+import { apiRequest } from "~/utils/api";
 const PublicPageRenderer = lazy(() => import("~/components/website/PublicPageRenderer.client").then(m => ({ default: m.PublicPageRenderer })));
 import { ClientOnly } from "~/components/ClientOnly";
 
@@ -31,7 +32,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const subdomain = getSubdomain(request) || studioOverride;
 
     if (subdomain) {
-        // Fetch the 'home' page for this studio
+        // 1. Check if this is a Community Custom Domain
+        try {
+            const communityCheck = await apiRequest<any>(`/website/public/community-check`, null, {
+                headers: { "X-Tenant-Slug": subdomain }
+            });
+            if (communityCheck.isCommunityDomain) {
+                return redirect(`/community`);
+            }
+        } catch (e) {
+            // If check fails, ignore and proceed to page check
+        }
+
+        // 2. Fetch the 'home' page for this studio
         const page = await getStudioPage(subdomain, 'home');
         if (page) {
             return {

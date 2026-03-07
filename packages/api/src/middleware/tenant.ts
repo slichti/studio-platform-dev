@@ -104,6 +104,16 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
     }
 
     if (!tenant) {
+        // 1.5 Check Community Custom Domain
+        tenant = await db.query.tenants.findFirst({
+            where: eq(tenants.communityCustomDomain, hostname),
+        });
+        if (tenant) {
+            c.set('isCommunityDomain', true);
+        }
+    }
+
+    if (!tenant) {
         // 2. Check Subdomain
         const parts = hostname.split('.');
         if (parts.length > 2) {

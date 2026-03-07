@@ -13,25 +13,71 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const token = await getToken();
 
     try {
-        const res = await apiRequest(`/tenant/domain`, token, {
-            headers: { 'X-Tenant-Slug': params.slug! }
-        });
-        return { domainInfo: res };
+        const [domainInfo, communityDomainInfo] = await Promise.all([
+            apiRequest(`/tenant/domain`, token, { headers: { 'X-Tenant-Slug': params.slug! } }),
+            apiRequest(`/tenant/domain/community`, token, { headers: { 'X-Tenant-Slug': params.slug! } }).catch(() => ({ domain: null }))
+        ]);
+        return { domainInfo, communityDomainInfo };
     } catch (e) {
-        return { domainInfo: { domain: null } };
+        return { domainInfo: { domain: null }, communityDomainInfo: { domain: null } };
     }
 };
 
 export default function DomainSettings() {
     const { tenant } = useOutletContext<any>();
-    const { domainInfo } = useLoaderData<{ domainInfo: any }>();
+    const { domainInfo, communityDomainInfo } = useLoaderData<{ domainInfo: any; communityDomainInfo: any }>();
     const [loading, setLoading] = useState(false);
     const [domainInput, setDomainInput] = useState("");
+    const [communityDomainInput, setCommunityDomainInput] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [showCommunityDeleteConfirm, setShowCommunityDeleteConfirm] = useState(false);
     const [copied, setCopied] = useState(false);
 
     const CNAME_TARGET = "cname.studio-platform.com";
+
+    // ... (Keep existing Scale tier check)
+
+    const handleAddCommunityDomain = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+
+        try {
+            const token = await (window as any).Clerk?.session?.getToken();
+            await apiRequest(`/tenant/domain/community`, token, {
+                method: "POST",
+                headers: { 'X-Tenant-Slug': tenant.slug },
+                body: JSON.stringify({ domain: communityDomainInput })
+            });
+            window.location.reload();
+        } catch (e: any) {
+            setError(e.message || "Failed to add community domain.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const confirmCommunityDelete = async () => {
+        setLoading(true);
+        try {
+            const token = await (window as any).Clerk?.session?.getToken();
+            await apiRequest(`/tenant/domain/community`, token, {
+                method: "DELETE",
+                headers: { 'X-Tenant-Slug': tenant.slug }
+            });
+            window.location.reload();
+        } catch (e: any) {
+            toast.error(e.message);
+        } finally {
+            setLoading(false);
+            setShowCommunityDeleteConfirm(false);
+        }
+    };
+
+    // ... (Existing component logic and return up to line 299)
+    // I will use multi_replace to handle the large structure changes if needed, 
+    // but for now let's try to fit the core additions.
 
     // If tenant is not on Scale plan, show upgrade wall
     if (tenant.tier !== 'scale' && !tenant.billingExempt) {
@@ -298,12 +344,108 @@ export default function DomainSettings() {
                 </div>
             )}
 
+            <div className="mt-12 mb-8 pt-8 border-t border-zinc-100 dark:border-zinc-800">
+                <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Community Domain</h2>
+                <p className="text-zinc-500 dark:text-zinc-400 mt-1">Point a dedicated domain or subdomain specifically to your Community Hub.</p>
+            </div>
+
+            {!communityDomainInfo?.domain ? (
+                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 shadow-sm">
+                    <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Add a Community Domain</h2>
+                    <form onSubmit={handleAddCommunityDomain} className="max-w-md">
+                        <div className="mb-4">
+                            <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2">
+                                Domain Name
+                            </label>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={communityDomainInput}
+                                    onChange={(e) => setCommunityDomainInput(e.target.value)}
+                                    className="flex-1 px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-800 outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="community.example.com"
+                                    disabled={loading}
+                                />
+                                <button
+                                    type="submit"
+                                    disabled={loading || !communityDomainInput}
+                                    className="bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900 px-4 py-2 rounded-md font-medium text-sm hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50"
+                                >
+                                    {loading ? 'Adding...' : 'Add Domain'}
+                                </button>
+                            </div>
+                            <p className="text-xs text-zinc-500 mt-2">
+                                e.g., <span className="font-mono">community.yourstudio.com</span>
+                            </p>
+                        </div>
+                    </form>
+                </div>
+            ) : (
+                <div className="space-y-6">
+                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 shadow-sm">
+                        <div className="flex justify-between items-start mb-6">
+                            <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-full ${communityDomainInfo.status === 'active' ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'}`}>
+                                    {communityDomainInfo.status === 'active' ? <CheckCircle className="w-6 h-6" /> : <RefreshCw className={`w-6 h-6 ${communityDomainInfo.status !== 'active' ? 'animate-spin-slow' : ''}`} />}
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">{communityDomainInfo.domain}</h2>
+                                    <p className={`text-sm font-medium ${communityDomainInfo.status === 'active' ? 'text-green-600' : 'text-yellow-600'}`}>
+                                        {communityDomainInfo.status === 'active' ? 'Active & Secured' : 'Verification Pending'}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setShowCommunityDeleteConfirm(true)}
+                                disabled={loading}
+                                className="text-zinc-400 hover:text-red-600 p-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                            >
+                                <Trash2 className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {communityDomainInfo.status !== 'active' && (
+                            <div className="space-y-6">
+                                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30 rounded-lg p-4 text-sm">
+                                    <p className="mb-4">Point your community domain to our platform via CNAME:</p>
+                                    <div className="bg-white dark:bg-zinc-900 border border-blue-200 dark:border-blue-900 rounded p-3 font-mono flex justify-between items-center gap-4">
+                                        <div className="flex-1">
+                                            <div className="text-[10px] text-zinc-400 uppercase mb-1">Host</div>
+                                            <div className="font-bold">{communityDomainInfo.domain.split('.')[0]}</div>
+                                        </div>
+                                        <div className="flex-[3] border-l border-zinc-100 dark:border-zinc-800 pl-4">
+                                            <div className="text-[10px] text-zinc-400 uppercase mb-1">Target</div>
+                                            <div className="font-bold text-blue-600">{CNAME_TARGET}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="mt-4 flex flex-col items-center gap-2">
+                                    <button onClick={() => window.location.reload()} className="bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900 px-6 py-2 rounded-full font-medium text-sm">
+                                        Check Status
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
             <ConfirmationDialog
                 isOpen={showDeleteConfirm}
                 onClose={() => setShowDeleteConfirm(false)}
                 onConfirm={confirmDelete}
                 title="Disconnect Domain"
                 message="Are you sure? This will disconnect your custom domain immediately. Your studio will revert to the default subdomain."
+                confirmText="Disconnect"
+                isDestructive
+            />
+
+            <ConfirmationDialog
+                isOpen={showCommunityDeleteConfirm}
+                onClose={() => setShowCommunityDeleteConfirm(false)}
+                onConfirm={confirmCommunityDelete}
+                title="Disconnect Community Domain"
+                message="Are you sure you want to disconnect your community domain?"
                 confirmText="Disconnect"
                 isDestructive
             />
