@@ -575,9 +575,9 @@ export default function TenantCommunitySettings() {
                             confirmAction?.type === 'archive' ? "Archive Topic" : "Unarchive Topic"
                     }
                     message={
-                        confirmAction?.type === 'delete' ? `Are you sure you want to permanently delete "${confirmAction.name}"? This action cannot be undone.` :
-                            confirmAction?.type === 'archive' ? `Are you sure you want to archive "${confirmAction.name}"? It will be hidden from the community hub.` :
-                                `Are you sure you want to restore "${confirmAction.name}" to the community hub?`
+                        confirmAction?.type === 'delete' ? `Are you sure you want to permanently delete "${confirmAction?.name || ''}"? This action cannot be undone.` :
+                            confirmAction?.type === 'archive' ? `Are you sure you want to archive "${confirmAction?.name || ''}"? It will be hidden from the community hub.` :
+                                `Are you sure you want to restore "${confirmAction?.name || ''}" to the community hub?`
                     }
                     confirmText={
                         confirmAction?.type === 'delete' ? "Delete Permanently" :
