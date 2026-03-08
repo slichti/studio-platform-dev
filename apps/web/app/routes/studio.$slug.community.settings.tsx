@@ -23,6 +23,8 @@ import {
     Trash2,
     Plus,
     X,
+    BookOpen,
+    CreditCard,
     UserPlus,
     Search,
     Minus
@@ -322,7 +324,11 @@ export default function TenantCommunitySettings() {
     const { data: courses } = useCourses(slug!);
     const { data: plans } = usePlans(slug!);
     const [accessModalTopicId, setAccessModalTopicId] = useState<string | null>(null);
-    const [confirmAction, setConfirmAction] = useState<{ type: 'archive' | 'unarchive' | 'delete', topicId: string, name: string } | null>(null);
+    const [confirmAction, setConfirmAction] = useState<{
+        type: 'archive' | 'unarchive' | 'delete' | 'remove_rule' | 'remove_member',
+        id: string,
+        name: string
+    } | null>(null);
 
     if (error) return <div className="p-8 text-rose-600 font-medium">Error loading settings: {error}</div>;
 
@@ -523,7 +529,7 @@ export default function TenantCommunitySettings() {
                                             className="h-8 text-xs gap-2 rounded-lg"
                                             onClick={() => setConfirmAction({
                                                 type: topic.isArchived ? 'unarchive' : 'archive',
-                                                topicId: topic.id,
+                                                id: topic.id,
                                                 name: topic.name
                                             })}
                                         >
@@ -536,7 +542,7 @@ export default function TenantCommunitySettings() {
                                             className="h-8 w-8 p-0 text-zinc-400 hover:text-rose-600 rounded-lg"
                                             onClick={() => setConfirmAction({
                                                 type: 'delete',
-                                                topicId: topic.id,
+                                                id: topic.id,
                                                 name: topic.name
                                             })}
                                         >
@@ -557,45 +563,95 @@ export default function TenantCommunitySettings() {
                                     </div>
                                 </div>
 
-                                {/* Rules & Members Info Section (Moved below) */}
+                                { /* Rules & Members Info Section (Moved below and organized into columns) */}
                                 {(topic.rules?.length > 0 || topic.memberships?.length > 0) && (
-                                    <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800 flex flex-wrap gap-2">
-                                        {topic.rules?.map((rule: any) => (
-                                            <div key={rule.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-900/20 text-[10px] font-medium text-blue-700 dark:text-blue-300 rounded-lg border border-blue-100 dark:border-blue-800/50">
-                                                <span className="opacity-70">{rule.type === 'course' ? 'Course' : 'Plan'}:</span>
-                                                <span className="font-bold">
-                                                    {rule.type === 'course'
-                                                        ? courses?.find((c: any) => c.id === rule.targetId)?.title || rule.targetId
-                                                        : plans?.find((p: any) => p.id === rule.targetId)?.name || rule.targetId}
-                                                </span>
-                                                <button
-                                                    onClick={() => {
-                                                        if (confirm('Are you sure you want to remove this access rule?')) {
-                                                            removeRule.mutate(rule.id);
-                                                        }
-                                                    }}
-                                                    className="ml-1 p-0.5 hover:bg-blue-100 dark:hover:bg-blue-800/50 rounded-md transition-colors"
-                                                >
-                                                    <X size={10} />
-                                                </button>
+                                    <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8">
+                                            {/* Column 1: Memberships (Plans) */}
+                                            <div className="space-y-2">
+                                                <h4 className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider flex items-center gap-1.5">
+                                                    <CreditCard size={10} /> Memberships
+                                                </h4>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {topic.rules?.filter((r: any) => r.type === 'plan').map((rule: any) => (
+                                                        <div key={rule.id} className="inline-flex items-center gap-1.5 px-2 py-1 bg-blue-50 dark:bg-blue-900/20 text-[10px] font-medium text-blue-700 dark:text-blue-300 rounded-lg border border-blue-100 dark:border-blue-800/50">
+                                                            <span className="font-bold">
+                                                                {plans?.find((p: any) => p.id === rule.targetId)?.name || rule.targetId}
+                                                            </span>
+                                                            <button
+                                                                onClick={() => setConfirmAction({
+                                                                    type: 'remove_rule',
+                                                                    id: rule.id,
+                                                                    name: `the ${plans?.find((p: any) => p.id === rule.targetId)?.name || 'plan'} rule`
+                                                                })}
+                                                                className="ml-1 p-0.5 hover:bg-blue-100 dark:hover:bg-blue-800/50 rounded-md transition-colors"
+                                                            >
+                                                                <X size={10} />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                    {topic.rules?.filter((r: any) => r.type === 'plan').length === 0 && (
+                                                        <span className="text-[10px] text-zinc-400 italic">No plan rules</span>
+                                                    )}
+                                                </div>
                                             </div>
-                                        ))}
-                                        {topic.memberships?.map((m: any) => (
-                                            <div key={m.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-50 dark:bg-green-900/20 text-[10px] font-medium text-green-700 dark:text-green-300 rounded-lg border border-green-100 dark:border-green-800/50">
-                                                <span className="opacity-70">Member:</span>
-                                                <span className="font-bold">{m.member?.user?.profile?.firstName || 'User'}</span>
-                                                <button
-                                                    onClick={() => {
-                                                        if (confirm(`Are you sure you want to remove ${m.member?.user?.profile?.firstName || 'this member'}?`)) {
-                                                            removeMember.mutate(m.id);
-                                                        }
-                                                    }}
-                                                    className="ml-1 p-0.5 hover:bg-green-100 dark:hover:bg-green-800/50 rounded-md transition-colors"
-                                                >
-                                                    <X size={10} />
-                                                </button>
+
+                                            {/* Column 2: Courses */}
+                                            <div className="space-y-2">
+                                                <h4 className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider flex items-center gap-1.5">
+                                                    <BookOpen size={10} /> Courses
+                                                </h4>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {topic.rules?.filter((r: any) => r.type === 'course').map((rule: any) => (
+                                                        <div key={rule.id} className="inline-flex items-center gap-1.5 px-2 py-1 bg-purple-50 dark:bg-purple-900/20 text-[10px] font-medium text-purple-700 dark:text-purple-300 rounded-lg border border-purple-100 dark:border-purple-800/50">
+                                                            <span className="font-bold">
+                                                                {courses?.find((c: any) => c.id === rule.targetId)?.title || rule.targetId}
+                                                            </span>
+                                                            <button
+                                                                onClick={() => setConfirmAction({
+                                                                    type: 'remove_rule',
+                                                                    id: rule.id,
+                                                                    name: `the ${courses?.find((c: any) => c.id === rule.targetId)?.title || 'course'} rule`
+                                                                })}
+                                                                className="ml-1 p-0.5 hover:bg-purple-100 dark:hover:bg-purple-800/50 rounded-md transition-colors"
+                                                            >
+                                                                <X size={10} />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                    {topic.rules?.filter((r: any) => r.type === 'course').length === 0 && (
+                                                        <span className="text-[10px] text-zinc-400 italic">No course rules</span>
+                                                    )}
+                                                </div>
                                             </div>
-                                        ))}
+
+                                            {/* Column 3: Individual Members */}
+                                            <div className="space-y-2">
+                                                <h4 className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider flex items-center gap-1.5">
+                                                    <Users size={10} /> Members
+                                                </h4>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {topic.memberships?.map((m: any) => (
+                                                        <div key={m.id} className="inline-flex items-center gap-1.5 px-2 py-1 bg-green-50 dark:bg-green-900/20 text-[10px] font-medium text-green-700 dark:text-green-300 rounded-lg border border-green-100 dark:border-green-800/50">
+                                                            <span className="font-bold">{m.member?.user?.profile?.firstName || 'User'}</span>
+                                                            <button
+                                                                onClick={() => setConfirmAction({
+                                                                    type: 'remove_member',
+                                                                    id: m.id,
+                                                                    name: m.member?.user?.profile?.firstName || 'this member'
+                                                                })}
+                                                                className="ml-1 p-0.5 hover:bg-green-100 dark:hover:bg-green-800/50 rounded-md transition-colors"
+                                                            >
+                                                                <X size={10} />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                    {topic.memberships?.length === 0 && (
+                                                        <span className="text-[10px] text-zinc-400 italic">No manual members</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -619,27 +675,36 @@ export default function TenantCommunitySettings() {
                     onClose={() => setConfirmAction(null)}
                     title={
                         confirmAction?.type === 'delete' ? "Delete Topic" :
-                            confirmAction?.type === 'archive' ? "Archive Topic" : "Unarchive Topic"
+                            confirmAction?.type === 'archive' ? "Archive Topic" :
+                                confirmAction?.type === 'unarchive' ? "Unarchive Topic" :
+                                    confirmAction?.type === 'remove_rule' ? "Remove Access Rule" : "Remove Member"
                     }
                     message={
                         confirmAction?.type === 'delete' ? `Are you sure you want to permanently delete "${confirmAction?.name || ''}"? This action cannot be undone.` :
                             confirmAction?.type === 'archive' ? `Are you sure you want to archive "${confirmAction?.name || ''}"? It will be hidden from the community hub.` :
-                                `Are you sure you want to restore "${confirmAction?.name || ''}" to the community hub?`
+                                confirmAction?.type === 'unarchive' ? `Are you sure you want to restore "${confirmAction?.name || ''}" to the community hub?` :
+                                    confirmAction?.type === 'remove_rule' ? `Are you sure you want to remove ${confirmAction?.name || ''}?` :
+                                        `Are you sure you want to remove ${confirmAction?.name || ''} from this topic?`
                     }
                     confirmText={
                         confirmAction?.type === 'delete' ? "Delete Permanently" :
-                            confirmAction?.type === 'archive' ? "Archive Topic" : "Unarchive Topic"
+                            confirmAction?.type === 'archive' ? "Archive Topic" :
+                                confirmAction?.type === 'unarchive' ? "Unarchive Topic" : "Remove Access"
                     }
-                    variant={confirmAction?.type === 'delete' ? "destructive" : "default"}
+                    variant={confirmAction?.type === 'delete' || confirmAction?.type === 'remove_rule' || confirmAction?.type === 'remove_member' ? "destructive" : "default"}
                     onConfirm={() => {
                         if (!confirmAction) return;
                         if (confirmAction.type === 'delete') {
-                            deleteTopic.mutate(confirmAction.topicId);
-                        } else {
+                            deleteTopic.mutate(confirmAction.id);
+                        } else if (confirmAction.type === 'archive' || confirmAction.type === 'unarchive') {
                             updateTopic.mutate({
-                                id: confirmAction.topicId,
+                                id: confirmAction.id,
                                 data: { isArchived: confirmAction.type === 'archive' }
                             });
+                        } else if (confirmAction.type === 'remove_rule') {
+                            removeRule.mutate(confirmAction.id);
+                        } else if (confirmAction.type === 'remove_member') {
+                            removeMember.mutate(confirmAction.id);
                         }
                     }}
                 />
