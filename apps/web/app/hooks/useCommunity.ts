@@ -116,15 +116,18 @@ export function useCommunity(slug: string, filters: { type?: string; topicId?: s
     };
 }
 
-export function useCommunityTopics(slug: string) {
+export function useCommunityTopics(slug: string, filters: { includeArchived?: boolean } = {}) {
     const { getToken } = useAuth();
     const queryClient = useQueryClient();
 
     const query = useQuery({
-        queryKey: ['community', 'topics', slug],
+        queryKey: ['community', 'topics', slug, filters],
         queryFn: async () => {
             const token = await getToken();
-            return apiRequest(`/community/topics`, token, {
+            const searchParams = new URLSearchParams();
+            if (filters.includeArchived) searchParams.set('includeArchived', 'true');
+
+            return apiRequest(`/community/topics?${searchParams.toString()}`, token, {
                 headers: { 'X-Tenant-Slug': slug }
             });
         },
@@ -194,6 +197,76 @@ export function useCommunityComments(slug: string, postId: string | null) {
         },
         enabled: !!slug && !!postId
     });
+}
+
+export function useTopicDetails(slug: string, topicId: string | null) {
+    const { getToken } = useAuth();
+
+    return useQuery({
+        queryKey: ['community', 'topic', slug, topicId],
+        queryFn: async () => {
+            const token = await getToken();
+            return apiRequest(`/community/topics/${topicId}`, token, {
+                headers: { 'X-Tenant-Slug': slug }
+            });
+        },
+        enabled: !!slug && !!topicId
+    });
+}
+
+export function useTopicRules(slug: string, topicId: string) {
+    const { getToken } = useAuth();
+    const queryClient = useQueryClient();
+
+    const addRule = useMutation({
+        mutationFn: async (data: { type: 'course' | 'membership_plan' | 'group'; targetId: string }) => {
+            const token = await getToken();
+            return apiRequest(`/community/topics/${topicId}/rules`, token, {
+                method: 'POST',
+                headers: { 'X-Tenant-Slug': slug },
+                body: JSON.stringify(data)
+            });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['community', 'topic', slug, topicId] });
+        }
+    });
+
+    const removeRule = useMutation({
+        mutationFn: async (ruleId: string) => {
+            const token = await getToken();
+            return apiRequest(`/community/topics/rules/${ruleId}`, token, {
+                method: 'DELETE',
+                headers: { 'X-Tenant-Slug': slug }
+            });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['community', 'topic', slug, topicId] });
+        }
+    });
+
+    return { addRule, removeRule };
+}
+
+export function useTopicMembers(slug: string, topicId: string) {
+    const { getToken } = useAuth();
+    const queryClient = useQueryClient();
+
+    const addMember = useMutation({
+        mutationFn: async (data: { memberId: string; role?: string }) => {
+            const token = await getToken();
+            return apiRequest(`/community/topics/${topicId}/members`, token, {
+                method: 'POST',
+                headers: { 'X-Tenant-Slug': slug },
+                body: JSON.stringify(data)
+            });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['community', 'topic', slug, topicId] });
+        }
+    });
+
+    return { addMember };
 }
 
 export function useMemberPreview(slug: string, memberId: string | null) {

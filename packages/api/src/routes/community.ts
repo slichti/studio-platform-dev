@@ -121,12 +121,17 @@ app.get('/topics', async (c) => {
     if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
 
     const canManage = c.get('can')('manage_marketing');
-    // Filter out archived topics for everyone
+    const includeArchived = c.req.query('includeArchived') === 'true';
+
+    // Filter out archived topics for everyone unless explicitly requested by admin
     let topics;
     if (canManage) {
         topics = await db.select()
             .from(communityTopics)
-            .where(and(eq(communityTopics.tenantId, tenant.id), sql`${communityTopics.isArchived} IS NOT TRUE`))
+            .where(and(
+                eq(communityTopics.tenantId, tenant.id),
+                includeArchived ? sql`1=1` : sql`${communityTopics.isArchived} IS NOT TRUE`
+            ))
             .orderBy(communityTopics.name)
             .all();
     } else if (!member) {
