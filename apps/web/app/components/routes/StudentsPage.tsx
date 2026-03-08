@@ -109,7 +109,7 @@ export default function StudentsPage() {
             else {
                 toast.success("Member added");
                 setIsAddingMember(false);
-                queryClient.invalidateQueries({ queryKey: ['members', slug] });
+                queryClient.invalidateQueries({ queryKey: ['members'] });
             }
         } catch (e: any) {
             const msg = e.message || 'Failed to add member';
@@ -131,7 +131,7 @@ export default function StudentsPage() {
             if (res.error) toast.error(res.error);
             else {
                 toast.success(`Status updated to ${newStatus}`);
-                queryClient.invalidateQueries({ queryKey: ['members', slug] });
+                queryClient.invalidateQueries({ queryKey: ['members'] });
             }
         } catch (e: any) {
             toast.error(e.message);
@@ -152,7 +152,7 @@ export default function StudentsPage() {
             else {
                 toast.success("Member removed");
                 setEditingMember(null);
-                queryClient.invalidateQueries({ queryKey: ['members', slug] });
+                queryClient.invalidateQueries({ queryKey: ['members'] });
             }
         } catch (e: any) {
             toast.error(e.message);
@@ -483,7 +483,7 @@ export default function StudentsPage() {
                                     } else {
                                         toast.success("Member updated");
                                         setEditingMember(null);
-                                        queryClient.invalidateQueries({ queryKey: ['members', slug] });
+                                        queryClient.invalidateQueries({ queryKey: ['members'] });
                                     }
                                 } catch (e: any) {
                                     toast.error(e.message);

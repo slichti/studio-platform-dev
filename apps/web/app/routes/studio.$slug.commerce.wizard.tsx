@@ -101,10 +101,11 @@ export default function PricingWizard() {
             }
 
             const items = newItems.map(item => ({
-                type: item.type,
+                type: item.type, // 'pack' or 'membership'
                 name: item.finalName,
                 price: Math.round(Number(item.finalPrice) * 100), // API expects cents
                 credits: item.type === 'pack' ? item.quantity : undefined,
+                quantity: item.type === 'pack' ? item.quantity : undefined, // Send both for compatibility
                 interval: item.type === 'membership' ? item.interval : undefined
             }));
 
@@ -114,12 +115,31 @@ export default function PricingWizard() {
                 body: JSON.stringify({ items })
             });
 
-            if (res.error) throw new Error(res.error);
+            if (res.error) {
+                const errorMsg = typeof res.error === 'string' ? res.error : (res.error.message || "Bulk creation failed");
+                throw new Error(errorMsg);
+            }
 
-            const created = res.created ?? res.results?.filter((r: any) => r.status === 'created').length ?? 0;
-            const skipped = res.skipped ?? (customizedItems.length - newItems.length);
-            toast.success(`Created ${created} pricing options!${skipped > 0 ? ` (${skipped} already existed, skipped)` : ''}`);
-            navigate(`/studio/${tenant.slug}/commerce/packs`);
+            const created = res.results?.filter((r: any) => r.status === 'created') || [];
+            const skipped = res.results?.filter((r: any) => r.status === 'skipped') || [];
+            const failed = res.results?.filter((r: any) => r.status === 'failed') || [];
+
+            if (created.length > 0) {
+                toast.success(`Successfully created: ${created.map(r => r.name).join(', ')}`);
+            }
+            if (skipped.length > 0) {
+                toast.info(`Skipped (already exist): ${skipped.map(r => r.name).join(', ')}`);
+            }
+            if (failed.length > 0) {
+                toast.error(`Failed to create: ${failed.map(r => `${r.name} (${r.error || 'Unknown error'})`).join(', ')}`);
+            }
+
+            if (created.length > 0 || skipped.length > 0) {
+                // If we did something useful, navigate back
+                setTimeout(() => {
+                    navigate(`/studio/${tenant.slug}/commerce/packs`);
+                }, 1500);
+            }
         } catch (e: any) {
             toast.error(e.message || "Failed to create products");
         } finally {

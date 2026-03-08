@@ -381,34 +381,50 @@ app.post('/products/bulk', async (c) => {
 
     for (const item of items) {
         try {
-            // Idempotency: skip if a product with same name and type already exists
-            if (item.type === 'pack') {
+            // Normalize type - handle both 'pack' and 'class_pack'
+            const type = item.type === 'class_pack' || item.type === 'pack' ? 'pack' : item.type;
+            const name = item.name;
+
+            // Idempotency: skip if a product with same name and type already exists (case-insensitive)
+            if (type === 'pack') {
                 const existing = await db.select({ id: classPackDefinitions.id }).from(classPackDefinitions)
-                    .where(and(eq(classPackDefinitions.tenantId, tenant.id), eq(classPackDefinitions.name, item.name), eq(classPackDefinitions.active, true))).get();
+                    .where(and(
+                        eq(classPackDefinitions.tenantId, tenant.id),
+                        sql`LOWER(${classPackDefinitions.name}) = LOWER(${name})`,
+                        eq(classPackDefinitions.active, true)
+                    )).get();
                 if (existing) {
-                    results.push({ name: item.name, status: 'skipped' });
+                    results.push({ name, status: 'skipped' });
                     skipped++;
                     continue;
                 }
-            } else if (item.type === 'membership') {
+            } else if (type === 'membership') {
                 const existing = await db.select({ id: membershipPlans.id }).from(membershipPlans)
-                    .where(and(eq(membershipPlans.tenantId, tenant.id), eq(membershipPlans.name, item.name), eq(membershipPlans.active, true))).get();
+                    .where(and(
+                        eq(membershipPlans.tenantId, tenant.id),
+                        sql`LOWER(${membershipPlans.name}) = LOWER(${name})`,
+                        eq(membershipPlans.active, true)
+                    )).get();
                 if (existing) {
-                    results.push({ name: item.name, status: 'skipped' });
+                    results.push({ name, status: 'skipped' });
                     skipped++;
                     continue;
                 }
+            } else {
+                // Unknown type, skip explicitly to avoid random processing
+                results.push({ name, status: 'failed', error: 'Invalid product type' });
+                continue;
             }
 
             const stripeProduct = await stripe.createProduct({
-                name: `${tenant.name} - ${item.name}`,
+                name: `${tenant.name} - ${name}`,
                 active: true,
-                metadata: { tenantId: tenant.id, type: item.type },
+                metadata: { tenantId: tenant.id, type: type },
                 taxCode: 'txcd_00000000'
             }, tenant.stripeAccountId || undefined);
 
             let recurring = undefined;
-            if (item.type === 'membership' && item.interval) {
+            if (type === 'membership' && item.interval) {
                 recurring = { interval: (item.interval === 'annual' ? 'year' : 'month') as any, interval_count: 1 };
             }
 
@@ -420,20 +436,32 @@ app.post('/products/bulk', async (c) => {
             }, tenant.stripeAccountId || undefined);
 
             const id = crypto.randomUUID();
-            if (item.type === 'pack') {
+            if (type === 'pack') {
                 await db.insert(classPackDefinitions).values({
-                    id, tenantId: tenant.id, name: item.name, price: item.price,
-                    credits: item.credits || 1, expirationDays: item.expirationDays || null,
-                    stripeProductId: stripeProduct.id, stripePriceId: stripePrice.id, active: true
+                    id,
+                    tenantId: tenant.id,
+                    name,
+                    price: item.price,
+                    // Use credits or quantity (frontend uses quantity, backend uses credits)
+                    credits: item.credits || item.quantity || 1,
+                    expirationDays: item.expirationDays || null,
+                    stripeProductId: stripeProduct.id,
+                    stripePriceId: stripePrice.id,
+                    active: true
                 }).run();
-            } else if (item.type === 'membership') {
+            } else if (type === 'membership') {
                 await db.insert(membershipPlans).values({
-                    id, tenantId: tenant.id, name: item.name, price: item.price,
+                    id,
+                    tenantId: tenant.id,
+                    name,
+                    price: item.price,
                     interval: item.interval === 'annual' ? 'year' : 'month',
-                    stripeProductId: stripeProduct.id, stripePriceId: stripePrice.id, active: true
+                    stripeProductId: stripeProduct.id,
+                    stripePriceId: stripePrice.id,
+                    active: true
                 }).run();
             }
-            results.push({ name: item.name, status: 'created', id });
+            results.push({ name, status: 'created', id });
             created++;
         } catch (e: any) {
             results.push({ name: item.name, status: 'failed', error: e.message });
