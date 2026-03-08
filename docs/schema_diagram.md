@@ -505,6 +505,13 @@ erDiagram
         timestamp created_at
         timestamp updated_at
     }
+    community_topic_access_rules {
+        string id PK
+        string topic_id FK
+        enum type "course, membership_plan, group"
+        string target_id "Linked entity ID"
+        timestamp created_at
+    }
 
     community_topic_memberships {
         string id PK
@@ -534,8 +541,10 @@ erDiagram
     community_posts ||--o{ community_comments : "has"
     community_posts ||--o{ community_reactions : "receives"
     community_posts }|--o| community_topics : "categorized in"
-    community_topics ||--o{ community_topic_memberships : "has"
-    users ||--o{ community_topic_memberships : "joined via eligibility"
+    community_topic_memberships ||--o{ tenant_members : "belongs to"
+    community_topic_access_rules }|--|| community_topics : "governs"
+    community_topic_access_rules }|--o| courses : "links to"
+    community_topic_access_rules }|--o| membership_plans : "links to"
 
     %% ─────────────────────────────────────────────
     %% SEO Content Automation (Tier 7)

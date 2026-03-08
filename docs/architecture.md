@@ -439,7 +439,7 @@ To adhere to the Cloudflare Worker 1MB bundle size limit, the application employ
 
 ### Perceived Performance & UX
 *   **Skeleton Loading**: The platform uses a centralized `SkeletonLoader` component to provide consistent visual feedback across the Dashboard, Analytics, and Student Portal during initial data hydration.
-*   **Optimized Layouts**: Core content areas (e.g., Community Hub) employ `max-width` constraints and horizontal centering on large displays to ensure optimal readability and a premium aesthetic, preventing content from feeling "stretched" on ultra-wide monitors.
+*   **Optimized Layouts**: Core content areas (e.g., Community Hub) employ left-aligned grid systems and horizontal constraints (`max-w-screen-2xl`) on large displays. This ensures high readability and a balanced visual hierarchy that matches the studio administration dashboard.
 *   **Pagination & Infinite Scroll**: To handle large datasets (e.g., hundreds of scheduled classes), list views implement `useInfiniteQuery` (Admin) or custom `useFetcher` patterns (Portal) to load data in chunks, significantly reducing initial payload size and Time-to-Interactive (TTI).
 
 ### Mobile Optimization
@@ -557,6 +557,7 @@ The student-facing portal lives at `/portal/:slug/*` and requires the authentica
 | `/portal/:slug/courses` | Course catalog + enrollments | `GET /courses`, `GET /courses/:id/my-completions` |
 | `/portal/:slug/courses/:courseSlug` | LMS player (video/quiz/assignment) | Course + curriculum endpoints |
 | `/portal/:slug/memberships` | Plan browser + active subscription | `GET /memberships/plans`, `GET /memberships/my-active` |
+| `/portal/:slug/community` | Activity feed, topics, and discussions | `GET /community`, `GET /community/topics` |
 | `/portal/:slug/profile` | Stats, memberships, inline profile edit | `GET /members/me`, `PATCH /users/me` |
 
 ### Portal Data Flow

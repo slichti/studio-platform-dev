@@ -1861,6 +1861,7 @@ export const tenantMembersRelations = relations(tenantMembers, ({ one, many }) =
     purchasedPacks: many(purchasedPacks),
     waiverSignatures: many(waiverSignatures),
     tags: many(tagAssignments),
+    communityTopics: many(communityTopicMemberships),
 }));
 
 export const studentNotesRelations = relations(studentNotes, ({ one }) => ({

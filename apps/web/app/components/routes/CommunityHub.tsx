@@ -267,29 +267,34 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
     );
 
     return (
-        <div className="p-6 min-h-screen flex flex-col items-center">
-            <div className="w-full max-w-4xl">
-                <div className="flex justify-between items-center mb-8">
-                    <div>
-                        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Community Hub</h1>
-                        <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">Connect and grow with your studio family.</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button variant="outline" size="icon" className="md:hidden">
-                            <Users size={20} />
-                        </Button>
-                        <Link
-                            to={`/studio/${slug}/community/settings`}
-                            className="p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all text-zinc-500"
-                        >
-                            <Settings size={20} />
-                        </Link>
+        <div className="p-6 min-h-screen flex flex-col items-start">
+            <div className="w-full max-w-screen-2xl">
+                <div className="flex flex-col mb-8 text-left">
+                    <div className="flex items-center justify-between gap-4">
+                        <div>
+                            <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-3">
+                                <MessageSquare className="text-primary h-8 w-8" />
+                                Community Hub
+                            </h1>
+                            <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">Connect and grow with your studio family.</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button variant="outline" size="icon" className="md:hidden">
+                                <Users size={20} />
+                            </Button>
+                            <Link
+                                to={`/studio/${slug}/community/settings`}
+                                className="p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all text-zinc-500"
+                            >
+                                <Settings size={20} />
+                            </Link>
+                        </div>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                    {/* Left Sidebar: Topics */}
-                    <aside className="hidden lg:block space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    {/* Left Sidebar: Topics - 3 cols */}
+                    <aside className="hidden lg:block lg:col-span-3 space-y-6">
                         <Card className="border-none shadow-md bg-muted/20">
                             <CardHeader className="p-4 flex flex-row items-center justify-between">
                                 <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
@@ -304,14 +309,17 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
                                 <button
                                     onClick={() => setSelectedTopicId(null)}
                                     className={cn(
-                                        "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-medium text-xs",
+                                        "w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all font-medium text-xs",
                                         !selectedTopicId
                                             ? "bg-primary text-primary-foreground shadow-md ring-1 ring-primary"
                                             : "hover:bg-muted text-muted-foreground"
                                     )}
                                 >
-                                    <Users size={16} />
-                                    Everyone
+                                    <div className="flex items-center gap-3">
+                                        <Users size={16} />
+                                        Everyone
+                                    </div>
+                                    {!selectedTopicId && <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-primary-foreground text-primary border-none">Active</Badge>}
                                 </button>
                                 {topics.map((topic: any) => (
                                     <div key={topic.id} className="group relative">
@@ -326,9 +334,19 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
                                         >
                                             <div className="flex items-center gap-3">
                                                 <Hash size={16} className={cn(selectedTopicId === topic.id ? "text-primary-foreground" : "text-primary")} />
-                                                {topic.name}
+                                                <span className="truncate">{topic.name}</span>
                                             </div>
-                                            {topic.isNew && <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />}
+                                            <div className="flex items-center gap-2">
+                                                {topic.memberships?.length > 0 && (
+                                                    <span className={cn(
+                                                        "text-[10px] opacity-60 font-bold",
+                                                        selectedTopicId === topic.id ? "text-primary-foreground" : "text-muted-foreground"
+                                                    )}>
+                                                        {topic.memberships.length}
+                                                    </span>
+                                                )}
+                                                {topic.isNew && <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />}
+                                            </div>
                                         </button>
 
                                         {/* Admin Controls */}
@@ -395,8 +413,8 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
                         </Card>
                     </aside>
 
-                    {/* Main Feed */}
-                    <main className="lg:col-span-3 space-y-8">
+                    {/* Main Feed - 6 cols */}
+                    <main className="lg:col-span-6 space-y-8">
                         {/* Create Post Card */}
                         <Card className="border-none shadow-xl bg-gradient-to-br from-background to-muted/30 overflow-hidden ring-1 ring-border/50">
                             <CardContent className="p-6">
@@ -433,9 +451,9 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
                                                     </button>
                                                 ))}
                                                 {selectedPostTopicId === null && (
-                                                    <span className="text-[10px] text-muted-foreground flex items-center italic">
-                                                        Topic removed. This will post to Everyone.
-                                                    </span>
+                                                    <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 gap-1.5 py-1 text-[10px] font-bold uppercase tracking-wider">
+                                                        <Users size={12} /> Posting to Everyone
+                                                    </Badge>
                                                 )}
                                             </div>
                                         )}
@@ -555,6 +573,55 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
                             )}
                         </div>
                     </main>
+
+                    {/* Right Sidebar: Activity/Members - 3 cols */}
+                    <aside className="hidden lg:block lg:col-span-3 space-y-6">
+                        <Card className="border-none shadow-md bg-muted/10 ring-1 ring-border/50">
+                            <CardHeader className="p-4 flex flex-row items-center gap-2">
+                                <Sparkles size={16} className="text-amber-500" />
+                                <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Recognized Today</CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-4 pt-0 space-y-4">
+                                <div className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-zinc-900 shadow-sm border border-zinc-100 dark:border-zinc-800 group hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer">
+                                    <Avatar className="h-10 w-10 ring-2 ring-amber-500/20">
+                                        <AvatarImage src="/api/placeholder/40/40" />
+                                        <AvatarFallback>SL</AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1">
+                                        <div className="text-sm font-bold truncate">Steven Lichti</div>
+                                        <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Active Contributor</div>
+                                    </div>
+                                    <div className="h-6 w-6 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                                        <Flame size={12} className="text-amber-600 dark:text-amber-400" />
+                                    </div>
+                                </div>
+                                <p className="text-[10px] text-zinc-500 text-center italic">Recognizing our most helpful community members!</p>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="border-none shadow-md bg-muted/10 ring-1 ring-border/50 overflow-hidden">
+                            <CardHeader className="p-4 border-b border-border/50">
+                                <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Studio News</CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                <div className="p-4 space-y-3">
+                                    <div className="space-y-1">
+                                        <div className="text-[10px] font-bold text-primary uppercase">Mar 15</div>
+                                        <div className="text-xs font-bold leading-snug">Spring Equinox Workshop - Tickets now available!</div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <div className="text-[10px] font-bold text-primary uppercase">Mar 22</div>
+                                        <div className="text-xs font-bold leading-snug">New Nature Topic member meetup</div>
+                                    </div>
+                                </div>
+                                <Link to={`/studio/${slug}/schedule`}>
+                                    <Button variant="ghost" className="w-full text-xs py-3 rounded-none border-t border-border/50 text-primary">
+                                        View Schedule
+                                    </Button>
+                                </Link>
+                            </CardContent>
+                        </Card>
+                    </aside>
                 </div>
 
                 <MemberPreviewModal
@@ -726,8 +793,8 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 }
 

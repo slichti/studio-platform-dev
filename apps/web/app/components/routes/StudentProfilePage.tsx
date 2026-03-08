@@ -23,6 +23,7 @@ import { toast } from "sonner";
 
 import { useMember, useMemberNotes, useMemberCoupons } from "../../hooks/useMember";
 import { usePacks } from "../../hooks/usePacks";
+import { useCommunityTopics, useTopicMembers } from "../../hooks/useCommunity";
 import { apiRequest, API_URL } from "../../utils/api";
 import { ComponentErrorBoundary } from "../ErrorBoundary";
 
@@ -48,6 +49,7 @@ export default function StudentProfilePageComponent() {
     const { data: notes, isLoading: loadingNotes } = useMemberNotes(slug || '', memberId);
     const { data: coupons, isLoading: loadingCoupons } = useMemberCoupons(slug || '', memberId);
     const { data: availablePacks } = usePacks(slug || '');
+    const { topics: allTopics, isLoading: loadingAllTopics } = useCommunityTopics(slug || '');
 
     const { data: communicationsData } = useQuery({
         queryKey: ['member-communications', slug, memberId],
@@ -371,6 +373,7 @@ export default function StudentProfilePageComponent() {
                     {[
                         { id: "overview", label: "Overview" },
                         { id: "memberships", label: "Memberships & Credits" },
+                        { id: "community", label: "Community Hub" },
                         { id: "coupons", label: "Generated Coupons" },
                         { id: "attendance", label: "Attendance" },
                         { id: "communications", label: "Communications" },
@@ -781,6 +784,111 @@ export default function StudentProfilePageComponent() {
                                     ))}
                                 </div>
                             )}
+                        </div>
+                    )}
+
+                    {activeTab === "community" && (
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Community Topics</h3>
+                                <div className="text-sm text-zinc-500">
+                                    Manage which topics this student can access.
+                                </div>
+                            </div>
+
+                            <Card className="overflow-hidden">
+                                <table className="w-full text-left text-sm">
+                                    <thead className="bg-zinc-50 border-b border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700">
+                                        <tr>
+                                            <th className="px-4 py-3 font-medium text-zinc-500">Topic</th>
+                                            <th className="px-4 py-3 font-medium text-zinc-500">Access Method</th>
+                                            <th className="px-4 py-3 font-medium text-zinc-500 text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                        {(allTopics || []).map((topic: any) => {
+                                            const isExplicitMember = member.communityTopics?.some((m: any) => m.topicId === topic.id);
+                                            const hasRuleAccess = member.visibleCommunityTopics?.some((vt: any) => vt.id === topic.id);
+                                            const membershipId = member.communityTopics?.find((m: any) => m.topicId === topic.id)?.id;
+
+                                            return (
+                                                <tr key={topic.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="h-8 w-8 rounded-lg flex items-center justify-center text-white" style={{ backgroundColor: topic.color || '#6366f1' }}>
+                                                                <MessageSquare size={16} />
+                                                            </div>
+                                                            <div>
+                                                                <div className="font-medium text-zinc-900 dark:text-zinc-100">{topic.name}</div>
+                                                                <div className="text-xs text-zinc-500">{topic.visibility}</div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {isExplicitMember && (
+                                                                <Badge variant="success">Manual Member</Badge>
+                                                            )}
+                                                            {hasRuleAccess && !isExplicitMember && (
+                                                                <Badge variant="blue">Access via Rule</Badge>
+                                                            )}
+                                                            {!isExplicitMember && !hasRuleAccess && (
+                                                                <span className="text-zinc-400">No Access</span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right">
+                                                        {isExplicitMember ? (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                onClick={async () => {
+                                                                    if (confirm(`Remove manual access to ${topic.name}?`)) {
+                                                                        const token = await getToken();
+                                                                        await apiRequest(`/community/topics/members/${membershipId}`, token, {
+                                                                            method: 'DELETE',
+                                                                            headers: { 'X-Tenant-Slug': slug! }
+                                                                        });
+                                                                        queryClient.invalidateQueries({ queryKey: ['member', slug, memberId] });
+                                                                        toast.success("Access removed");
+                                                                    }
+                                                                }}
+                                                            >
+                                                                Remove Access
+                                                            </Button>
+                                                        ) : (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={async () => {
+                                                                    const token = await getToken();
+                                                                    await apiRequest(`/community/topics/${topic.id}/members`, token, {
+                                                                        method: 'POST',
+                                                                        headers: { 'X-Tenant-Slug': slug! },
+                                                                        body: JSON.stringify({ memberId })
+                                                                    });
+                                                                    queryClient.invalidateQueries({ queryKey: ['member', slug, memberId] });
+                                                                    toast.success("Access granted");
+                                                                }}
+                                                            >
+                                                                Grant Access
+                                                            </Button>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                        {(!allTopics || allTopics.length === 0) && (
+                                            <tr>
+                                                <td colSpan={3} className="px-4 py-8 text-center text-zinc-500">
+                                                    No community topics found.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </Card>
                         </div>
                     )}
 

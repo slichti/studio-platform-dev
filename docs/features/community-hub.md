@@ -32,8 +32,17 @@ Topics can have different visibility levels regulated by a dynamic eligibility e
 - **Engagement**: Rich reactions (Like, Love, Celebrate, Fire) and nested comments.
 
 ### 6. UX & Layout Architecture
-- **Optimized Readability**: The content area is constrained to a `max-width` (centered) on large monitors to prevent line-length fatigue and maintain a premium, balanced feel.
+- **Optimized Readability**: Content areas use a wider `max-width: screen-2xl` on high-resolution displays to accommodate more information without feeling "stretched."
+- **Dashboard Consistency**: The title and main feed follow a left-aligned grid structure congruent with the main studio administration dashboard.
+- **Sidebars & Activity**:
+    - **Topic Member Counts**: Each topic in the sidebar displays the current active member count.
+    - **Recognized Today**: A dedicated sidebar section for celebrating top contributors and community leaders.
+    - **Studio News**: Integrated feed for upcoming studio events, workshops, and announcements.
 - **Responsive Design**: Sidebar topics collapse into a mobile-friendly menu on smaller viewports.
+
+### 7. Admin & Profile Integration
+- **Student Profile Management**: A "Community Hub" tab on the student profile allows admins to manage an individual's topic memberships directly.
+- **Rule Visibility**: Admins can see exactly why a member has access to a topic (e.g., via a specific course or membership plan) directly from their profile.
 
 ## API Architecture
 

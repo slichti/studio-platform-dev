@@ -558,9 +558,35 @@ const getMemberRoute = createRoute({
 app.openapi(getMemberRoute, async (c) => {
     if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
-    const m = await db.query.tenantMembers.findFirst({ where: and(eq(tenantMembers.id, c.req.valid('param').id), eq(tenantMembers.tenantId, c.get('tenant')!.id)), with: { user: true, roles: true, memberships: { with: { plan: true } }, purchasedPacks: { with: { definition: true }, orderBy: [desc(purchasedPacks.createdAt)] }, bookings: { with: { class: true }, orderBy: [desc(bookings.createdAt)], limit: 20 }, waiverSignatures: { with: { template: true }, orderBy: [desc(waiverSignatures.signedAt)] } } });
+    const tenant = c.get('tenant')!;
+    const memberId = c.req.valid('param').id;
+
+    const m = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.id, memberId), eq(tenantMembers.tenantId, tenant.id)),
+        with: {
+            user: true,
+            roles: true,
+            memberships: { with: { plan: true } },
+            purchasedPacks: { with: { definition: true }, orderBy: [desc(purchasedPacks.createdAt)] },
+            bookings: { with: { class: true }, orderBy: [desc(bookings.createdAt)], limit: 20 },
+            waiverSignatures: { with: { template: true }, orderBy: [desc(waiverSignatures.signedAt)] },
+            communityTopics: { with: { topic: true } }
+        }
+    });
+
     if (!m) return c.json({ error: 'Not found' }, 404);
-    return c.json({ member: m }, 200);
+
+    // Also get all topics they have access to via rules (courses, plans, etc.)
+    const { CommunityService } = await import('../services/community');
+    const cs = new CommunityService(db);
+    const visibleTopics = await cs.getVisibleTopics(tenant.id, m.id, false);
+
+    return c.json({
+        member: {
+            ...m,
+            visibleCommunityTopics: visibleTopics
+        }
+    }, 200);
 });
 
 // GET /members/:id/notes
