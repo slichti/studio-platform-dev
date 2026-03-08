@@ -87,7 +87,7 @@ function ManageAccessModal({ slug, topicId, isOpen, onClose }: { slug: string, t
                     {/* Active Rules Section */}
                     <div>
                         <h4 className="text-sm font-bold mb-3 text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                            <Shield size={14} className="text-zinc-400" /> Enrollment Rules
+                            <Shield size={14} className="text-zinc-400" /> Access Control
                         </h4>
                         <div className="space-y-2">
                             {topic?.rules?.length === 0 && (
@@ -520,7 +520,7 @@ export default function TenantCommunitySettings() {
                                                 className="h-8 text-xs gap-2 rounded-lg"
                                                 onClick={() => setAccessModalTopicId(topic.id)}
                                             >
-                                                <Users size={14} /> Rules
+                                                <Users size={14} /> Access Control
                                             </Button>
                                         )}
                                         <Button
@@ -684,7 +684,7 @@ export default function TenantCommunitySettings() {
                         confirmAction?.type === 'delete' ? "Delete Topic" :
                             confirmAction?.type === 'archive' ? "Archive Topic" :
                                 confirmAction?.type === 'unarchive' ? "Unarchive Topic" :
-                                    confirmAction?.type === 'remove_rule' ? "Remove Access Rule" : "Remove Member"
+                                    confirmAction?.type === 'remove_rule' ? "Remove Access Control" : "Remove Member"
                     }
                     message={
                         confirmAction?.type === 'delete' ? `Are you sure you want to permanently delete "${confirmAction?.name || ''}"? This action cannot be undone.` :
