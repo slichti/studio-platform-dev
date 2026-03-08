@@ -12,7 +12,7 @@ The Community Hub is a multi-tenant social engagement platform designed to foste
 ### 2. Visibility & Eligibility
 Topics can have different visibility levels regulated by a dynamic eligibility engine:
 - **Public**: Visible and joinable by all studio members.
-- **Private (Rule-Based)**: Access is automatically granted based on:
+- **Private (Access Control)**: Access is automatically granted based on:
     - **Course Enrollment**: Access granted to students enrolled in a specific course (perfect for class-specific discusions).
     - **Membership Tier**: Access granted to members on specific subscription plans (e.g., "Elite Member Only" topics).
 - **Hidden**: Topics that do not appear in the discovery list but can be posted to if access is granted.
@@ -42,7 +42,7 @@ Topics can have different visibility levels regulated by a dynamic eligibility e
 
 ### 7. Admin & Profile Integration
 - **Student Profile Management**: A "Community Hub" tab on the student profile allows admins to manage an individual's topic memberships directly.
-- **Rule Visibility**: Admins can see exactly why a member has access to a topic (e.g., via a specific course or membership plan) directly from their profile.
+- **Access Control Visibility**: Admins can see exactly why a member has access to a topic (e.g., via a specific course or membership plan) directly from their profile.
 
 ## API Architecture
 

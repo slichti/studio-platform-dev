@@ -371,7 +371,7 @@ erDiagram
     COMMUNITY_POSTS ||--o{ COMMUNITY_REACTIONS : "receives"
     COMMUNITY_POSTS }|--o| COMMUNITY_TOPICS : "categorized by"
     COMMUNITY_TOPICS ||--o{ COMMUNITY_TOPIC_MEMBERSHIPS : "has members"
-    USERS ||--o{ COMMUNITY_TOPIC_MEMBERSHIPS : "joined via rules"
+    USERS ||--o{ COMMUNITY_TOPIC_MEMBERSHIPS : "joined via access control"
     TENANTS ||--o{ AI_USAGE_LOGS : "records"
 ```
 
