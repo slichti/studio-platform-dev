@@ -632,15 +632,22 @@ export default function TenantCommunitySettings() {
                                                 </h4>
                                                 <div className="flex flex-wrap gap-2">
                                                     {topic.memberships?.map((m: any) => (
-                                                        <div key={m.id} className="inline-flex items-center gap-1.5 px-2 py-1 bg-green-50 dark:bg-green-900/20 text-[10px] font-medium text-green-700 dark:text-green-300 rounded-lg border border-green-100 dark:border-green-800/50">
-                                                            <span className="font-bold">{m.member?.user?.profile?.firstName || 'User'}</span>
+                                                        <div key={m.id} className="inline-flex items-center gap-2 px-2.5 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-[10px] font-medium text-blue-700 dark:text-blue-300 rounded-lg border border-blue-100 dark:border-blue-800/50">
+                                                            <div className="flex flex-col">
+                                                                <span className="font-bold">
+                                                                    {m.member?.user?.profile?.firstName} {m.member?.user?.profile?.lastName}
+                                                                </span>
+                                                                <span className="text-[9px] opacity-70 leading-none mt-0.5">
+                                                                    {m.member?.user?.email}
+                                                                </span>
+                                                            </div>
                                                             <button
                                                                 onClick={() => setConfirmAction({
                                                                     type: 'remove_member',
                                                                     id: m.id,
-                                                                    name: m.member?.user?.profile?.firstName || 'this member'
+                                                                    name: `${m.member?.user?.profile?.firstName} ${m.member?.user?.profile?.lastName} (${m.member?.user?.email})`
                                                                 })}
-                                                                className="ml-1 p-0.5 hover:bg-green-100 dark:hover:bg-green-800/50 rounded-md transition-colors"
+                                                                className="ml-1 p-0.5 hover:bg-blue-100 dark:hover:bg-blue-800/50 rounded-md transition-colors"
                                                             >
                                                                 <X size={10} />
                                                             </button>
