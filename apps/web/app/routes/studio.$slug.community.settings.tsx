@@ -319,6 +319,8 @@ export default function TenantCommunitySettings() {
     });
 
     const { topics, updateTopic, deleteTopic, removeRule, removeMember } = useCommunityTopics(slug!, { includeArchived: true });
+    const { data: courses } = useCourses(slug!);
+    const { data: plans } = usePlans(slug!);
     const [accessModalTopicId, setAccessModalTopicId] = useState<string | null>(null);
     const [confirmAction, setConfirmAction] = useState<{ type: 'archive' | 'unarchive' | 'delete', topicId: string, name: string } | null>(null);
 
@@ -485,106 +487,117 @@ export default function TenantCommunitySettings() {
 
                     <div className="space-y-3">
                         {topics?.map((topic: any) => (
-                            <div key={topic.id} className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800/50 transition-all hover:bg-zinc-100/50 dark:hover:bg-zinc-800/80">
-                                <div className="flex items-center gap-4 overflow-hidden">
-                                    <div className="h-10 w-10 flex-shrink-0 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-xl shadow-sm">
-                                        {topic.icon === 'Hash' ? '#' : topic.icon}
-                                    </div>
-                                    <div className="min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="font-bold text-zinc-900 dark:text-zinc-50 truncate">{topic.name}</h3>
-                                            {topic.isArchived && <Badge variant="secondary" className="bg-zinc-200 text-zinc-600 text-[10px] px-1.5 h-4 uppercase">Archived</Badge>}
-                                            <Badge variant="outline" className="text-[10px] px-1.5 h-4 uppercase flex items-center gap-1">
-                                                {topic.visibility === 'public' ? <Globe size={10} /> : <Lock size={10} />}
-                                                {topic.visibility}
-                                            </Badge>
+                            <div key={topic.id} className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800/50 transition-all hover:bg-zinc-100/50 dark:hover:bg-zinc-800/80">
+                                <div className="flex items-center justify-between gap-4">
+                                    <div className="flex items-center gap-4 overflow-hidden">
+                                        <div className="h-10 w-10 flex-shrink-0 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-xl shadow-sm">
+                                            {topic.icon === 'Hash' ? '#' : topic.icon}
                                         </div>
-                                        <p className="text-xs text-zinc-500 mt-0.5 truncate max-w-[240px]">{topic.description || 'No description'}</p>
+                                        <div className="min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="font-bold text-zinc-900 dark:text-zinc-50 truncate">{topic.name}</h3>
+                                                {topic.isArchived && <Badge variant="secondary" className="bg-zinc-200 text-zinc-600 text-[10px] px-1.5 h-4 uppercase">Archived</Badge>}
+                                                <Badge variant="outline" className="text-[10px] px-1.5 h-4 uppercase flex items-center gap-1">
+                                                    {topic.visibility === 'public' ? <Globe size={10} /> : <Lock size={10} />}
+                                                    {topic.visibility}
+                                                </Badge>
+                                            </div>
+                                            <p className="text-xs text-zinc-500 mt-0.5 truncate max-w-[240px]">{topic.description || 'No description'}</p>
+                                        </div>
+                                    </div>
 
-                                        {/* Rules & Members Info */}
-                                        <div className="mt-2 flex flex-wrap gap-1.5">
-                                            {topic.rules?.map((rule: any) => (
-                                                <div key={rule.id} className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-[10px] font-medium text-blue-700 dark:text-blue-300 rounded-md border border-blue-100 dark:border-blue-800/50">
-                                                    <span>{rule.type === 'course' ? 'Course' : 'Plan'}: {rule.targetId}</span>
-                                                    <button
-                                                        onClick={() => {
-                                                            if (confirm('Are you sure you want to remove this access rule?')) {
-                                                                removeRule.mutate(rule.id);
-                                                            }
-                                                        }}
-                                                        className="hover:text-blue-900 dark:hover:text-blue-100"
-                                                    >
-                                                        <X size={10} />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                            {topic.memberships?.map((m: any) => (
-                                                <div key={m.id} className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-green-50 dark:bg-green-900/20 text-[10px] font-medium text-green-700 dark:text-green-300 rounded-md border border-green-100 dark:border-green-800/50">
-                                                    <span>{m.member?.user?.profile?.firstName || 'User'}</span>
-                                                    <button
-                                                        onClick={() => {
-                                                            if (confirm(`Are you sure you want to remove ${m.member?.user?.profile?.firstName || 'this member'}?`)) {
-                                                                removeMember.mutate(m.id);
-                                                            }
-                                                        }}
-                                                        className="hover:text-green-900 dark:hover:text-green-100"
-                                                    >
-                                                        <X size={10} />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    {topic.visibility === 'private' && (
+                                    <div className="flex items-center gap-2">
+                                        {topic.visibility === 'private' && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-8 text-xs gap-2 rounded-lg"
+                                                onClick={() => setAccessModalTopicId(topic.id)}
+                                            >
+                                                <Users size={14} /> Rules
+                                            </Button>
+                                        )}
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-8 text-xs gap-2 rounded-lg"
+                                            onClick={() => setConfirmAction({
+                                                type: topic.isArchived ? 'unarchive' : 'archive',
+                                                topicId: topic.id,
+                                                name: topic.name
+                                            })}
+                                        >
+                                            {topic.isArchived ? <><Plus size={14} /> Unarchive</> : <><Archive size={14} /> Archive</>}
+                                        </Button>
+
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            className="h-8 text-xs gap-2 rounded-lg"
-                                            onClick={() => setAccessModalTopicId(topic.id)}
+                                            className="h-8 w-8 p-0 text-zinc-400 hover:text-rose-600 rounded-lg"
+                                            onClick={() => setConfirmAction({
+                                                type: 'delete',
+                                                topicId: topic.id,
+                                                name: topic.name
+                                            })}
                                         >
-                                            <Users size={14} /> Rules
+                                            <Trash2 size={14} />
                                         </Button>
-                                    )}
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-8 text-xs gap-2 rounded-lg"
-                                        onClick={() => setConfirmAction({
-                                            type: topic.isArchived ? 'unarchive' : 'archive',
-                                            topicId: topic.id,
-                                            name: topic.name
-                                        })}
-                                    >
-                                        {topic.isArchived ? <><Plus size={14} /> Unarchive</> : <><Archive size={14} /> Archive</>}
-                                    </Button>
 
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-8 w-8 p-0 text-zinc-400 hover:text-rose-600 rounded-lg"
-                                        onClick={() => setConfirmAction({
-                                            type: 'delete',
-                                            topicId: topic.id,
-                                            name: topic.name
-                                        })}
-                                    >
-                                        <Trash2 size={14} />
-                                    </Button>
-
-                                    <Select
-                                        className="h-8 text-[10px] w-28 rounded-lg"
-                                        value={topic.visibility}
-                                        onChange={(e: any) => updateTopic.mutate({
-                                            id: topic.id,
-                                            data: { visibility: e.target.value }
-                                        })}
-                                    >
-                                        <option value="public">Public Topic</option>
-                                        <option value="private">Private Topic</option>
-                                    </Select>
+                                        <Select
+                                            className="h-8 text-[10px] w-28 rounded-lg outline-none"
+                                            value={topic.visibility}
+                                            onChange={(e: any) => updateTopic.mutate({
+                                                id: topic.id,
+                                                data: { visibility: e.target.value }
+                                            })}
+                                        >
+                                            <option value="public">Public Topic</option>
+                                            <option value="private">Private Topic</option>
+                                        </Select>
+                                    </div>
                                 </div>
+
+                                {/* Rules & Members Info Section (Moved below) */}
+                                {(topic.rules?.length > 0 || topic.memberships?.length > 0) && (
+                                    <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800 flex flex-wrap gap-2">
+                                        {topic.rules?.map((rule: any) => (
+                                            <div key={rule.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-900/20 text-[10px] font-medium text-blue-700 dark:text-blue-300 rounded-lg border border-blue-100 dark:border-blue-800/50">
+                                                <span className="opacity-70">{rule.type === 'course' ? 'Course' : 'Plan'}:</span>
+                                                <span className="font-bold">
+                                                    {rule.type === 'course'
+                                                        ? courses?.find((c: any) => c.id === rule.targetId)?.title || rule.targetId
+                                                        : plans?.find((p: any) => p.id === rule.targetId)?.name || rule.targetId}
+                                                </span>
+                                                <button
+                                                    onClick={() => {
+                                                        if (confirm('Are you sure you want to remove this access rule?')) {
+                                                            removeRule.mutate(rule.id);
+                                                        }
+                                                    }}
+                                                    className="ml-1 p-0.5 hover:bg-blue-100 dark:hover:bg-blue-800/50 rounded-md transition-colors"
+                                                >
+                                                    <X size={10} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                        {topic.memberships?.map((m: any) => (
+                                            <div key={m.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-50 dark:bg-green-900/20 text-[10px] font-medium text-green-700 dark:text-green-300 rounded-lg border border-green-100 dark:border-green-800/50">
+                                                <span className="opacity-70">Member:</span>
+                                                <span className="font-bold">{m.member?.user?.profile?.firstName || 'User'}</span>
+                                                <button
+                                                    onClick={() => {
+                                                        if (confirm(`Are you sure you want to remove ${m.member?.user?.profile?.firstName || 'this member'}?`)) {
+                                                            removeMember.mutate(m.id);
+                                                        }
+                                                    }}
+                                                    className="ml-1 p-0.5 hover:bg-green-100 dark:hover:bg-green-800/50 rounded-md transition-colors"
+                                                >
+                                                    <X size={10} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>
