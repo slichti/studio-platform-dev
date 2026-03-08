@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLoaderData, useRevalidator, useParams } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "../utils/api";
@@ -21,52 +22,77 @@ import {
     Archive,
     Trash2,
     Plus,
-    X as CloseIcon
+    X as CloseIcon,
+    UserPlus,
+    Search,
+    Minus
 } from "lucide-react";
 import { useCommunityTopics, useTopicDetails, useTopicRules, useTopicMembers } from "../hooks/useCommunity";
+import { useMembers } from "../hooks/useMembers";
 import { useCourses } from "../hooks/useCourses";
 import { usePlans } from "../hooks/useMemberships";
 import { Badge } from "../components/ui/Badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "../components/ui/dialog";
 import { Select } from "../components/ui/select";
 import { Button } from "../components/ui/button";
 
 function ManageAccessModal({ slug, topicId, isOpen, onClose }: { slug: string, topicId: string | null, isOpen: boolean, onClose: () => void }) {
-    const { data: topic, isLoading } = useTopicDetails(slug, topicId);
+    const { data: topic } = useTopicDetails(slug, topicId);
     const { data: courses } = useCourses(slug);
     const { data: plans } = usePlans(slug);
     const { addRule, removeRule } = useTopicRules(slug, topicId!);
-    const [newRule, setNewRule] = useState<{ type: 'course' | 'membership_plan'; targetId: string }>({ type: 'course', targetId: '' });
+    const { addMember } = useTopicMembers(slug, topicId!);
 
-    if (!isOpen) return null;
+    const [newRule, setNewRule] = useState<{ type: 'course' | 'membership_plan'; targetId: string }>({ type: 'course', targetId: '' });
+    const [memberSearch, setMemberSearch] = useState('');
+    const { data: membersData } = useMembers(slug, { search: memberSearch, limit: 5 }) as { data: any };
+    const queryClient = useQueryClient();
 
     const handleAddRule = async () => {
         if (!newRule.targetId) return;
         try {
             await addRule.mutateAsync(newRule);
-            setNewRule({ type: 'course', targetId: '' });
+            setNewRule(prev => ({ ...prev, targetId: '' }));
             toast.success("Access rule added");
         } catch (e) {
             toast.error("Failed to add rule");
         }
     };
 
+    const handleAddMember = async (memberId: string) => {
+        try {
+            await addMember.mutateAsync({ memberId });
+            setMemberSearch('');
+            toast.success("Member added to topic");
+        } catch (e) {
+            toast.error("Failed to add member");
+        }
+    };
+
+    if (!isOpen) return null;
+
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Manage Access: {topic?.name}</DialogTitle>
+                    <DialogTitle className="flex items-center gap-2">
+                        <Lock size={18} className="text-zinc-600" />
+                        Manage Access: {topic?.name}
+                    </DialogTitle>
                 </DialogHeader>
 
-                <div className="space-y-6 py-4">
+                <div className="space-y-8 py-4">
+                    {/* Active Rules Section */}
                     <div>
-                        <h4 className="text-sm font-bold mb-3 text-zinc-900 dark:text-zinc-100">Active Rules</h4>
+                        <h4 className="text-sm font-bold mb-3 text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                            <Shield size={14} className="text-zinc-400" /> Enrollment Rules
+                        </h4>
                         <div className="space-y-2">
                             {topic?.rules?.length === 0 && (
-                                <p className="text-xs text-zinc-500 italic">No access rules defined. Only manual members can access this private topic.</p>
+                                <p className="text-xs text-zinc-500 italic px-2">No dynamic rules defined.</p>
                             )}
                             {topic?.rules?.map((rule: any) => (
-                                <div key={rule.id} className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-100 dark:border-zinc-800 transition-all">
+                                <div key={rule.id} className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-100 dark:border-zinc-800">
                                     <div className="flex items-center gap-3">
                                         <div className="h-8 w-8 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center">
                                             {rule.type === 'course' ? <Trophy size={14} className="text-blue-500" /> : <Shield size={14} className="text-purple-500" />}
@@ -91,40 +117,172 @@ function ManageAccessModal({ slug, topicId, isOpen, onClose }: { slug: string, t
                                 </div>
                             ))}
                         </div>
-                    </div>
 
-                    <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800">
-                        <h4 className="text-sm font-bold mb-3 text-zinc-900 dark:text-zinc-100">Add New Rule</h4>
-                        <div className="grid grid-cols-1 gap-3">
-                            <Select
-                                value={newRule.type}
-                                onChange={(e: any) => setNewRule({ type: e.target.value, targetId: '' })}
-                            >
-                                <option value="course">Course Enrollment</option>
-                                <option value="membership_plan">Membership Plan</option>
-                            </Select>
+                        <div className="mt-4 p-4 bg-zinc-50 dark:bg-zinc-800/30 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                            <div className="grid grid-cols-1 gap-3">
+                                <Select
+                                    value={newRule.type}
+                                    onChange={(e: any) => setNewRule({ type: e.target.value as any, targetId: '' })}
+                                    className="h-9 text-xs"
+                                >
+                                    <option value="course">Access via Course Enrollment</option>
+                                    <option value="membership_plan">Access via Membership Plan</option>
+                                </Select>
 
-                            <Select
-                                value={newRule.targetId}
-                                onChange={(e: any) => setNewRule({ ...newRule, targetId: e.target.value })}
-                            >
-                                <option value="">Select Target...</option>
-                                {newRule.type === 'course' ? (
-                                    courses?.map((c: any) => <option key={c.id} value={c.id}>{c.title}</option>)
-                                ) : (
-                                    plans?.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)
-                                )}
-                            </Select>
+                                <Select
+                                    value={newRule.targetId}
+                                    onChange={(e: any) => setNewRule({ ...newRule, targetId: e.target.value })}
+                                    className="h-9 text-xs"
+                                >
+                                    <option value="">Select Target...</option>
+                                    {newRule.type === 'course' ? (
+                                        courses?.map((c: any) => <option key={c.id} value={c.id}>{c.title}</option>)
+                                    ) : (
+                                        plans?.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)
+                                    )}
+                                </Select>
 
-                            <Button
-                                className="w-full mt-2"
-                                disabled={!newRule.targetId || addRule.isPending}
-                                onClick={handleAddRule}
-                            >
-                                <Plus size={16} className="mr-2" /> Add Rule
-                            </Button>
+                                <Button
+                                    size="sm"
+                                    className="w-full"
+                                    disabled={!newRule.targetId || addRule.isPending}
+                                    onClick={handleAddRule}
+                                >
+                                    <Plus size={14} className="mr-2" /> Add Access Rule
+                                </Button>
+                            </div>
                         </div>
                     </div>
+
+                    {/* Manual Members Section */}
+                    <div className="pt-6 border-t border-zinc-100 dark:border-zinc-800">
+                        <h4 className="text-sm font-bold mb-3 text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                            <UserPlus size={14} className="text-zinc-400" /> Manual Invitations
+                        </h4>
+
+                        <div className="relative mb-4">
+                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                            <input
+                                type="text"
+                                placeholder="Search students by name or email..."
+                                className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
+                                value={memberSearch}
+                                onChange={(e) => setMemberSearch(e.target.value)}
+                            />
+
+                            {memberSearch && membersData && membersData.members.length > 0 && (
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl z-10 overflow-hidden">
+                                    {membersData.members.map((m: any) => (
+                                        <button
+                                            key={m.id}
+                                            onClick={() => handleAddMember(m.id)}
+                                            className="w-full flex items-center gap-3 p-3 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors text-left"
+                                        >
+                                            <div className="h-8 w-8 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-[10px] font-bold">
+                                                {m.profile?.firstName?.[0]}{m.profile?.lastName?.[0]}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate">
+                                                    {m.profile?.firstName} {m.profile?.lastName}
+                                                </p>
+                                                <p className="text-[10px] text-zinc-500 truncate">{m.user?.email}</p>
+                                            </div>
+                                            <Plus size={14} className="ml-auto text-zinc-400" />
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="space-y-2">
+                            {topic?.memberships?.length === 0 && (
+                                <p className="text-xs text-zinc-500 italic px-2">No manual members added.</p>
+                            )}
+                            {topic?.memberships?.map((membership: any) => (
+                                <div key={membership.id} className="flex items-center justify-between p-2 pl-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-100 dark:border-zinc-800">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className="h-6 w-6 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-[8px] font-bold">
+                                            {membership.member?.profile?.firstName?.[0]}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-[10px] font-bold text-zinc-900 dark:text-zinc-100 truncate">
+                                                {membership.member?.profile?.firstName} {membership.member?.profile?.lastName}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={async () => {
+                                            const token = await (window as any).Clerk?.session?.getToken();
+                                            await apiRequest(`/community/topics/members/${membership.id}`, token, {
+                                                method: 'DELETE',
+                                                headers: { 'x-tenant-slug': slug }
+                                            });
+                                            toast.success("Member removed");
+                                            queryClient.invalidateQueries({ queryKey: ['community', 'topic', slug, topicId] });
+                                        }}
+                                        className="p-1 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-zinc-400 hover:text-rose-500 rounded-lg transition-colors"
+                                    >
+                                        <Minus size={12} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="pt-4 flex justify-end">
+                        <Button
+                            variant="default"
+                            className="px-8 rounded-xl"
+                            onClick={onClose}
+                        >
+                            Done
+                        </Button>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function TopicConfirmModal({
+    isOpen,
+    onClose,
+    onConfirm,
+    title,
+    message,
+    confirmText,
+    variant = "default"
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
+    title: string;
+    message: string;
+    confirmText: string;
+    variant?: "default" | "destructive" | "secondary" | "outline" | "ghost" | "link";
+}) {
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="max-w-sm">
+                <DialogHeader>
+                    <DialogTitle>{title}</DialogTitle>
+                    <DialogDescription className="pt-2 text-zinc-500 text-xs">
+                        {message}
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="flex items-center justify-end gap-3 mt-6">
+                    <Button variant="ghost" size="sm" onClick={onClose} className="rounded-xl">Cancel</Button>
+                    <Button
+                        variant={variant}
+                        size="sm"
+                        className="rounded-xl px-6"
+                        onClick={() => {
+                            onConfirm();
+                            onClose();
+                        }}
+                    >
+                        {confirmText}
+                    </Button>
                 </div>
             </DialogContent>
         </Dialog>
@@ -160,8 +318,9 @@ export default function TenantCommunitySettings() {
         profilePreviewsEnabled: settings?.profilePreviewsEnabled ?? true,
     });
 
-    const { topics, updateTopic } = useCommunityTopics(slug!, { includeArchived: true });
+    const { topics, updateTopic, deleteTopic } = useCommunityTopics(slug!, { includeArchived: true });
     const [accessModalTopicId, setAccessModalTopicId] = useState<string | null>(null);
+    const [confirmAction, setConfirmAction] = useState<{ type: 'archive' | 'unarchive' | 'delete', topicId: string, name: string } | null>(null);
 
     if (error) return <div className="p-8 text-rose-600 font-medium">Error loading settings: {error}</div>;
 
@@ -358,13 +517,28 @@ export default function TenantCommunitySettings() {
                                         variant="outline"
                                         size="sm"
                                         className="h-8 text-xs gap-2 rounded-lg"
-                                        onClick={() => updateTopic.mutate({
-                                            id: topic.id,
-                                            data: { isArchived: !topic.isArchived }
+                                        onClick={() => setConfirmAction({
+                                            type: topic.isArchived ? 'unarchive' : 'archive',
+                                            topicId: topic.id,
+                                            name: topic.name
                                         })}
                                     >
                                         {topic.isArchived ? <><Plus size={14} /> Unarchive</> : <><Archive size={14} /> Archive</>}
                                     </Button>
+
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 w-8 p-0 text-zinc-400 hover:text-rose-600 rounded-lg"
+                                        onClick={() => setConfirmAction({
+                                            type: 'delete',
+                                            topicId: topic.id,
+                                            name: topic.name
+                                        })}
+                                    >
+                                        <Trash2 size={14} />
+                                    </Button>
+
                                     <Select
                                         className="h-8 text-[10px] w-28 rounded-lg"
                                         value={topic.visibility}
@@ -391,6 +565,36 @@ export default function TenantCommunitySettings() {
                     topicId={accessModalTopicId}
                     isOpen={!!accessModalTopicId}
                     onClose={() => setAccessModalTopicId(null)}
+                />
+
+                <TopicConfirmModal
+                    isOpen={!!confirmAction}
+                    onClose={() => setConfirmAction(null)}
+                    title={
+                        confirmAction?.type === 'delete' ? "Delete Topic" :
+                            confirmAction?.type === 'archive' ? "Archive Topic" : "Unarchive Topic"
+                    }
+                    message={
+                        confirmAction?.type === 'delete' ? `Are you sure you want to permanently delete "${confirmAction.name}"? This action cannot be undone.` :
+                            confirmAction?.type === 'archive' ? `Are you sure you want to archive "${confirmAction.name}"? It will be hidden from the community hub.` :
+                                `Are you sure you want to restore "${confirmAction.name}" to the community hub?`
+                    }
+                    confirmText={
+                        confirmAction?.type === 'delete' ? "Delete Permanently" :
+                            confirmAction?.type === 'archive' ? "Archive Topic" : "Unarchive Topic"
+                    }
+                    variant={confirmAction?.type === 'delete' ? "destructive" : "default"}
+                    onConfirm={() => {
+                        if (!confirmAction) return;
+                        if (confirmAction.type === 'delete') {
+                            deleteTopic.mutate(confirmAction.topicId);
+                        } else {
+                            updateTopic.mutate({
+                                id: confirmAction.topicId,
+                                data: { isArchived: confirmAction.type === 'archive' }
+                            });
+                        }
+                    }}
                 />
 
                 <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-6 rounded-3xl flex items-start gap-4">

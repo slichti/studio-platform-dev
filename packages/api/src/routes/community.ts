@@ -123,6 +123,8 @@ app.get('/topics', async (c) => {
     const canManage = c.get('can')('manage_marketing');
     const includeArchived = c.req.query('includeArchived') === 'true';
 
+    const isAdmin = c.get('isPlatformAdmin') || c.get('roles')?.includes('owner') || false;
+
     // Filter out archived topics for everyone unless explicitly requested by admin
     let topics;
     if (canManage) {
@@ -144,7 +146,7 @@ app.get('/topics', async (c) => {
             .all();
     } else {
         const communityService = new CommunityService(db);
-        topics = await communityService.getVisibleTopics(tenant.id, member.id);
+        topics = await communityService.getVisibleTopics(tenant.id, member!.id, isAdmin);
     }
 
     return c.json(topics);
@@ -301,6 +303,14 @@ app.post('/topics/:id/members', async (c) => {
     return c.json({ id }, 201);
 });
 
+// DELETE /community/topics/members/:membershipId - Remove manual member
+app.delete('/topics/members/:membershipId', async (c) => {
+    if (!c.get('can')('manage_marketing')) return c.json({ error: 'Access denied' }, 403);
+    const db = createDb(c.env.DB);
+    await db.delete(communityTopicMemberships).where(eq(communityTopicMemberships.id, c.req.param('membershipId'))).run();
+    return c.json({ success: true });
+});
+
 // DELETE /community/topics/:id - Delete community topic
 app.delete('/topics/:id', async (c) => {
     if (!c.get('can')('manage_marketing')) return c.json({ error: 'Access denied' }, 403);
@@ -358,8 +368,9 @@ app.post('/', async (c) => {
     const id = crypto.randomUUID();
 
     if (topicId) {
+        const isAdmin = c.get('isPlatformAdmin') || c.get('roles')?.includes('owner') || false;
         const communityService = new CommunityService(db);
-        const hasAccess = await communityService.hasTopicAccess(tenant.id, member.id, topicId);
+        const hasAccess = await communityService.hasTopicAccess(tenant.id, member!.id, topicId, isAdmin);
         if (!hasAccess) return c.json({ error: 'You do not have access to this topic' }, 403);
     }
 

@@ -67,7 +67,9 @@ export class CommunityService {
     /**
      * Checks if a member has access to a topic.
      */
-    async hasTopicAccess(tenantId: string, memberId: string, topicId: string): Promise<boolean> {
+    async hasTopicAccess(tenantId: string, memberId: string, topicId: string, isAdmin: boolean = false): Promise<boolean> {
+        if (isAdmin) return true;
+
         const topic = await this.db.query.communityTopics.findFirst({
             where: and(eq(communityTopics.id, topicId), eq(communityTopics.tenantId, tenantId))
         });
@@ -121,10 +123,12 @@ export class CommunityService {
     /**
      * Gets all topics a member can see.
      */
-    async getVisibleTopics(tenantId: string, memberId: string) {
+    async getVisibleTopics(tenantId: string, memberId: string, isAdmin: boolean = false) {
         const allTopics = await this.db.select().from(communityTopics)
             .where(and(eq(communityTopics.tenantId, tenantId), sql`${communityTopics.isArchived} IS NOT TRUE`))
             .all();
+
+        if (isAdmin) return allTopics;
 
         const results = [];
         for (const topic of allTopics) {
@@ -134,7 +138,7 @@ export class CommunityService {
             }
 
             // Small set of topics usually, so loop is fine for v1
-            const hasAccess = await this.hasTopicAccess(tenantId, memberId, topic.id);
+            const hasAccess = await this.hasTopicAccess(tenantId, memberId, topic.id, isAdmin);
             if (hasAccess) {
                 results.push(topic);
             }
