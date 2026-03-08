@@ -71,7 +71,7 @@ function DialogContent({ children, className }: any) {
                             leaveFrom="opacity-100 scale-100"
                             leaveTo="opacity-0 scale-95"
                         >
-                            <DialogPanel className={cn("w-full max-w-lg transform overflow-hidden rounded-lg bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-zinc-950 dark:border dark:border-zinc-800", className)}>
+                            <DialogPanel className={cn("relative w-full max-w-lg transform overflow-hidden rounded-lg bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-zinc-950 dark:border dark:border-zinc-800", className)}>
                                 {children}
                                 <button
                                     className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100 focus:outline-none"

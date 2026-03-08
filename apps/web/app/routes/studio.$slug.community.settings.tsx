@@ -573,7 +573,7 @@ export default function TenantCommunitySettings() {
                                                     <CreditCard size={10} /> Memberships
                                                 </h4>
                                                 <div className="flex flex-wrap gap-2">
-                                                    {topic.rules?.filter((r: any) => r.type === 'plan').map((rule: any) => (
+                                                    {topic.rules?.filter((r: any) => r.type === 'membership_plan').map((rule: any) => (
                                                         <div key={rule.id} className="inline-flex items-center gap-1.5 px-2 py-1 bg-blue-50 dark:bg-blue-900/20 text-[10px] font-medium text-blue-700 dark:text-blue-300 rounded-lg border border-blue-100 dark:border-blue-800/50">
                                                             <span className="font-bold">
                                                                 {plans?.find((p: any) => p.id === rule.targetId)?.name || rule.targetId}
@@ -590,7 +590,7 @@ export default function TenantCommunitySettings() {
                                                             </button>
                                                         </div>
                                                     ))}
-                                                    {topic.rules?.filter((r: any) => r.type === 'plan').length === 0 && (
+                                                    {topic.rules?.filter((r: any) => r.type === 'membership_plan').length === 0 && (
                                                         <span className="text-[10px] text-zinc-400 italic">No plan rules</span>
                                                     )}
                                                 </div>
