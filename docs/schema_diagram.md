@@ -481,12 +481,14 @@ erDiagram
         string tenant_id FK
         string author_id FK
         string content
-        enum type
+        enum type "post, announcement, event, photo, blog, milestone"
         string image_url
         integer likes_count
         integer comments_count
+        json reactions_json "Cached emoji counts"
         boolean is_pinned
         string topic_id FK
+        json media_json "Support for audio, video, gifs"
         boolean is_generated
         timestamp created_at
     }
@@ -496,9 +498,10 @@ erDiagram
         string tenant_id FK
         string name
         string description
-        string emoji
-        enum visibility
-        json metadata
+        string icon "Lucide icon name"
+        string color "Hex or Tailwind color"
+        enum visibility "public, private"
+        boolean is_archived
         timestamp created_at
         timestamp updated_at
     }
@@ -506,8 +509,8 @@ erDiagram
     community_topic_memberships {
         string id PK
         string topic_id FK
-        string user_id FK
-        enum source
+        string member_id FK
+        enum role "member, moderator, admin"
         timestamp created_at
     }
 
@@ -516,18 +519,16 @@ erDiagram
 
     community_comments {
         string id PK
-        string tenant_id FK
         string post_id FK
         string author_id FK
+        string parent_id FK "Nested threading"
         string content
         timestamp created_at
     }
     community_reactions {
-        string id PK
-        string tenant_id FK
-        string post_id FK
-        string user_id FK
-        string emoji
+        string post_id PK, FK
+        string member_id PK, FK
+        enum type "like, heart, celebrate, fire"
         timestamp created_at
     }
     community_posts ||--o{ community_comments : "has"
@@ -647,7 +648,7 @@ erDiagram
         string tenant_id FK
         string user_id FK
         string model
-        string feature
+        enum feature "email_marketing, blog_generation, review_reply"
         integer prompt_tokens
         integer completion_tokens
         integer total_tokens
@@ -684,21 +685,30 @@ erDiagram
         string user_id FK
         string title
         string body
-        timestamp sent_at
+        json data
+        enum status "pending, sent, failed"
+        string error_message
+        timestamp created_at
     }
     webhook_endpoints {
         string id PK
         string tenant_id FK
         string url
-        json events
-        boolean active
+        string description
+        json events "Array of event types"
+        boolean is_active
+        string secret
+        timestamp created_at
     }
     webhook_logs {
         string id PK
         string tenant_id FK
         string endpoint_id FK
-        string event
-        enum status
+        string event_type
+        json payload
+        integer response_status
+        string response_body
+        integer duration_ms
         timestamp created_at
     }
 
