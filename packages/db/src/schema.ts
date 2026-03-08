@@ -1779,6 +1779,73 @@ export const tenantsRelations = relations(tenants, ({ many }) => ({
     aiUsage: many(aiUsageLogs),
 }));
 
+export const communityTopicsRelations = relations(communityTopics, ({ many }) => ({
+    memberships: many(communityTopicMemberships),
+    rules: many(communityTopicAccessRules),
+    posts: many(communityPosts),
+}));
+
+export const communityTopicMembershipsRelations = relations(communityTopicMemberships, ({ one }) => ({
+    topic: one(communityTopics, {
+        fields: [communityTopicMemberships.topicId],
+        references: [communityTopics.id],
+    }),
+    member: one(tenantMembers, {
+        fields: [communityTopicMemberships.memberId],
+        references: [tenantMembers.id],
+    }),
+}));
+
+export const communityTopicAccessRulesRelations = relations(communityTopicAccessRules, ({ one }) => ({
+    topic: one(communityTopics, {
+        fields: [communityTopicAccessRules.topicId],
+        references: [communityTopics.id],
+    }),
+}));
+
+export const communityPostsRelations = relations(communityPosts, ({ one, many }) => ({
+    topic: one(communityTopics, {
+        fields: [communityPosts.topicId],
+        references: [communityTopics.id],
+    }),
+    author: one(tenantMembers, {
+        fields: [communityPosts.authorId],
+        references: [tenantMembers.id],
+    }),
+    comments: many(communityComments),
+    reactions: many(communityReactions),
+}));
+
+export const communityCommentsRelations = relations(communityComments, ({ one, many }) => ({
+    post: one(communityPosts, {
+        fields: [communityComments.postId],
+        references: [communityPosts.id],
+    }),
+    author: one(tenantMembers, {
+        fields: [communityComments.authorId],
+        references: [tenantMembers.id],
+    }),
+    parent: one(communityComments, {
+        fields: [communityComments.parentId],
+        references: [communityComments.id],
+        relationName: 'replies',
+    }),
+    replies: many(communityComments, {
+        relationName: 'replies',
+    }),
+}));
+
+export const communityReactionsRelations = relations(communityReactions, ({ one }) => ({
+    post: one(communityPosts, {
+        fields: [communityReactions.postId],
+        references: [communityPosts.id],
+    }),
+    member: one(tenantMembers, {
+        fields: [communityReactions.memberId],
+        references: [tenantMembers.id],
+    }),
+}));
+
 export const tenantMembersRelations = relations(tenantMembers, ({ one, many }) => ({
     user: one(users, {
         fields: [tenantMembers.userId],

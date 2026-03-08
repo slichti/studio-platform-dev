@@ -128,14 +128,25 @@ app.get('/topics', async (c) => {
     // Filter out archived topics for everyone unless explicitly requested by admin
     let topics;
     if (canManage) {
-        topics = await db.select()
-            .from(communityTopics)
-            .where(and(
+        topics = await db.query.communityTopics.findMany({
+            where: and(
                 eq(communityTopics.tenantId, tenant.id),
                 includeArchived ? sql`1=1` : sql`${communityTopics.isArchived} IS NOT TRUE`
-            ))
-            .orderBy(communityTopics.name)
-            .all();
+            ),
+            orderBy: communityTopics.name,
+            with: {
+                rules: true,
+                memberships: {
+                    with: {
+                        member: {
+                            with: {
+                                user: true
+                            }
+                        }
+                    }
+                }
+            }
+        });
     } else if (!member) {
         topics = await db.select().from(communityTopics)
             .where(and(

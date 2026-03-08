@@ -148,6 +148,32 @@ export function useCommunityTopics(slug: string, filters: { includeArchived?: bo
         }
     });
 
+    const removeRule = useMutation({
+        mutationFn: async (ruleId: string) => {
+            const token = await getToken();
+            return apiRequest(`/community/topics/rules/${ruleId}`, token, {
+                method: 'DELETE',
+                headers: { 'X-Tenant-Slug': slug }
+            });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['community', 'topics', slug] });
+        }
+    });
+
+    const removeMember = useMutation({
+        mutationFn: async (membershipId: string) => {
+            const token = await getToken();
+            return apiRequest(`/community/topics/members/${membershipId}`, token, {
+                method: 'DELETE',
+                headers: { 'X-Tenant-Slug': slug }
+            });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['community', 'topics', slug] });
+        }
+    });
+
     const deleteTopic = useMutation({
         mutationFn: async (id: string) => {
             const token = await getToken();
@@ -180,7 +206,9 @@ export function useCommunityTopics(slug: string, filters: { includeArchived?: bo
         isLoading: query.isLoading,
         createTopic,
         updateTopic,
-        deleteTopic
+        deleteTopic,
+        removeRule,
+        removeMember
     };
 }
 

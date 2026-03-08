@@ -22,7 +22,7 @@ import {
     Archive,
     Trash2,
     Plus,
-    X as CloseIcon,
+    X,
     UserPlus,
     Search,
     Minus
@@ -318,7 +318,7 @@ export default function TenantCommunitySettings() {
         profilePreviewsEnabled: settings?.profilePreviewsEnabled ?? true,
     });
 
-    const { topics, updateTopic, deleteTopic } = useCommunityTopics(slug!, { includeArchived: true });
+    const { topics, updateTopic, deleteTopic, removeRule, removeMember } = useCommunityTopics(slug!, { includeArchived: true });
     const [accessModalTopicId, setAccessModalTopicId] = useState<string | null>(null);
     const [confirmAction, setConfirmAction] = useState<{ type: 'archive' | 'unarchive' | 'delete', topicId: string, name: string } | null>(null);
 
@@ -500,6 +500,40 @@ export default function TenantCommunitySettings() {
                                             </Badge>
                                         </div>
                                         <p className="text-xs text-zinc-500 mt-0.5 truncate max-w-[240px]">{topic.description || 'No description'}</p>
+
+                                        {/* Rules & Members Info */}
+                                        <div className="mt-2 flex flex-wrap gap-1.5">
+                                            {topic.rules?.map((rule: any) => (
+                                                <div key={rule.id} className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-[10px] font-medium text-blue-700 dark:text-blue-300 rounded-md border border-blue-100 dark:border-blue-800/50">
+                                                    <span>{rule.type === 'course' ? 'Course' : 'Plan'}: {rule.targetId}</span>
+                                                    <button
+                                                        onClick={() => {
+                                                            if (confirm('Are you sure you want to remove this access rule?')) {
+                                                                removeRule.mutate(rule.id);
+                                                            }
+                                                        }}
+                                                        className="hover:text-blue-900 dark:hover:text-blue-100"
+                                                    >
+                                                        <X size={10} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            {topic.memberships?.map((m: any) => (
+                                                <div key={m.id} className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-green-50 dark:bg-green-900/20 text-[10px] font-medium text-green-700 dark:text-green-300 rounded-md border border-green-100 dark:border-green-800/50">
+                                                    <span>{m.member?.user?.profile?.firstName || 'User'}</span>
+                                                    <button
+                                                        onClick={() => {
+                                                            if (confirm(`Are you sure you want to remove ${m.member?.user?.profile?.firstName || 'this member'}?`)) {
+                                                                removeMember.mutate(m.id);
+                                                            }
+                                                        }}
+                                                        className="hover:text-green-900 dark:hover:text-green-100"
+                                                    >
+                                                        <X size={10} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
