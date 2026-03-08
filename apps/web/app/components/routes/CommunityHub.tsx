@@ -573,6 +573,7 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Topic Name</label>
                                 <Input
+                                    autoFocus
                                     placeholder="e.g., Workout Tips"
                                     value={newTopic.name}
                                     onChange={(e) => setNewTopic(prev => ({ ...prev, name: e.target.value }))}
@@ -605,6 +606,7 @@ export default function CommunityHub({ slug: propsSlug }: { slug?: string }) {
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Topic Name</label>
                                 <Input
+                                    autoFocus
                                     placeholder="e.g. Nature, Announcements"
                                     value={editingTopic?.name || ''}
                                     onChange={(e) => setEditingTopic({ ...editingTopic, name: e.target.value })}
