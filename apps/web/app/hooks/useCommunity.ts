@@ -257,6 +257,7 @@ export function useTopicRules(slug: string, topicId: string) {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['community', 'topic', slug, topicId] });
+            queryClient.invalidateQueries({ queryKey: ['community', 'topics', slug] });
         }
     });
 
@@ -270,6 +271,7 @@ export function useTopicRules(slug: string, topicId: string) {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['community', 'topic', slug, topicId] });
+            queryClient.invalidateQueries({ queryKey: ['community', 'topics', slug] });
         }
     });
 
@@ -291,6 +293,7 @@ export function useTopicMembers(slug: string, topicId: string) {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['community', 'topic', slug, topicId] });
+            queryClient.invalidateQueries({ queryKey: ['community', 'topics', slug] });
         }
     });
 
