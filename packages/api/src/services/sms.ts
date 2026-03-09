@@ -147,6 +147,17 @@ export class SmsService {
     }
 
     /**
+     * Send invitation SMS
+     * @param to - Recipient phone number
+     * @param studioName - Name of the studio
+     * @param inviteUrl - The invitation link
+     */
+    async sendInvitation(to: string, studioName: string, inviteUrl: string) {
+        const body = `You've been invited to join ${studioName} on Studio Platform! Click here to accept: ${inviteUrl}`;
+        return this.sendSms(to, body, undefined, true); // skipConsentCheck=true for transactional invite
+    }
+
+    /**
      * Handle incoming SMS opt-out (STOP keyword)
      * Call this from the Twilio webhook handler
      */

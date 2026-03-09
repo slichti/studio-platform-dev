@@ -750,6 +750,12 @@ export class PosService {
                 set: { token, expiresAt, createdAt: new Date() }
             }).run();
 
+            // Update Member InvitedAt
+            await this.db.update(tenantMembers)
+                .set({ invitedAt: new Date() })
+                .where(eq(tenantMembers.id, member.id))
+                .run();
+
             // Send Email (Async)
             if (this.env.RESEND_API_KEY) {
                 const usageService = new UsageService(this.db, this.tenantId);

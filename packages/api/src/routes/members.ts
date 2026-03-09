@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { createDb } from '../db';
 import { eq, and, or, desc, sql, inArray, lte } from 'drizzle-orm';
-import { tenantMembers, tenantRoles, studentNotes, users, classes, bookings, tenants, marketingAutomations, emailLogs, coupons, couponRedemptions, automationLogs, purchasedPacks, waiverSignatures, posOrders, subscriptions } from '@studio/db/src/schema';
+import { tenantMembers, tenantRoles, studentNotes, users, classes, bookings, tenants, marketingAutomations, emailLogs, coupons, couponRedemptions, automationLogs, purchasedPacks, waiverSignatures, posOrders, subscriptions, tenantInvitations } from '@studio/db/src/schema';
 import { HonoContext } from '../types';
 import { quotaMiddleware } from '../middleware/quota';
 
@@ -27,6 +27,8 @@ const MemberSchema = z.object({
     userId: z.string(),
     status: z.string(),
     joinedAt: z.string().or(z.date()).optional(),
+    invitedAt: z.string().or(z.date()).optional(),
+    acceptedAt: z.string().or(z.date()).optional(),
     user: MemberUserSchema,
     roles: z.array(MemberRoleSchema).optional(),
     customFields: z.record(z.string(), z.any()).optional()
@@ -848,6 +850,150 @@ app.openapi(deleteMemberNoteRoute, async (c) => {
         .run();
 
     return c.json({ success: true }, 200);
+});
+
+// POST /members/:id/resend-invitation-email
+const resendInvitationEmailRoute = createRoute({
+    method: 'post',
+    path: '/{id}/resend-invitation-email',
+    tags: ['Members'],
+    summary: 'Resend invitation email',
+    request: {
+        params: z.object({ id: z.string() })
+    },
+    responses: {
+        200: { content: { 'application/json': { schema: z.object({ success: z.boolean() }) } }, description: 'Invitation resent' },
+        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' },
+        404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Member not found' }
+    }
+});
+
+app.openapi(resendInvitationEmailRoute, async (c) => {
+    if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant')!;
+    const mid = c.req.valid('param').id;
+
+    const member = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.id, mid), eq(tenantMembers.tenantId, tenant.id)),
+        with: { user: true }
+    });
+
+    if (!member) return c.json({ error: 'Member not found' }, 404);
+
+    // 1. Get/Create Invitation
+    let invite = await db.query.tenantInvitations.findFirst({
+        where: and(eq(tenantInvitations.tenantId, tenant.id), eq(tenantInvitations.email, member.user.email))
+    });
+
+    const token = crypto.randomUUID();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    if (!invite) {
+        await db.insert(tenantInvitations).values({
+            id: crypto.randomUUID(),
+            tenantId: tenant.id,
+            email: member.user.email.toLowerCase(),
+            role: 'student',
+            token,
+            expiresAt,
+            invitedBy: c.get('auth').userId,
+        }).run();
+    } else {
+        await db.update(tenantInvitations)
+            .set({ token, expiresAt, createdAt: new Date() })
+            .where(eq(tenantInvitations.id, invite.id))
+            .run();
+    }
+
+    // 2. Update member invitedAt
+    await db.update(tenantMembers).set({ invitedAt: new Date() }).where(eq(tenantMembers.id, mid)).run();
+
+    // 3. Send Email
+    const { EmailService } = await import('../services/email');
+    const { UsageService } = await import('../services/pricing');
+    const usageService = new UsageService(db, tenant.id);
+    const emailService = new EmailService(c.env.RESEND_API_KEY, {}, { name: tenant.name }, usageService, false, db, tenant.id);
+    const inviteUrl = `https://${tenant.id}.slichti.org/join?token=${token}`;
+
+    await emailService.sendInvitation(member.user.email, inviteUrl);
+
+    return c.json({ success: true });
+});
+
+// POST /members/:id/resend-invitation-sms
+const resendInvitationSmsRoute = createRoute({
+    method: 'post',
+    path: '/{id}/resend-invitation-sms',
+    tags: ['Members'],
+    summary: 'Resend invitation SMS',
+    request: {
+        params: z.object({ id: z.string() })
+    },
+    responses: {
+        200: { content: { 'application/json': { schema: z.object({ success: z.boolean() }) } }, description: 'Invitation resent' },
+        400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Phone number missing' },
+        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' },
+        404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Member not found' }
+    }
+});
+
+app.openapi(resendInvitationSmsRoute, async (c) => {
+    if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant')!;
+    const mid = c.req.valid('param').id;
+
+    const member = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.id, mid), eq(tenantMembers.tenantId, tenant.id)),
+        with: { user: true }
+    });
+
+    if (!member) return c.json({ error: 'Member not found' }, 404);
+    const profile = member.user.profile as any;
+    const phone = profile?.phoneNumber;
+    if (!phone) return c.json({ error: 'Member phone number not found' }, 400);
+
+    // 1. Get/Create Invitation
+    let invite = await db.query.tenantInvitations.findFirst({
+        where: and(eq(tenantInvitations.tenantId, tenant.id), eq(tenantInvitations.email, member.user.email))
+    });
+
+    const token = crypto.randomUUID();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    if (!invite) {
+        await db.insert(tenantInvitations).values({
+            id: crypto.randomUUID(),
+            tenantId: tenant.id,
+            email: member.user.email.toLowerCase(),
+            role: 'student',
+            token,
+            expiresAt,
+            invitedBy: c.get('auth').userId,
+        }).run();
+    } else {
+        await db.update(tenantInvitations)
+            .set({ token, expiresAt, createdAt: new Date() })
+            .where(eq(tenantInvitations.id, invite.id))
+            .run();
+    }
+
+    // 2. Update member invitedAt
+    await db.update(tenantMembers).set({ invitedAt: new Date() }).where(eq(tenantMembers.id, mid)).run();
+
+    // 3. Send SMS
+    const { SmsService } = await import('../services/sms');
+    const { UsageService } = await import('../services/pricing');
+    const usageService = new UsageService(db, tenant.id);
+    const smsService = new SmsService(undefined, c.env, usageService, db, tenant.id);
+    const inviteUrl = `https://${tenant.id}.slichti.org/join?token=${token}`;
+
+    await smsService.sendInvitation(phone, tenant.name, inviteUrl);
+
+    return c.json({ success: true });
 });
 
 // PATCH /members/:id/status

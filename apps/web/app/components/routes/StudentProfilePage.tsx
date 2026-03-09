@@ -268,6 +268,40 @@ export default function StudentProfilePageComponent() {
         onError: (e: any) => toast.error(e.message)
     });
 
+    const resendInvitationEmailMutation = useMutation({
+        mutationFn: async () => {
+            const token = await getToken();
+            const res = await apiRequest(`/members/${memberId}/resend-invitation-email`, token, {
+                method: "POST",
+                headers: { 'X-Tenant-Slug': slug! }
+            });
+            if ((res as any).error) throw new Error((res as any).error);
+            return res;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['member', slug, memberId] });
+            toast.success("Invitation email resent");
+        },
+        onError: (e: any) => toast.error(e.message)
+    });
+
+    const resendInvitationSmsMutation = useMutation({
+        mutationFn: async () => {
+            const token = await getToken();
+            const res = await apiRequest(`/members/${memberId}/resend-invitation-sms`, token, {
+                method: "POST",
+                headers: { 'X-Tenant-Slug': slug! }
+            });
+            if ((res as any).error) throw new Error((res as any).error);
+            return res;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['member', slug, memberId] });
+            toast.success("Invitation SMS resent");
+        },
+        onError: (e: any) => toast.error(e.message)
+    });
+
     const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -302,7 +336,7 @@ export default function StudentProfilePageComponent() {
     return (
         <ComponentErrorBoundary>
             <div className="max-w-5xl mx-auto pb-10">
-                <div className="flex items-start justify-between mb-8">
+                <div className="flex flex-col md:flex-row items-start justify-between mb-8 gap-4">
                     <div className="flex items-center gap-4">
                         <label className="relative h-20 w-20 bg-zinc-100 rounded-full flex items-center justify-center border border-zinc-200 overflow-hidden cursor-pointer group">
                             {userProfile.portraitUrl ? (
@@ -321,14 +355,18 @@ export default function StudentProfilePageComponent() {
                                 <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">{fullName}</h1>
                                 <Badge variant={hasActiveMembership ? 'success' : 'secondary'}>{membershipStatus}</Badge>
                             </div>
-                            <div className="flex items-center gap-2 mt-1 text-zinc-500 text-sm">
-                                <Mail className="h-4 w-4" />
-                                <span>{member.user?.email}</span>
-                                <span className="mx-1">•</span>
-                                <Badge variant="outline" className="capitalize">{rolesStr}</Badge>
-                            </div>
-                            <div className="text-xs text-zinc-400 mt-1">
-                                Joined {safeFormat(member.joinedAt, "MMM d, yyyy")}
+                            <div className="flex flex-col gap-1 mt-1">
+                                <div className="flex items-center gap-2 text-zinc-500 text-sm">
+                                    <Mail className="h-4 w-4" />
+                                    <span>{member.user?.email}</span>
+                                    <span className="mx-1">•</span>
+                                    <Badge variant="outline" className="capitalize">{rolesStr}</Badge>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-400">
+                                    <span>Joined {safeFormat(member.joinedAt, "MMM d, yyyy")}</span>
+                                    {member.invitedAt && <span>Invited {safeFormat(member.invitedAt, "MMM d, yyyy")}</span>}
+                                    {member.acceptedAt && <span>Accepted {safeFormat(member.acceptedAt, "MMM d, yyyy")}</span>}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -355,6 +393,20 @@ export default function StudentProfilePageComponent() {
                                         className="block w-full text-left px-4 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                                     >
                                         Send Email
+                                    </button>
+                                    <button
+                                        onClick={() => { setShowActions(false); resendInvitationEmailMutation.mutate(); }}
+                                        disabled={resendInvitationEmailMutation.isPending || !!member.acceptedAt}
+                                        className="block w-full text-left px-4 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50"
+                                    >
+                                        Resend Invitation (Email)
+                                    </button>
+                                    <button
+                                        onClick={() => { setShowActions(false); resendInvitationSmsMutation.mutate(); }}
+                                        disabled={resendInvitationSmsMutation.isPending || !!member.acceptedAt || !(member.user as any)?.phone}
+                                        className="block w-full text-left px-4 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50"
+                                    >
+                                        Resend Invitation (SMS)
                                     </button>
                                     <div className="border-t border-zinc-100 my-1"></div>
                                     <button
@@ -443,8 +495,29 @@ export default function StudentProfilePageComponent() {
                                         </div>
                                         <div>
                                             <label className="block text-xs text-zinc-400">Phone</label>
-                                            <div className="text-zinc-800 dark:text-zinc-200">{userProfile.phone || "Not provided"}</div>
+                                            <div className="text-zinc-800 dark:text-zinc-200">{userProfile.phoneNumber || "Not provided"}</div>
                                         </div>
+                                        {(member.invitedAt || member.acceptedAt) && (
+                                            <>
+                                                <div className="border-t border-zinc-100 dark:border-zinc-800 pt-3 mt-3">
+                                                    <label className="block text-xs text-zinc-400">Invitation Status</label>
+                                                    <div className="flex flex-col gap-1 mt-1">
+                                                        {member.invitedAt && (
+                                                            <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400">
+                                                                <Clock className="h-3 w-3" />
+                                                                <span>Sent: {safeFormat(member.invitedAt, "MMM d, p")}</span>
+                                                            </div>
+                                                        )}
+                                                        {member.acceptedAt && (
+                                                            <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                                                                <Check className="h-3 w-3" />
+                                                                <span>Accepted: {safeFormat(member.acceptedAt, "MMM d, p")}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
                                     </CardContent>
                                 </Card>
 
@@ -1074,7 +1147,7 @@ export default function StudentProfilePageComponent() {
                     confirmText={member.status === 'active' ? "Deactivate" : "Activate"}
                 />
             </div>
-        </ComponentErrorBoundary>
+        </ComponentErrorBoundary >
     );
 }
 

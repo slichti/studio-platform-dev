@@ -195,6 +195,10 @@ export const tenantMembers = sqliteTable('tenant_members', {
     smsConsent: integer('sms_consent', { mode: 'boolean' }).default(false), // Has user opted-in to SMS?
     smsConsentAt: integer('sms_consent_at', { mode: 'timestamp' }), // When consent was given
     smsOptOutAt: integer('sms_opt_out_at', { mode: 'timestamp' }), // When user opted out (STOP)
+
+    // Invitation Tracking
+    invitedAt: integer('invited_at', { mode: 'timestamp' }),
+    acceptedAt: integer('accepted_at', { mode: 'timestamp' }),
 }, (table) => ({
     tenantUserIdx: index('tenant_user_idx').on(table.tenantId, table.userId),
     userIdx: index('user_tenant_idx').on(table.userId, table.tenantId),

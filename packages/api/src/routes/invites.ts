@@ -101,6 +101,12 @@ app.post('/:token/accept', async (c) => {
         .where(eq(tenantInvitations.id, invite.id))
         .run();
 
+    // Update Member AcceptedAt
+    await db.update(tenantMembers)
+        .set({ acceptedAt: new Date() })
+        .where(eq(tenantMembers.id, member.id))
+        .run();
+
     return c.json({ success: true, tenantId: invite.tenantId });
 });
 
