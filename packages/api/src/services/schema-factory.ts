@@ -8,7 +8,7 @@ export class SchemaFactory {
             "@context": "https://schema.org",
             "@type": schemaType,
             "name": tenant.name,
-            "url": `https://studio-platform.com/studios/${tenant.slug}`,
+            "url": `https://slichti.org/studios/${tenant.slug}`,
             "logo": tenant.branding?.logoUrl || undefined,
             "address": tenant.branding?.physicalAddress ? {
                 "@type": "PostalAddress",
@@ -46,7 +46,7 @@ export class SchemaFactory {
             "organizer": {
                 "@type": "Organization",
                 "name": tenant.name,
-                "url": `https://studio-platform.com/studios/${tenant.slug}`
+                "url": `https://slichti.org/studios/${tenant.slug}`
             }
         };
 

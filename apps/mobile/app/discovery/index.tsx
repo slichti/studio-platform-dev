@@ -113,7 +113,7 @@ export default function DiscoveryScreen() {
                             </View>
                             <View className="flex-1">
                                 <Text className="font-bold text-lg text-zinc-900">{item.name}</Text>
-                                <Text className="text-zinc-500 text-xs">studio-platform.com/{item.slug}</Text>
+                                <Text className="text-zinc-500 text-xs">slichti.org/{item.slug}</Text>
                             </View>
                             <ArrowRight size={20} stroke="#d4d4d8" />
                         </TouchableOpacity>

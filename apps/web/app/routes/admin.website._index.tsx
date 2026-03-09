@@ -200,7 +200,7 @@ export default function AdminWebsite() {
                                     className="w-full border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                                     placeholder="e.g., about"
                                 />
-                                <p className="text-xs text-zinc-400 mt-1">studio-platform.com/{newPage.slug || "slug"}</p>
+                                <p className="text-xs text-zinc-400 mt-1">slichti.org/{newPage.slug || "slug"}</p>
                             </div>
                         </div>
                         <div className="flex justify-end gap-2 mt-6">

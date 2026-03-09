@@ -75,7 +75,7 @@ npx wrangler d1 execute studio-platform-db --remote --command "SELECT id, name, 
 
 #### Step 5: Notify Stakeholders
 - Post in #engineering Slack channel with incident summary
-- Update status page if applicable: https://status.studio-platform.com (if configured)
+- Update status page if applicable: https://status.slichti.org (if configured)
 - Notify affected customers if necessary via email
 
 ---

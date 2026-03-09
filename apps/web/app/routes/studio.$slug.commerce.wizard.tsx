@@ -125,13 +125,13 @@ export default function PricingWizard() {
             const failed = res.results?.filter((r: any) => r.status === 'failed') || [];
 
             if (created.length > 0) {
-                toast.success(`Successfully created: ${created.map(r => r.name).join(', ')}`);
+                toast.success(`Successfully created: ${created.map((r: any) => r.name).join(', ')}`);
             }
             if (skipped.length > 0) {
-                toast.info(`Skipped (already exist): ${skipped.map(r => r.name).join(', ')}`);
+                toast.info(`Skipped (already exist): ${skipped.map((r: any) => r.name).join(', ')}`);
             }
             if (failed.length > 0) {
-                toast.error(`Failed to create: ${failed.map(r => `${r.name} (${r.error || 'Unknown error'})`).join(', ')}`);
+                toast.error(`Failed to create: ${failed.map((r: any) => `${r.name} (${r.error || 'Unknown error'})`).join(', ')}`);
             }
 
             if (created.length > 0 || skipped.length > 0) {

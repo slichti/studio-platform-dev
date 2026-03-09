@@ -14,7 +14,7 @@ export const meta: MetaFunction = ({ data }: any) => {
     const title = data.page.seoTitle || seo.defaultTitle || data.page.title;
     const description = data.page.seoDescription || seo.defaultDescription || "";
     // Assuming page object might eventually have an `image` or `ogImage` field
-    const image = data.page.seoImage || data.page.ogImage || "https://studio-platform.com/og-default.png"; // Fallback
+    const image = data.page.seoImage || data.page.ogImage || "https://slichti.org/og-default.png"; // Fallback
     const url = typeof window !== "undefined" ? window.location.href : "";
 
     return [

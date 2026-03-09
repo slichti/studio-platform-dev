@@ -42,7 +42,7 @@ sitemapRoute.get('/sitemap.xml', async (c) => {
 
             for (const t of allTenants) {
                 const lastMod = t.createdAt ? new Date(t.createdAt as Date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
-                const urlNode = `  <url>\n    <loc>https://studio-platform.com/studios/${t.slug}</loc>\n    <lastmod>${lastMod}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>0.9</priority>\n  </url>\n`;
+                const urlNode = `  <url>\n    <loc>https://slichti.org/studios/${t.slug}</loc>\n    <lastmod>${lastMod}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>0.9</priority>\n  </url>\n`;
                 await writer.write(encoder.encode(urlNode));
             }
 
@@ -58,7 +58,7 @@ sitemapRoute.get('/sitemap.xml', async (c) => {
                 .all();
 
             for (const cls of futureClasses) {
-                const urlNode = `  <url>\n    <loc>https://studio-platform.com/studios/${cls.tenantSlug}/classes/${cls.id}</loc>\n    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>\n    <changefreq>hourly</changefreq>\n    <priority>0.7</priority>\n  </url>\n`;
+                const urlNode = `  <url>\n    <loc>https://slichti.org/studios/${cls.tenantSlug}/classes/${cls.id}</loc>\n    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>\n    <changefreq>hourly</changefreq>\n    <priority>0.7</priority>\n  </url>\n`;
                 await writer.write(encoder.encode(urlNode));
             }
 
@@ -75,7 +75,7 @@ sitemapRoute.get('/sitemap.xml', async (c) => {
                 .all();
 
             for (const vid of allVideos) {
-                const urlNode = `  <url>\n    <loc>https://studio-platform.com/studios/${vid.tenantSlug}/videos/${vid.id}</loc>\n    <video:video>\n      <video:thumbnail_loc>${vid.posterUrl || 'https://studio-platform.com/default-video.jpg'}</video:thumbnail_loc>\n      <video:title>${vid.title}</video:title>\n      <video:publication_date>${new Date(vid.createdAt as Date).toISOString()}</video:publication_date>\n    </video:video>\n  </url>\n`;
+                const urlNode = `  <url>\n    <loc>https://slichti.org/studios/${vid.tenantSlug}/videos/${vid.id}</loc>\n    <video:video>\n      <video:thumbnail_loc>${vid.posterUrl || 'https://slichti.org/default-video.jpg'}</video:thumbnail_loc>\n      <video:title>${vid.title}</video:title>\n      <video:publication_date>${new Date(vid.createdAt as Date).toISOString()}</video:publication_date>\n    </video:video>\n  </url>\n`;
                 await writer.write(encoder.encode(urlNode));
             }
 
@@ -91,7 +91,7 @@ sitemapRoute.get('/sitemap.xml', async (c) => {
 
             for (const loc of allLocations) {
                 const lastMod = loc.createdAt ? new Date(loc.createdAt as Date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
-                const urlNode = `  <url>\n    <loc>https://studio-platform.com/studios/${loc.slug}/locations/${loc.locationId}</loc>\n    <lastmod>${lastMod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+                const urlNode = `  <url>\n    <loc>https://slichti.org/studios/${loc.slug}/locations/${loc.locationId}</loc>\n    <lastmod>${lastMod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
                 await writer.write(encoder.encode(urlNode));
             }
 
@@ -107,7 +107,7 @@ sitemapRoute.get('/sitemap.xml', async (c) => {
 
             for (const blog of allBlogs) {
                 const lastMod = blog.createdAt ? new Date(blog.createdAt as Date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
-                const urlNode = `  <url>\n    <loc>https://studio-platform.com/studios/${blog.tenantSlug}/blog/${blog.id}</loc>\n    <lastmod>${lastMod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+                const urlNode = `  <url>\n    <loc>https://slichti.org/studios/${blog.tenantSlug}/blog/${blog.id}</loc>\n    <lastmod>${lastMod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
                 await writer.write(encoder.encode(urlNode));
             }
 

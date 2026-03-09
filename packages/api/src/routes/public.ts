@@ -6,7 +6,7 @@ import { ResendManagementService } from '../services/resend';
 
 const app = new Hono<{ Bindings: { DB: D1Database, RESEND_API_KEY: string } }>();
 
-const ROBOTS_BASE_URL = 'https://studio-platform.com';
+const ROBOTS_BASE_URL = 'https://slichti.org';
 
 // GET /public/robots.txt — Platform defaults + per-tenant disallow overlay
 app.get('/robots.txt', async (c) => {

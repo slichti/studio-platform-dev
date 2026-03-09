@@ -9,7 +9,7 @@ export class MonitoringService {
 
     constructor(env: any) {
         this.emailService = new EmailService(env.RESEND_API_KEY);
-        this.platformEmail = env.PLATFORM_ADMIN_EMAIL || 'support@studio-platform.com';
+        this.platformEmail = env.PLATFORM_ADMIN_EMAIL || 'support@slichti.org';
         this.slackWebhookUrl = env.SLACK_WEBHOOK_URL;
     }
 

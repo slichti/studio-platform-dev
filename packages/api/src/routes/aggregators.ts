@@ -146,7 +146,7 @@ app.openapi(createRoute({
         duration_minutes: cls.duration,
         instructor_name: cls.instructor_name,
         location_name: cls.location_name,
-        booking_url: `https://studio-platform.com/studios/${tenant.slug}/classes/${cls.id}`
+        booking_url: `https://slichti.org/studios/${tenant.slug}/classes/${cls.id}`
     }));
 
     return c.json({

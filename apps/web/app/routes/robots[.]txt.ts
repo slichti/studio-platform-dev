@@ -8,7 +8,7 @@ const FALLBACK_ROBOTS = [
     "Disallow: /sign-in",
     "Disallow: /documentation",
     "Disallow: /create-studio",
-    "Sitemap: https://studio-platform.com/sitemap.xml",
+    "Sitemap: https://slichti.org/sitemap.xml",
 ].join("\n");
 
 export const loader = async ({ request, context }: LoaderFunctionArgs) => {

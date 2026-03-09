@@ -451,7 +451,7 @@ export class UsageService {
         if (env.RESEND_API_KEY && env.SYSTEM_EMAIL) {
             const resend = new Resend(env.RESEND_API_KEY);
             await resend.emails.send({
-                from: 'system@studio-platform.com',
+                from: 'notifications@slichti.org',
                 to: env.SYSTEM_EMAIL,
                 subject: `⚠️ Platform Alert: ${serviceName} Usage High`,
                 html: `<p>The platform has used <strong>${usage}</strong> units of ${serviceName} this month.</p>

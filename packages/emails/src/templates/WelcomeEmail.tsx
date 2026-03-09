@@ -56,7 +56,7 @@ export const WelcomeEmail = ({
 WelcomeEmail.PreviewProps = {
     name: 'Alex',
     studioName: 'Zen Yoga Studio',
-    studioUrl: 'https://zen-yoga.studio-platform.com',
+    studioUrl: 'https://zen-yoga.slichti.org',
     primaryColor: '#8b5cf6',
 } as WelcomeEmailProps;
 

@@ -72,7 +72,7 @@ app.post('/classes/:classId/request', async (c) => {
 
             for (const inst of instructors) {
                 const s = (inst.settings as any)?.notifications?.substitutions || { email: true, sms: false, push: false };
-                if (s.email !== false) await email.sendSubRequestAlert(inst.email, { classTitle: classData.title, date: dateStr, requestingInstructor: String(reqName), message: message || '', link: `https://${tenant.slug}.studio-platform.com/studio/${tenant.slug}/substitutions` });
+                if (s.email !== false) await email.sendSubRequestAlert(inst.email, { classTitle: classData.title, date: dateStr, requestingInstructor: String(reqName), message: message || '', link: `https://${tenant.slug}.slichti.org/studio/${tenant.slug}/substitutions` });
                 if (s.sms && inst.phone) await sms.sendSms(inst.phone, `[${tenant.name}] SUB: ${reqName} needs cover for ${classData.title} on ${dateStr}`, inst.memberId);
                 if (s.push && inst.pushToken) await push.sendPush(inst.pushToken, `Sub Needed`, `${reqName} needs cover on ${dateStr}`, { requestId, classId: classData.id });
             }

@@ -81,9 +81,9 @@ export class EmailService {
         if (isByok && domainConfig?.customDomain) {
             this.fromEmail = `notifications@${domainConfig.customDomain}`;
         } else if (isByok && domainConfig?.slug) {
-            this.fromEmail = `notifications@${domainConfig.slug}.studio-platform.com`;
+            this.fromEmail = `notifications@${domainConfig.slug}.slichti.org`;
         } else {
-            this.fromEmail = 'notifications@studio-platform.com';
+            this.fromEmail = 'notifications@slichti.org';
         }
     }
 
@@ -170,7 +170,7 @@ export class EmailService {
                 ...this.getEmailOptions(),
                 ...this.getRecipients(to, 'transactional'),
                 subject,
-                react: React.createElement(WelcomeEmail, { ...this.getBaseProps(), name, studioUrl: `https://${this.tenantId}.studio-platform.com` })
+                react: React.createElement(WelcomeEmail, { ...this.getBaseProps(), name, studioUrl: `https://${this.tenantId}.slichti.org` })
             });
             await this.incrementUsage();
             await this.logEmail(to, subject, 'welcome_member', { name }, 'sent');

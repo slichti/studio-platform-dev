@@ -80,7 +80,7 @@ export class NudgeService {
                     <p>Just a friendly reminder that your trial for <strong>${trial.planName}</strong> is ending on <strong>${endDate}</strong>.</p>
                     <p>We hope you've enjoyed your time with us so far! If you wish to continue your membership, no action is needed.</p>
                     <div style="margin-top: 20px;">
-                        <a href="https://${trial.tenantName.toLowerCase().replace(/\s/g, '')}.studio-platform.com/portal" style="background-color: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Go to Portal</a>
+                        <a href="https://${trial.tenantName.toLowerCase().replace(/\s/g, '')}.slichti.org/portal" style="background-color: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Go to Portal</a>
                     </div>
                     `,
                     false // use tenant branding
@@ -205,7 +205,7 @@ export class NudgeService {
                             <p>We noticed it's been a while since your last visit. We'd love to see you back on the mat!</p>
                             <p>Check out our schedule and book your next class today.</p>
                             <div style="margin-top: 20px;">
-                                <a href="https://${customer.tenantName.toLowerCase().replace(/\s/g, '')}.studio-platform.com/schedule" style="background-color: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Schedule</a>
+                                <a href="https://${customer.tenantName.toLowerCase().replace(/\s/g, '')}.slichti.org/schedule" style="background-color: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Schedule</a>
                             </div>
                             `,
                             false

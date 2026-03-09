@@ -57,7 +57,7 @@ export const InvitationEmail = ({
 
 InvitationEmail.PreviewProps = {
     studioName: 'Zen Yoga Studio',
-    inviteUrl: 'https://zen-yoga.studio-platform.com/login',
+    inviteUrl: 'https://zen-yoga.slichti.org/login',
     primaryColor: '#8b5cf6',
 } as InvitationEmailProps;
 

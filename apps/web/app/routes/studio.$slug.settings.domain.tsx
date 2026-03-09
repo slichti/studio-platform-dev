@@ -34,7 +34,7 @@ export default function DomainSettings() {
     const [showCommunityDeleteConfirm, setShowCommunityDeleteConfirm] = useState(false);
     const [copied, setCopied] = useState(false);
 
-    const CNAME_TARGET = "cname.studio-platform.com";
+    const CNAME_TARGET = "cname.slichti.org";
 
     // ... (Keep existing Scale tier check)
 
@@ -95,7 +95,7 @@ export default function DomainSettings() {
                     <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 mb-2">Connect Your Own Domain</h2>
                     <p className="text-zinc-600 dark:text-zinc-400 mb-6">
                         Use a custom domain (e.g., <span className="font-mono text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30 px-1 rounded">www.mystudio.com</span>)
-                        instead of <span className="font-mono">studio-platform.com</span>. This feature is exclusive to the <strong>Scale</strong> plan.
+                        instead of <span className="font-mono">slichti.org</span>. This feature is exclusive to the <strong>Scale</strong> plan.
                     </p>
                     <div className="flex justify-center gap-4">
                         <Link
