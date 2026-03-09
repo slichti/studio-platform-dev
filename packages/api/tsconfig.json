@@ -13,6 +13,8 @@
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
         "jsx": "react-jsx",
+        "incremental": true,
+        "tsBuildInfoFile": "node_modules/.cache/tsbuildinfo",
         "baseUrl": ".",
         "paths": {
             "@studio/db": [

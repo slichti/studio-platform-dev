@@ -55,7 +55,8 @@ describe('Booking Lifecycle Integration', () => {
             id TEXT PRIMARY KEY, tenant_id TEXT, user_id TEXT, stripe_customer_id TEXT, profile TEXT, settings TEXT, custom_fields TEXT,
             status TEXT DEFAULT 'active', joined_at INTEGER, churn_score INTEGER DEFAULT 100, churn_status TEXT DEFAULT 'safe',
             last_churn_check INTEGER, engagement_score INTEGER DEFAULT 50, last_engagement_calc INTEGER,
-            sms_consent INTEGER DEFAULT 0, sms_consent_at INTEGER, sms_opt_out_at INTEGER
+            sms_consent INTEGER DEFAULT 0, sms_consent_at INTEGER, sms_opt_out_at INTEGER,
+            invited_at INTEGER, accepted_at INTEGER
         )`);
 
         // 4. Classes

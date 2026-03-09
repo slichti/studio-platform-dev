@@ -62,7 +62,8 @@ describe('Debug Fixes Verification', () => {
             custom_fields TEXT, status TEXT DEFAULT 'active' NOT NULL, joined_at INTEGER DEFAULT (strftime('%s', 'now')),
             churn_score INTEGER DEFAULT 100, churn_status TEXT DEFAULT 'safe',
             last_churn_check INTEGER, engagement_score INTEGER DEFAULT 50, last_engagement_calc INTEGER,
-            sms_consent INTEGER DEFAULT 0, sms_consent_at INTEGER, sms_opt_out_at INTEGER
+            sms_consent INTEGER DEFAULT 0, sms_consent_at INTEGER, sms_opt_out_at INTEGER,
+            invited_at INTEGER, accepted_at INTEGER
         )`);
         sqlite.exec(`CREATE TABLE tenant_roles (
             id TEXT PRIMARY KEY, member_id TEXT NOT NULL,

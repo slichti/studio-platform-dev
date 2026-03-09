@@ -14,7 +14,16 @@
         },
         "lint": {},
         "test": {},
-        "typecheck": {},
+        "typecheck": {
+            "inputs": [
+                "**/*.ts",
+                "**/*.tsx",
+                "tsconfig.json"
+            ],
+            "outputs": [
+                "node_modules/.cache/tsbuildinfo"
+            ]
+        },
         "dev": {
             "cache": false,
             "persistent": true

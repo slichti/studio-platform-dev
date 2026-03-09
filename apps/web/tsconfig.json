@@ -51,6 +51,8 @@
                 "../../packages/db/*"
             ]
         },
-        "noEmit": true
+        "noEmit": true,
+        "incremental": true,
+        "tsBuildInfoFile": "node_modules/.cache/tsbuildinfo"
     }
 }
