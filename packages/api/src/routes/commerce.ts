@@ -357,6 +357,15 @@ app.post('/purchase', async (c) => {
         return c.json({ error: "Member not found" }, 404);
     }
 
+    // Ensure member is active whenever a pack or membership is manually granted.
+    // This is especially important for migrations and complimentary grants.
+    if (member.status !== 'active') {
+        await db.update(tenantMembers)
+            .set({ status: 'active' })
+            .where(eq(tenantMembers.id, memberId))
+            .run();
+    }
+
     const { FulfillmentService } = await import('../services/fulfillment');
     const fulfillment = new FulfillmentService(db, c.env.RESEND_API_KEY, c.env);
     const mockPaymentId = `manual_${crypto.randomUUID()}`;
