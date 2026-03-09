@@ -1,4 +1,5 @@
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
+import { useAuth } from "@clerk/react-router";
 import { apiRequest } from "~/utils/api";
 
 export interface Member {
@@ -21,6 +22,7 @@ interface UseMembersOptions {
 
 export function useInfiniteMembers(tenantSlug: string, options: UseMembersOptions = {}) {
     const { role, status, search, limit = 50 } = options;
+    const { isSignedIn } = useAuth();
 
     return useInfiniteQuery({
         queryKey: ['members', 'infinite', tenantSlug, role, status, search, limit],
@@ -48,13 +50,14 @@ export function useInfiniteMembers(tenantSlug: string, options: UseMembersOption
             return lastPage.nextOffset;
         },
         initialPageParam: 0,
-        enabled: !!tenantSlug,
+        enabled: !!tenantSlug && !!isSignedIn,
         keepPreviousData: true
     } as any);
 }
 
 export function useMembers(tenantSlug: string, options: UseMembersOptions = {}) {
     const { role, status, search, limit = 100, offset = 0 } = options;
+    const { isSignedIn } = useAuth();
 
     return useQuery({
         queryKey: ['members', tenantSlug, role, status, search, limit, offset],
@@ -76,7 +79,7 @@ export function useMembers(tenantSlug: string, options: UseMembersOptions = {}) 
                 total: data.total
             };
         },
-        enabled: !!tenantSlug,
+        enabled: !!tenantSlug && !!isSignedIn,
         keepPreviousData: true
     } as any);
 }

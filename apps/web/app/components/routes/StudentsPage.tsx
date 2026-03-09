@@ -50,6 +50,7 @@ export default function StudentsPage() {
         data,
         isLoading,
         error,
+        refetch,
         fetchNextPage,
         hasNextPage,
         isFetchingNextPage
@@ -193,8 +194,15 @@ export default function StudentsPage() {
             </div>
 
             {error && (
-                <div className="p-4 bg-red-50 text-red-700 rounded border border-red-100 dark:bg-red-900/10 dark:text-red-400 dark:border-red-900/20">
-                    Failed to load members. Please try again.
+                <div className="p-4 bg-red-50 text-red-700 rounded border border-red-100 dark:bg-red-900/10 dark:text-red-400 dark:border-red-900/20 flex items-center justify-between gap-4 flex-wrap">
+                    <span>
+                        {(error as any)?.status === 401
+                            ? 'Please sign in again to load members.'
+                            : (error as any)?.message || 'Failed to load members. Please try again.'}
+                    </span>
+                    <Button variant="outline" size="sm" onClick={() => refetch()}>
+                        Retry
+                    </Button>
                 </div>
             )}
 
