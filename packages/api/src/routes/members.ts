@@ -67,9 +67,17 @@ const listMembersRoute = createRoute({
             content: { 'application/json': { schema: MemberListResponse } },
             description: 'List of members'
         },
+        400: {
+            content: { 'application/json': { schema: ErrorResponseSchema } },
+            description: 'Tenant context required'
+        },
         403: {
             content: { 'application/json': { schema: ErrorResponseSchema } },
             description: 'Unauthorized'
+        },
+        500: {
+            content: { 'application/json': { schema: ErrorResponseSchema } },
+            description: 'Internal Server Error'
         }
     }
 });
@@ -163,7 +171,7 @@ app.openapi(listMembersRoute, async (c) => {
         }, 200);
     } catch (err: any) {
         console.error('[Members] GET / list error:', err?.message ?? err, err?.stack);
-        return c.json({ error: 'Failed to load members', details: err?.message }, 500);
+        return c.json({ error: err?.message ?? 'Failed to load members' }, 500);
     }
 });
 
