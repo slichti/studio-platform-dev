@@ -883,7 +883,11 @@ app.openapi(resendInvitationEmailRoute, async (c) => {
 
     // 1. Get/Create Invitation
     let invite = await db.query.tenantInvitations.findFirst({
-        where: and(eq(tenantInvitations.tenantId, tenant.id), eq(tenantInvitations.email, member.user.email))
+        where: and(
+            eq(tenantInvitations.tenantId, tenant.id),
+            // Invitations always store lower-cased email; match on lower-case to avoid uniqueness conflicts.
+            eq(tenantInvitations.email, member.user.email.toLowerCase())
+        )
     });
 
     const token = crypto.randomUUID();
@@ -1024,7 +1028,10 @@ app.openapi(resendInvitationSmsRoute, async (c) => {
 
     // 1. Get/Create Invitation
     let invite = await db.query.tenantInvitations.findFirst({
-        where: and(eq(tenantInvitations.tenantId, tenant.id), eq(tenantInvitations.email, member.user.email))
+        where: and(
+            eq(tenantInvitations.tenantId, tenant.id),
+            eq(tenantInvitations.email, member.user.email.toLowerCase())
+        )
     });
 
     const token = crypto.randomUUID();
