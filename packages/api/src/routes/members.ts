@@ -923,6 +923,72 @@ app.openapi(resendInvitationEmailRoute, async (c) => {
     return c.json({ success: true }, 200) as any;
 });
 
+// POST /members/:id/email - one-off direct email from studio to member
+const sendMemberEmailRoute = createRoute({
+    method: 'post',
+    path: '/{id}/email',
+    tags: ['Members'],
+    summary: 'Send a direct email to a member',
+    request: {
+        params: z.object({ id: z.string() }),
+        body: {
+            content: {
+                'application/json': {
+                    schema: z.object({
+                        subject: z.string().min(1),
+                        body: z.string().min(1)
+                    })
+                }
+            }
+        }
+    },
+    responses: {
+        200: { content: { 'application/json': { schema: SuccessResponseSchema } }, description: 'Email sent' },
+        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' },
+        404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Member not found' }
+    }
+});
+
+app.openapi(sendMemberEmailRoute, async (c) => {
+    // Require member or marketing permissions
+    if (!c.get('can')('manage_members') && !c.get('can')('manage_marketing')) {
+        return c.json({ error: 'Unauthorized' }, 403) as any;
+    }
+
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant')!;
+    const mid = c.req.valid('param').id;
+    const { subject, body } = c.req.valid('json');
+
+    const member = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.id, mid), eq(tenantMembers.tenantId, tenant.id)),
+        with: { user: true }
+    });
+
+    if (!member || !member.user?.email) {
+        return c.json({ error: 'Member or email not found' }, 404) as any;
+    }
+
+    const { EmailService } = await import('../services/email');
+    const { UsageService } = await import('../services/pricing');
+
+    const usageService = new UsageService(db, tenant.id);
+    const apiKey = c.env.RESEND_API_KEY || '';
+    const emailService = new EmailService(apiKey, {}, { name: tenant.name }, usageService, false, db, tenant.id);
+
+    // Simple HTML wrapper for the message body
+    const htmlBody = `<p>${body.replace(/\n/g, '<br/>')}</p>`;
+
+    await emailService.sendGenericEmail(
+        member.user.email,
+        subject,
+        htmlBody,
+        true
+    );
+
+    return c.json({ success: true }, 200) as any;
+});
+
 // POST /members/:id/resend-invitation-sms
 const resendInvitationSmsRoute = createRoute({
     method: 'post',
