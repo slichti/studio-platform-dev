@@ -156,6 +156,34 @@ app.get('/products', async (c) => {
     return c.json({ products });
 });
 
+// GET /packs - list active class pack definitions for tenant (used by Studio POS / Assign Pack)
+app.get('/packs', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context missing' }, 400);
+
+    const packs = await db.select().from(classPackDefinitions)
+        .where(and(eq(classPackDefinitions.tenantId, tenant.id), eq(classPackDefinitions.active, true)))
+        .orderBy(sql`${classPackDefinitions.price} ASC`)
+        .all();
+
+    return c.json(packs);
+});
+
+// GET /plans - list active membership plans for tenant (used by Studio POS / Assign Membership)
+app.get('/plans', async (c) => {
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context missing' }, 400);
+
+    const plans = await db.select().from(membershipPlans)
+        .where(and(eq(membershipPlans.tenantId, tenant.id), eq(membershipPlans.active, true)))
+        .orderBy(sql`${membershipPlans.price} ASC`)
+        .all();
+
+    return c.json(plans);
+});
+
 // POST /coupons - Create
 app.post('/coupons', async (c) => {
     if (!c.get('can')('manage_commerce')) {
