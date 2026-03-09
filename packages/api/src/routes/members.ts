@@ -869,7 +869,7 @@ const resendInvitationEmailRoute = createRoute({
 });
 
 app.openapi(resendInvitationEmailRoute, async (c) => {
-    if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
+    if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403) as any;
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant')!;
     const mid = c.req.valid('param').id;
@@ -879,7 +879,7 @@ app.openapi(resendInvitationEmailRoute, async (c) => {
         with: { user: true }
     });
 
-    if (!member) return c.json({ error: 'Member not found' }, 404);
+    if (!member) return c.json({ error: 'Member not found' }, 404) as any;
 
     // 1. Get/Create Invitation
     let invite = await db.query.tenantInvitations.findFirst({
@@ -914,12 +914,13 @@ app.openapi(resendInvitationEmailRoute, async (c) => {
     const { EmailService } = await import('../services/email');
     const { UsageService } = await import('../services/pricing');
     const usageService = new UsageService(db, tenant.id);
-    const emailService = new EmailService(c.env.RESEND_API_KEY, {}, { name: tenant.name }, usageService, false, db, tenant.id);
+    const apiKey = c.env.RESEND_API_KEY || '';
+    const emailService = new EmailService(apiKey, {}, { name: tenant.name }, usageService, false, db, tenant.id);
     const inviteUrl = `https://${tenant.id}.slichti.org/join?token=${token}`;
 
     await emailService.sendInvitation(member.user.email, inviteUrl);
 
-    return c.json({ success: true });
+    return c.json({ success: true }, 200) as any;
 });
 
 // POST /members/:id/resend-invitation-sms
@@ -940,7 +941,7 @@ const resendInvitationSmsRoute = createRoute({
 });
 
 app.openapi(resendInvitationSmsRoute, async (c) => {
-    if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
+    if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403) as any;
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant')!;
     const mid = c.req.valid('param').id;
@@ -950,10 +951,10 @@ app.openapi(resendInvitationSmsRoute, async (c) => {
         with: { user: true }
     });
 
-    if (!member) return c.json({ error: 'Member not found' }, 404);
+    if (!member) return c.json({ error: 'Member not found' }, 404) as any;
     const profile = member.user.profile as any;
-    const phone = profile?.phoneNumber;
-    if (!phone) return c.json({ error: 'Member phone number not found' }, 400);
+    const phone = ((member.user.profile as any)?.phoneNumber || (member.user as any).phone) as string | undefined;
+    if (!phone) return c.json({ error: 'Member phone number not found' }, 400) as any;
 
     // 1. Get/Create Invitation
     let invite = await db.query.tenantInvitations.findFirst({
@@ -993,7 +994,7 @@ app.openapi(resendInvitationSmsRoute, async (c) => {
 
     await smsService.sendInvitation(phone, tenant.name, inviteUrl);
 
-    return c.json({ success: true });
+    return c.json({ success: true }, 200) as any;
 });
 
 // PATCH /members/:id/status
