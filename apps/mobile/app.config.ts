@@ -76,7 +76,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         },
         extra: {
             tenantSlug: tenantConfig.slug,
-            apiUrl: tenantConfig.apiUrl || process.env.API_URL || "https://studio-platform-api.slichti.workers.dev",
+            apiUrl: tenantConfig.apiUrl || process.env.API_URL || "https://api.slichti.org",
             eas: {
                 projectId: "your-project-id" // You might need to make this dynamic if multiple EAS projects
             }

@@ -233,7 +233,7 @@ The platform uses Stripe Connect for multi-tenant billing. To set up your local 
 3. **Webhooks (Preview/Production):** To configure a live webhook for Cloudflare Workers, use the Stripe CLI:
    ```bash
    stripe webhook_endpoints create \
-     --url "https://api.studio-platform.dev/webhooks/stripe" \
+     --url "https://api.slichti.org/webhooks/stripe" \
      -d "enabled_events[]=checkout.session.completed" \
      -d "enabled_events[]=invoice.payment_succeeded" \
      -d "enabled_events[]=invoice.payment_failed" \
