@@ -75,89 +75,96 @@ const listMembersRoute = createRoute({
 });
 
 app.openapi(listMembersRoute, async (c) => {
-    if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
-    const db = createDb(c.env.DB);
-    const tenant = c.get('tenant')!;
-    const { q, role, status, limit = 50, offset = 0 } = c.req.valid('query');
+    try {
+        const can = c.get('can');
+        if (typeof can !== 'function' || !can('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
+        const tenant = c.get('tenant');
+        if (!tenant) return c.json({ error: 'Tenant context required' }, 400);
+        const db = createDb(c.env.DB);
+        const { q, role, status, limit = 50, offset = 0 } = c.req.valid('query');
 
-    const conds = [eq(tenantMembers.tenantId, tenant.id)];
-    if (status && status !== 'all') {
-        conds.push(eq(tenantMembers.status, status as any));
+        const conds = [eq(tenantMembers.tenantId, tenant.id)];
+        if (status && status !== 'all') {
+            conds.push(eq(tenantMembers.status, status as any));
+        }
+        let whereClause = and(...conds);
+
+        if (q) {
+            const searchPattern = `%${q.toLowerCase()}%`;
+            whereClause = and(
+                whereClause,
+                or(
+                    sql`lower(${users.email}) LIKE ${searchPattern}`,
+                    sql`lower(json_extract(${users.profile}, '$.firstName')) LIKE ${searchPattern}`,
+                    sql`lower(json_extract(${users.profile}, '$.lastName')) LIKE ${searchPattern}`
+                )
+            );
+        }
+
+        const query = db.select({
+            member: tenantMembers,
+            user: users
+        })
+            .from(tenantMembers)
+            .innerJoin(users, eq(tenantMembers.userId, users.id));
+
+        const countQuery = db.select({ count: sql<number>`count(*)` })
+            .from(tenantMembers)
+            .innerJoin(users, eq(tenantMembers.userId, users.id));
+
+        let finalWhere = whereClause;
+        let finalQuery = query;
+        let finalCountQuery = countQuery;
+
+        if (role) {
+            finalQuery = finalQuery.innerJoin(tenantRoles, eq(tenantRoles.memberId, tenantMembers.id));
+            finalCountQuery = finalCountQuery.innerJoin(tenantRoles, eq(tenantRoles.memberId, tenantMembers.id));
+            finalWhere = and(finalWhere, eq(tenantRoles.role, role as any));
+        }
+
+        const [list, countRes] = await Promise.all([
+            finalQuery
+                .where(finalWhere)
+                .orderBy(desc(tenantMembers.joinedAt))
+                .limit(limit)
+                .offset(offset)
+                .all(),
+            finalCountQuery
+                .where(finalWhere)
+                .get()
+        ]);
+
+        const membersList = list;
+        const totalCount = Number((countRes as any)?.count ?? 0);
+
+        // Fetch roles for all members in the list
+        const memberIds = membersList.map(m => m.member.id);
+        const allRoles = memberIds.length > 0
+            ? await db.select().from(tenantRoles).where(inArray(tenantRoles.memberId, memberIds)).all()
+            : [];
+
+        const result = membersList
+            .filter((row: any) => !row.user?.isPlatformAdmin)
+            .map((row: any) => {
+                const memberRoles = allRoles.filter(r => r.memberId === row.member.id).map(r => ({ role: r.role }));
+                return {
+                    ...row.member,
+                    user: row.user,
+                    roles: memberRoles,
+                    joinedAt: row.member.joinedAt ? new Date(row.member.joinedAt).toISOString() : undefined
+                };
+            });
+
+        return c.json({
+            members: result,
+            total: totalCount,
+            limit,
+            offset
+        }, 200);
+    } catch (err: any) {
+        console.error('[Members] GET / list error:', err?.message ?? err, err?.stack);
+        return c.json({ error: 'Failed to load members', details: err?.message }, 500);
     }
-    let whereClause = and(...conds);
-
-    if (q) {
-        const searchPattern = `%${q.toLowerCase()}%`;
-        whereClause = and(
-            whereClause,
-            or(
-                sql`lower(${users.email}) LIKE ${searchPattern}`,
-                sql`lower(json_extract(${users.profile}, '$.firstName')) LIKE ${searchPattern}`,
-                sql`lower(json_extract(${users.profile}, '$.lastName')) LIKE ${searchPattern}`
-            )
-        );
-    }
-
-    const query = db.select({
-        member: tenantMembers,
-        user: users
-    })
-        .from(tenantMembers)
-        .innerJoin(users, eq(tenantMembers.userId, users.id));
-
-    const countQuery = db.select({ count: sql<number>`count(*)` })
-        .from(tenantMembers)
-        .innerJoin(users, eq(tenantMembers.userId, users.id));
-
-    let finalWhere = whereClause;
-    let finalQuery = query;
-    let finalCountQuery = countQuery;
-
-    if (role) {
-        finalQuery = finalQuery.innerJoin(tenantRoles, eq(tenantRoles.memberId, tenantMembers.id));
-        finalCountQuery = finalCountQuery.innerJoin(tenantRoles, eq(tenantRoles.memberId, tenantMembers.id));
-        finalWhere = and(finalWhere, eq(tenantRoles.role, role as any));
-    }
-
-    const [list, countRes] = await Promise.all([
-        finalQuery
-            .where(finalWhere)
-            .orderBy(desc(tenantMembers.joinedAt))
-            .limit(limit)
-            .offset(offset)
-            .all(),
-        finalCountQuery
-            .where(finalWhere)
-            .get()
-    ]);
-
-    const membersList = list;
-    const totalCount = Number((countRes as any)?.count || 0);
-
-    // Fetch roles for all members in the list
-    const memberIds = membersList.map(m => m.member.id);
-    const allRoles = memberIds.length > 0
-        ? await db.select().from(tenantRoles).where(inArray(tenantRoles.memberId, memberIds)).all()
-        : [];
-
-    const result = membersList
-        .filter((row: any) => !row.user.isPlatformAdmin)
-        .map((row: any) => {
-            const memberRoles = allRoles.filter(r => r.memberId === row.member.id).map(r => ({ role: r.role }));
-            return {
-                ...row.member,
-                user: row.user,
-                roles: memberRoles,
-                joinedAt: row.member.joinedAt ? new Date(row.member.joinedAt).toISOString() : undefined
-            };
-        });
-
-    return c.json({
-        members: result,
-        total: totalCount,
-        limit,
-        offset
-    }, 200);
 });
 
 // POST /members
