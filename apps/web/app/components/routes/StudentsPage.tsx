@@ -456,7 +456,7 @@ export default function StudentsPage() {
                         <ManageMemberForm
                             member={editingMember}
                             isOwner={isOwner}
-                            onSave={async (role: string, status: string) => {
+                            onSave={async (roles: string[], status: string) => {
                                 setIsSubmitting(true);
                                 try {
                                     const token = await getToken();
@@ -464,13 +464,23 @@ export default function StudentsPage() {
 
                                     const promises = [];
 
-                                    // Update Role if changed
-                                    const currentRole = (Array.isArray(editingMember.roles) ? editingMember.roles : []).find((r: any) => r.role === 'owner' || r.role === 'instructor')?.role || 'student';
-                                    if (role !== currentRole) {
-                                        promises.push(apiRequest(`/members/${editingMember.id}/role`, token, {
+                                    // Update Roles if changed (additive; always includes student)
+                                    const currentRoles = Array.isArray(editingMember.roles)
+                                        ? editingMember.roles.map((r: any) => r.role).filter(Boolean)
+                                        : [];
+                                    const nextRoles = Array.from(new Set([...(roles || []), 'student']));
+                                    const currentSet = new Set(currentRoles);
+                                    const nextSet = new Set(nextRoles);
+                                    const rolesChanged =
+                                        currentRoles.length !== nextRoles.length ||
+                                        nextRoles.some((r: string) => !currentSet.has(r)) ||
+                                        currentRoles.some((r: string) => !nextSet.has(r));
+
+                                    if (rolesChanged) {
+                                        promises.push(apiRequest(`/members/${editingMember.id}/roles`, token, {
                                             method: "PATCH",
                                             headers,
-                                            body: JSON.stringify({ role })
+                                            body: JSON.stringify({ roles: nextRoles })
                                         }));
                                     }
 
@@ -511,26 +521,52 @@ export default function StudentsPage() {
 }
 
 function ManageMemberForm({ member, isOwner, onSave, onRemove, isSubmitting, onCancel }: any) {
-    const currentRole = (Array.isArray(member.roles) ? member.roles : []).find((r: any) => r.role === 'owner' || r.role === 'instructor')?.role || 'student';
-    const [role, setRole] = useState(currentRole);
+    const currentRoles = Array.isArray(member.roles) ? member.roles.map((r: any) => r.role).filter(Boolean) : [];
+    const [roles, setRoles] = useState<string[]>(currentRoles.length ? currentRoles : ['student']);
     const [status, setStatus] = useState(member.status || 'active');
 
-    const hasChanges = role !== currentRole || status !== member.status;
+    const currentSet = new Set(currentRoles);
+    const nextSet = new Set(roles);
+    const rolesChanged =
+        currentRoles.length !== roles.length ||
+        roles.some((r: string) => !currentSet.has(r)) ||
+        currentRoles.some((r: string) => !nextSet.has(r));
+    const hasChanges = rolesChanged || status !== member.status;
+
+    const toggle = (role: string) => {
+        setRoles((prev) => {
+            const s = new Set(prev);
+            if (s.has(role)) s.delete(role);
+            else s.add(role);
+            // Owners/admins/instructors are also students (always keep student)
+            s.add('student');
+            return Array.from(s);
+        });
+    };
 
     return (
         <div className="space-y-6 py-4">
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <label className="text-sm font-medium">Role</label>
-                    <Select
-                        className="flex h-10 w-full items-center justify-between rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:placeholder:text-zinc-400 dark:focus:ring-zinc-300"
-                        value={role}
-                        onChange={(e: any) => setRole(e.target.value)}
-                        disabled={!isOwner}
-                    >
-                        <option value="student">Student</option>
-                        <option value="instructor">Instructor</option>
-                    </Select>
+                    <label className="text-sm font-medium">Roles</label>
+                    <div className="space-y-2 rounded-md border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
+                        <label className="flex items-center gap-2 text-sm">
+                            <input type="checkbox" checked={roles.includes('student')} disabled />
+                            Student (always)
+                        </label>
+                        <label className="flex items-center gap-2 text-sm">
+                            <input type="checkbox" checked={roles.includes('instructor')} onChange={() => toggle('instructor')} disabled={!isOwner} />
+                            Instructor
+                        </label>
+                        <label className="flex items-center gap-2 text-sm">
+                            <input type="checkbox" checked={roles.includes('admin')} onChange={() => toggle('admin')} disabled={!isOwner} />
+                            Admin
+                        </label>
+                        <label className="flex items-center gap-2 text-sm">
+                            <input type="checkbox" checked={roles.includes('owner')} onChange={() => toggle('owner')} disabled={!isOwner} />
+                            Owner
+                        </label>
+                    </div>
                 </div>
                 <div className="space-y-2">
                     <label className="text-sm font-medium">Status</label>
@@ -560,7 +596,7 @@ function ManageMemberForm({ member, isOwner, onSave, onRemove, isSubmitting, onC
 
             <DialogFooter>
                 <Button variant="outline" onClick={onCancel}>Cancel</Button>
-                <Button onClick={() => onSave(role, status)} disabled={isSubmitting || !isOwner || !hasChanges}>
+                <Button onClick={() => onSave(roles, status)} disabled={isSubmitting || !isOwner || !hasChanges}>
                     Save Changes
                 </Button>
             </DialogFooter>

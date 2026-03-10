@@ -572,42 +572,69 @@ app.get('/me/streak', async (c) => {
     return c.json({ currentStreak, longestStreak });
 });
 
-// PATCH /members/:id/role
-const updateMemberRoleRoute = createRoute({
+// PATCH /members/:id/roles
+// Sets the member's system roles (additive model). Members always keep 'student'.
+const updateMemberRolesRoute = createRoute({
     method: 'patch',
-    path: '/{id}/role',
+    path: '/{id}/roles',
     tags: ['Members'],
-    summary: 'Update member role',
+    summary: 'Update member roles',
     request: {
         params: z.object({ id: z.string() }),
         body: {
-            content: { 'application/json': { schema: z.object({ role: z.string() }) } }
+            content: {
+                'application/json': {
+                    schema: z.object({
+                        roles: z.array(z.enum(['owner', 'admin', 'instructor', 'student'])).min(1)
+                    })
+                }
+            }
         }
     },
     responses: {
-        200: { content: { 'application/json': { schema: SuccessResponseSchema } }, description: 'Role updated' },
+        200: { content: { 'application/json': { schema: z.object({ success: z.boolean(), roles: z.array(z.string()) }) } }, description: 'Roles updated' },
         400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Bad Request / Self' },
         403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized / Limit' },
         404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Not found' }
     }
 });
 
-app.openapi(updateMemberRoleRoute, async (c) => {
+app.openapi(updateMemberRolesRoute, async (c) => {
     if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
-    const { role } = c.req.valid('json');
     const mid = c.req.valid('param').id;
-    const m = await db.query.tenantMembers.findFirst({ where: and(eq(tenantMembers.id, mid), eq(tenantMembers.tenantId, c.get('tenant')!.id)) });
+    const tenantId = c.get('tenant')!.id;
+
+    const m = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.id, mid), eq(tenantMembers.tenantId, tenantId))
+    });
     if (!m) return c.json({ error: 'Not found' }, 404);
     if (m.userId === c.get('auth').userId) return c.json({ error: 'Self' }, 400);
 
-    await db.delete(tenantRoles).where(eq(tenantRoles.memberId, mid)).run();
-    if (role === 'instructor') {
+    const body = c.req.valid('json');
+    const requested = new Set(body.roles);
+    requested.add('student'); // staff are also students
+
+    if (requested.has('instructor')) {
         const { UsageService } = await import('../services/pricing');
-        if (!(await new UsageService(db, c.get('tenant')!.id).checkLimit('instructors', c.get('tenant')!.tier || 'launch'))) return c.json({ error: "Limit", code: "LIMIT_REACHED" }, 403);
+        if (!(await new UsageService(db, tenantId).checkLimit('instructors', c.get('tenant')!.tier || 'launch'))) {
+            return c.json({ error: "Limit", code: "LIMIT_REACHED" }, 403);
+        }
     }
-    await db.insert(tenantRoles).values({ id: crypto.randomUUID(), memberId: mid, role: role as any }).run();
-    return c.json({ success: true }, 200);
+
+    // Replace only system roles (owner/admin/instructor/student). Leave custom roles alone.
+    await db.delete(tenantRoles).where(and(eq(tenantRoles.memberId, mid), sql`${tenantRoles.role} != 'custom'`)).run();
+
+    const rows = Array.from(requested).map((r) => ({
+        id: crypto.randomUUID(),
+        memberId: mid,
+        role: r as any
+    }));
+    for (const row of rows) {
+        await db.insert(tenantRoles).values(row).run();
+    }
+
+    return c.json({ success: true, roles: Array.from(requested) }, 200);
 });
 
 // GET /members/:id
