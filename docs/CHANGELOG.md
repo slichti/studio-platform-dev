@@ -12,6 +12,11 @@ This document tracks the iterative development of features and capabilities over
     - [x] Enabled Community Hub for `garden-yoga` and platform in Cloud D1.
     - [x] **Fix:** Corrected `app.route` middleware signatures in API `index.ts` to satisfy typechecks.
 
+## 2026-03-09
+
+- **🐛 Fix:** Ensure members become `active` when granted class packs or memberships (fulfillment-level enforcement).
+- **🧭 UX:** Expose a clear **Activate Member** action in the student profile for manual reactivation.
+
 ## 2026-03-05
 
 - **🚀 Feature:** Implement Configurable Platform Earning Strategy:

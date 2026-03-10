@@ -6,6 +6,24 @@ This document covers the complete membership system — architecture, data model
 
 Studio Platform memberships are Stripe-backed recurring subscriptions. Plans are created by studio owners, synced to Stripe as a Product + Price, and purchased by students via an embedded Stripe Checkout flow. The system is designed around a **retention-first** philosophy: students can self-serve cancel, admins can archive without data loss, and plans with active subscribers are never hard-deleted.
 
+## Member Activation Semantics (Important)
+
+There are **two related but distinct** concepts in the admin UI:
+
+- **Member status** (`tenant_members.status`): `active` / `inactive` / `archived` — controls whether a person can book classes.
+- **Membership status** (derived from subscriptions): whether the member currently has an *active subscription*.
+
+### What should activate a member?
+
+- **Granting a class pack / credits** should set the member to **active**.
+- **Starting a membership subscription** should set the member to **active**.
+
+This is enforced in fulfillment, so it applies to both Stripe-backed purchases and internal/manual grants.
+
+### Manual activation (admin)
+
+The student profile includes an **Activate Member** action (uses `PATCH /members/:id/status`) to restore booking access when a member is `inactive`.
+
 ---
 
 ## Data Model
