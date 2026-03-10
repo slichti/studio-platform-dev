@@ -22,6 +22,40 @@ export class FulfillmentService {
             .get();
 
         if (packDef) {
+            // Ensure the buyer is an active tenant member (packs/credits should always unlock access).
+            let memberId: string | null = metadata.memberId || null;
+            if (memberId) {
+                const mid = memberId;
+                await this.db.update(tenantMembers)
+                    .set({ status: 'active' })
+                    .where(and(eq(tenantMembers.id, mid), eq(tenantMembers.tenantId, metadata.tenantId)))
+                    .run();
+            } else if (metadata.userId && metadata.userId !== 'guest') {
+                const existing = await this.db.select({ id: tenantMembers.id, status: tenantMembers.status })
+                    .from(tenantMembers)
+                    .where(and(eq(tenantMembers.userId, metadata.userId), eq(tenantMembers.tenantId, metadata.tenantId)))
+                    .get();
+
+                if (existing) {
+                    memberId = existing.id;
+                    if (existing.status !== 'active') {
+                        await this.db.update(tenantMembers)
+                            .set({ status: 'active' })
+                            .where(eq(tenantMembers.id, existing.id))
+                            .run();
+                    }
+                } else {
+                    memberId = crypto.randomUUID();
+                    await this.db.insert(tenantMembers).values({
+                        id: memberId,
+                        tenantId: metadata.tenantId,
+                        userId: metadata.userId,
+                        status: 'active',
+                        joinedAt: new Date()
+                    }).run();
+                }
+            }
+
             let expiresAt: Date | null = null;
             if (packDef.expirationDays) {
                 expiresAt = new Date();
@@ -30,7 +64,7 @@ export class FulfillmentService {
             await this.db.insert(purchasedPacks).values({
                 id: crypto.randomUUID(),
                 tenantId: metadata.tenantId,
-                memberId: metadata.memberId || null, // Ensure memberId is handled if available, stripe metadata might not have it if guest? Usually it does if logged in.
+                memberId, // Ensure credits are attached to the member when possible
                 packDefinitionId: metadata.packId,
                 initialCredits: packDef.credits,
                 remainingCredits: packDef.credits,
@@ -276,10 +310,28 @@ export class FulfillmentService {
 
         let memberId = null;
         if (metadata.userId && metadata.userId !== 'guest') {
-            const member = await this.db.select({ id: tenantMembers.id }).from(tenantMembers)
+            const member = await this.db.select({ id: tenantMembers.id, status: tenantMembers.status }).from(tenantMembers)
                 .where(and(eq(tenantMembers.userId, metadata.userId), eq(tenantMembers.tenantId, metadata.tenantId)))
                 .get();
-            if (member) memberId = member.id;
+            if (member) {
+                memberId = member.id;
+                if (member.status !== 'active') {
+                    await this.db.update(tenantMembers)
+                        .set({ status: 'active' })
+                            .where(eq(tenantMembers.id, member.id))
+                        .run();
+                }
+            } else {
+                // If a user buys a membership without an existing member record, create one.
+                memberId = crypto.randomUUID();
+                await this.db.insert(tenantMembers).values({
+                    id: memberId,
+                    tenantId: metadata.tenantId,
+                    userId: metadata.userId,
+                    status: 'active',
+                    joinedAt: new Date()
+                }).run();
+            }
         }
 
         // Calculate period end based on interval

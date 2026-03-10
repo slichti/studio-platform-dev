@@ -372,6 +372,19 @@ export default function StudentProfilePageComponent() {
                             <div className="flex items-center gap-3">
                                 <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">{fullName}</h1>
                                 <Badge variant={hasActiveMembership ? 'success' : 'secondary'}>{membershipStatus}</Badge>
+                                <Badge variant={member.status === 'active' ? 'success' : 'secondary'} className="capitalize">
+                                    {member.status}
+                                </Badge>
+                                {member.status !== 'active' && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setIsDeactivating(true)}
+                                        disabled={updateStatusMutation.isPending}
+                                    >
+                                        Activate Member
+                                    </Button>
+                                )}
                             </div>
                             <div className="flex flex-col gap-1 mt-1">
                                 <div className="flex items-center gap-2 text-zinc-500 text-sm">
@@ -429,7 +442,10 @@ export default function StudentProfilePageComponent() {
                                     <div className="border-t border-zinc-100 my-1"></div>
                                     <button
                                         onClick={() => { setShowActions(false); setIsDeactivating(true); }}
-                                        className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                                        className={`block w-full text-left px-4 py-2 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 ${member.status === 'active'
+                                            ? 'text-red-600 hover:bg-red-50'
+                                            : 'text-emerald-700 dark:text-emerald-400'
+                                            }`}
                                     >
                                         {member.status === 'active' ? 'Deactivate Member' : 'Activate Member'}
                                     </button>
