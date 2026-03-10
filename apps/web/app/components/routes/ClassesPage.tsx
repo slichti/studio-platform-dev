@@ -169,11 +169,11 @@ export default function ClassesPage() {
 
                     if (scrollRoot) {
                         const rootRect = scrollRoot.getBoundingClientRect();
-                        const offset = 100; // keep sticky header visible
+                        const offset = 60; // keep sticky header visible but bring day to top
                         const targetY = groupRect.top - rootRect.top + scrollRoot.scrollTop - offset;
                         scrollRoot.scrollTo({ top: targetY, behavior: 'smooth' });
                     } else {
-                        const y = groupRect.top + window.scrollY - 100;
+                        const y = groupRect.top + window.scrollY - 60;
                         window.scrollTo({ top: y, behavior: 'smooth' });
                     }
 
