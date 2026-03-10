@@ -17,8 +17,8 @@ export function useClasses(tenantSlug: string, filters?: { search?: string; stat
             if (filters?.isCourse !== undefined) queryParams.set('isCourse', filters.isCourse.toString());
 
             if (filters?.dateRange) {
-                if (filters.dateRange.start) queryParams.set('dateStart', filters.dateRange.start.toISOString());
-                if (filters.dateRange.end) queryParams.set('dateEnd', filters.dateRange.end.toISOString());
+                if (filters.dateRange.start) queryParams.set('startDate', filters.dateRange.start.toISOString());
+                if (filters.dateRange.end) queryParams.set('endDate', filters.dateRange.end.toISOString());
             }
 
             return apiRequest(`/classes?${queryParams.toString()}`, token, {
@@ -46,8 +46,8 @@ export function useInfiniteClasses(tenantSlug: string, filters?: { search?: stri
             if (filters?.isCourse !== undefined) queryParams.set('isCourse', filters.isCourse.toString());
 
             if (filters?.dateRange) {
-                if (filters.dateRange.start) queryParams.set('dateStart', filters.dateRange.start.toISOString());
-                if (filters.dateRange.end) queryParams.set('dateEnd', filters.dateRange.end.toISOString());
+                if (filters.dateRange.start) queryParams.set('startDate', filters.dateRange.start.toISOString());
+                if (filters.dateRange.end) queryParams.set('endDate', filters.dateRange.end.toISOString());
             }
 
             return apiRequest(`/classes?${queryParams.toString()}`, token, {

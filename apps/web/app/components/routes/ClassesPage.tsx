@@ -1,6 +1,6 @@
 
 import { useParams, useOutletContext, useSearchParams, useNavigate } from "react-router";
-import { useState, useRef, useLayoutEffect } from "react";
+import { useState, useRef, useLayoutEffect, useMemo } from "react";
 import { Plus, Archive, ArchiveRestore, Calendar as CalendarIcon, Clock, Users, Video, List as ListIcon, Trash2, CalendarClock } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -63,6 +63,11 @@ export default function ClassesPage() {
     const { getToken } = useAuth();
     const queryClient = useQueryClient();
     const [searchParams, setSearchParams] = useSearchParams();
+    const today = useMemo(() => {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        return d;
+    }, []);
     const navigate = useNavigate();
 
     // Permissions
@@ -82,7 +87,8 @@ export default function ClassesPage() {
     } = useInfiniteClasses(slug!, {
         status: includeArchived ? 'all' : 'active',
         isCourse: isCourseOnly ? true : undefined,
-        limit: 20
+        limit: 20,
+        dateRange: { start: today, end: new Date(today.getTime() + 1000 * 60 * 60 * 24 * 365) } // 1 year range
     }, contextToken);
 
     let classes = infiniteData?.pages.flat() || [];

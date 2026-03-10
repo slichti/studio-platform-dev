@@ -1,6 +1,6 @@
 import { useAuth } from "@clerk/react-router";
 
-const DEFAULT_API_URL = "http://localhost:8788";
+const DEFAULT_API_URL = "http://localhost:8787";
 const PROD_API_URL = "https://api.slichti.org"; // Correct production API domain
 
 export const API_URL = (() => {
