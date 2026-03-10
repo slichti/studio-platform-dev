@@ -357,7 +357,7 @@ export default function StudioSchedule() {
     const viewMode = searchParams.get('view') || 'calendar';
 
     // Context & Hooks
-    const { tenant, me, features, roles, isStudentView } = useOutletContext<any>() || {};
+    const { tenant, me, features, roles, isStudentView, token } = useOutletContext<any>() || {};
 
     const { data: coursesData = [] } = useCourses(slug!, { status: 'active' });
 
@@ -382,6 +382,7 @@ export default function StudioSchedule() {
             tenant={tenant}
             coursesData={coursesData}
             me={me}
+            token={token}
         />
     );
 }
