@@ -93,6 +93,8 @@ export default function StudentProfilePageComponent() {
     const [isSendingEmail, setIsSendingEmail] = useState(false);
     const [isDeactivating, setIsDeactivating] = useState(false);
     const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+    const [packToRevoke, setPackToRevoke] = useState<any>(null);
+    const [subscriptionToRevoke, setSubscriptionToRevoke] = useState<any>(null);
     const [newNote, setNewNote] = useState("");
     const [emailSubject, setEmailSubject] = useState("");
     const [emailBody, setEmailBody] = useState("");
@@ -268,6 +270,42 @@ export default function StudentProfilePageComponent() {
         onError: (e: any) => toast.error(e.message)
     });
 
+    const revokePackMutation = useMutation({
+        mutationFn: async (packId: string) => {
+            const token = await getToken();
+            const res = await apiRequest(`/commerce/packs/${packId}/revoke`, token, {
+                method: "POST",
+                headers: { 'X-Tenant-Slug': slug! }
+            });
+            if ((res as any).error) throw new Error((res as any).error);
+            return res;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['member', slug, memberId] });
+            setPackToRevoke(null);
+            toast.success("Class pack removed");
+        },
+        onError: (e: any) => toast.error(e.message)
+    });
+
+    const revokeSubscriptionMutation = useMutation({
+        mutationFn: async (subscriptionId: string) => {
+            const token = await getToken();
+            const res = await apiRequest(`/memberships/subscriptions/${subscriptionId}/revoke`, token, {
+                method: "POST",
+                headers: { 'X-Tenant-Slug': slug! }
+            });
+            if ((res as any).error) throw new Error((res as any).error);
+            return res;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['member', slug, memberId] });
+            setSubscriptionToRevoke(null);
+            toast.success("Membership removed");
+        },
+        onError: (e: any) => toast.error(e.message)
+    });
+
     const reactivateCouponMutation = useMutation({
         mutationFn: async (couponId: string) => {
             const token = await getToken();
@@ -371,9 +409,11 @@ export default function StudentProfilePageComponent() {
                         <div>
                             <div className="flex items-center gap-3">
                                 <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">{fullName}</h1>
-                                <Badge variant={hasActiveMembership ? 'success' : 'secondary'}>{membershipStatus}</Badge>
+                                <Badge variant={hasActiveMembership ? 'success' : 'secondary'}>
+                                    Membership: {membershipStatus}
+                                </Badge>
                                 <Badge variant={member.status === 'active' ? 'success' : 'secondary'} className="capitalize">
-                                    {member.status}
+                                    Account: {member.status}
                                 </Badge>
                                 {member.status !== 'active' && (
                                     <Button
@@ -663,7 +703,18 @@ export default function StudentProfilePageComponent() {
                                                         Started {safeFormat(m.startDate, "MMM d, yyyy")}
                                                     </div>
                                                 </div>
-                                                <Badge variant={m.status === 'active' ? 'success' : 'secondary'}>{m.status}</Badge>
+                                                <div className="flex items-center gap-2">
+                                                    <Badge variant={m.status === 'active' ? 'success' : 'secondary'}>{m.status}</Badge>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon"
+                                                        className="h-8 w-8"
+                                                        onClick={() => setSubscriptionToRevoke(m)}
+                                                        title="Remove membership (cancel immediately)"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
                                             </Card>
                                         ))}
                                     </div>
@@ -691,6 +742,15 @@ export default function StudentProfilePageComponent() {
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-2">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon"
+                                                        className="h-8 w-8"
+                                                        onClick={() => setPackToRevoke(pack)}
+                                                        title="Remove pack"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
                                                     <Button
                                                         variant="outline"
                                                         size="icon"
@@ -1205,6 +1265,24 @@ export default function StudentProfilePageComponent() {
                     title={member.status === 'active' ? 'Deactivate Member' : 'Activate Member'}
                     description={member.status === 'active' ? "This will prevent the member from booking classes. History preserved." : "This will restore access for this member."}
                     confirmText={member.status === 'active' ? "Deactivate" : "Activate"}
+                />
+
+                <ConfirmDialog
+                    open={!!packToRevoke}
+                    onOpenChange={(open) => !open && setPackToRevoke(null)}
+                    onConfirm={() => packToRevoke && revokePackMutation.mutate(packToRevoke.id)}
+                    title="Remove class pack"
+                    description="This will zero out remaining credits and mark the pack as refunded. Booking history will be preserved."
+                    confirmText="Remove"
+                />
+
+                <ConfirmDialog
+                    open={!!subscriptionToRevoke}
+                    onOpenChange={(open) => !open && setSubscriptionToRevoke(null)}
+                    onConfirm={() => subscriptionToRevoke && revokeSubscriptionMutation.mutate(subscriptionToRevoke.id)}
+                    title="Remove membership"
+                    description="This will cancel the subscription immediately and end access now. History will be preserved."
+                    confirmText="Remove"
                 />
             </div>
         </ComponentErrorBoundary >

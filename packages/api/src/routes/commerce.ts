@@ -362,6 +362,34 @@ app.patch('/packs/:packId/credits', async (c) => {
     return c.json({ success: true, remainingCredits: newCredits });
 });
 
+// POST /packs/:packId/revoke - Remove a purchased pack from a member (soft revoke; preserves history)
+app.post('/packs/:packId/revoke', async (c) => {
+    if (!c.get('can')('manage_commerce') && !c.get('can')('manage_members')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
+
+    const packId = c.req.param('packId');
+    const pack = await db.select().from(purchasedPacks)
+        .where(and(eq(purchasedPacks.id, packId), eq(purchasedPacks.tenantId, tenant.id)))
+        .get();
+
+    if (!pack) return c.json({ error: "Pack not found" }, 404);
+
+    await db.update(purchasedPacks)
+        .set({
+            remainingCredits: 0,
+            status: 'refunded',
+            expiresAt: new Date(),
+        })
+        .where(eq(purchasedPacks.id, packId))
+        .run();
+
+    return c.json({ success: true });
+});
+
 // POST /purchase - Manual Assignment (Internal / admin only)
 app.post('/purchase', async (c) => {
     if (!c.get('can')('manage_commerce') && !c.get('can')('manage_members')) {

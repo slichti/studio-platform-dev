@@ -272,6 +272,59 @@ app.post('/subscriptions/:id/cancel', async (c) => {
 });
 
 /**
+ * Revoke a subscription immediately (admin/internal only).
+ * This cancels in Stripe immediately (if Stripe-backed) and marks the subscription canceled in DB,
+ * with `currentPeriodEnd` set to now to remove access immediately while preserving history.
+ */
+app.post('/subscriptions/:id/revoke', async (c) => {
+    if (!c.get('auth')?.userId) return c.json({ error: 'Unauthorized' }, 401);
+    if (!c.get('can')('manage_commerce') && !c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
+
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant')!;
+    const subscriptionId = c.req.param('id');
+
+    const sub = await db.select().from(subscriptions)
+        .where(and(eq(subscriptions.id, subscriptionId), eq(subscriptions.tenantId, tenant.id)))
+        .get();
+    if (!sub) return c.json({ error: 'Subscription not found' }, 404);
+
+    if (sub.status !== 'canceled' && sub.stripeSubscriptionId && tenant.stripeAccountId) {
+        // Only attempt Stripe cancellation when this looks like a real Stripe sub id.
+        if (sub.stripeSubscriptionId.startsWith('sub_')) {
+            const { StripeService } = await import('../services/stripe');
+            const stripe = new StripeService(c.env.STRIPE_SECRET_KEY as string);
+            await stripe.cancelSubscription(sub.stripeSubscriptionId, false, tenant.stripeAccountId);
+        }
+    }
+
+    const now = new Date();
+    await db.update(subscriptions)
+        .set({ status: 'canceled', canceledAt: now, currentPeriodEnd: now })
+        .where(eq(subscriptions.id, subscriptionId));
+
+    // Also ensure the member is marked inactive if they have no other active/trialing subs.
+    // (We keep this best-effort; membership-derived access is enforced elsewhere too.)
+    if (sub.memberId) {
+        const remaining = await db.select({ id: subscriptions.id }).from(subscriptions)
+            .where(and(
+                eq(subscriptions.tenantId, tenant.id),
+                eq(subscriptions.memberId, sub.memberId),
+                inArray(subscriptions.status, ['active', 'trialing', 'past_due'])
+            ))
+            .limit(1);
+
+        if (remaining.length === 0) {
+            await db.update(tenantMembers)
+                .set({ status: 'inactive' })
+                .where(and(eq(tenantMembers.id, sub.memberId), eq(tenantMembers.tenantId, tenant.id)));
+        }
+    }
+
+    return c.json({ success: true });
+});
+
+/**
  * Pause a subscription for a set duration (vacation freeze).
  * Tells Stripe to stop collecting payment; access is still granted until period end.
  * Students can pause their own; admins can pause any.
