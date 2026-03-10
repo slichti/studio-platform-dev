@@ -158,12 +158,25 @@ export default function ClassesPage() {
         // Small timeout to ensure rendering
         const timer = setTimeout(() => {
             const groups = document.querySelectorAll('[data-date-iso]');
+            if (!groups.length) return;
+
+            const scrollRoot = document.querySelector('[data-scroll-root="studio-main"]') as HTMLElement | null;
+
             for (const group of Array.from(groups)) {
                 const date = group.getAttribute('data-date-iso');
                 if (date && date >= todayIso) {
-                    // Scroll with offset for sticky header
-                    const y = group.getBoundingClientRect().top + window.scrollY - 100;
-                    window.scrollTo({ top: y, behavior: 'smooth' });
+                    const groupRect = group.getBoundingClientRect();
+
+                    if (scrollRoot) {
+                        const rootRect = scrollRoot.getBoundingClientRect();
+                        const offset = 100; // keep sticky header visible
+                        const targetY = groupRect.top - rootRect.top + scrollRoot.scrollTop - offset;
+                        scrollRoot.scrollTo({ top: targetY, behavior: 'smooth' });
+                    } else {
+                        const y = groupRect.top + window.scrollY - 100;
+                        window.scrollTo({ top: y, behavior: 'smooth' });
+                    }
+
                     hasScrolledRef.current = true;
                     break;
                 }

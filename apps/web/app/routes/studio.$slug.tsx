@@ -544,7 +544,7 @@ export default function StudioLayout() {
                     </div>
                 </header>
 
-                <div className="flex-1 overflow-auto">
+                <div className="flex-1 overflow-auto" data-scroll-root="studio-main">
                     <Outlet context={{ tenant, me, features: featureSet, roles: effectiveRoles, isStudentView, token }} />
                 </div>
 
