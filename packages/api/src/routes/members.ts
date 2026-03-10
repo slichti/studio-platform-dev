@@ -951,7 +951,8 @@ app.openapi(resendInvitationEmailRoute, async (c) => {
     const usageService = new UsageService(db, tenant.id);
     const apiKey = c.env.RESEND_API_KEY || '';
     const emailService = new EmailService(apiKey, {}, { name: tenant.name }, usageService, false, db, tenant.id);
-    const inviteUrl = `https://${tenant.id}.slichti.org/join?token=${token}`;
+    const webBase = c.env.WEB_APP_URL || 'https://studio-platform-dev.slichti.org';
+    const inviteUrl = `${webBase.replace(/\/$/, '')}/accept-invite?token=${token}`;
 
     await emailService.sendInvitation(member.user.email, inviteUrl);
 
@@ -1094,7 +1095,8 @@ app.openapi(resendInvitationSmsRoute, async (c) => {
     const { UsageService } = await import('../services/pricing');
     const usageService = new UsageService(db, tenant.id);
     const smsService = new SmsService(undefined, c.env, usageService, db, tenant.id);
-    const inviteUrl = `https://${tenant.id}.slichti.org/join?token=${token}`;
+    const webBase = c.env.WEB_APP_URL || 'https://studio-platform-dev.slichti.org';
+    const inviteUrl = `${webBase.replace(/\/$/, '')}/accept-invite?token=${token}`;
 
     await smsService.sendInvitation(phone, tenant.name, inviteUrl);
 

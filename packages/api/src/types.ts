@@ -38,6 +38,8 @@ export interface Bindings {
     SEO_INDEXING_QUEUE?: Queue;
     GOOGLE_SERVICE_ACCOUNT_EMAIL?: string;
     GOOGLE_PRIVATE_KEY?: string;
+    /** Base URL of the web app for invite/join links (e.g. https://studio-platform-dev.slichti.org). No trailing slash. */
+    WEB_APP_URL?: string;
 }
 
 export interface Variables {

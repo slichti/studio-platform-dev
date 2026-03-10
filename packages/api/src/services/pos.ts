@@ -760,7 +760,8 @@ export class PosService {
             if (this.env.RESEND_API_KEY) {
                 const usageService = new UsageService(this.db, this.tenantId);
                 const emailService = new EmailService(this.env.RESEND_API_KEY, {}, { name: tenantName }, usageService, false, this.db, this.tenantId);
-                const inviteUrl = `https://${this.tenantId}.slichti.org/join?token=${token}`;
+                const webBase = (this.env as any).WEB_APP_URL || 'https://studio-platform-dev.slichti.org';
+                const inviteUrl = `${String(webBase).replace(/\/$/, '')}/accept-invite?token=${token}`;
                 // We'll return the logic to be executed in waitUntil
                 return {
                     customer: { ...member, email, profile: { firstName, lastName }, phone, stripeCustomerId },

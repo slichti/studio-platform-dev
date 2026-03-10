@@ -11,6 +11,8 @@ crons = [
 
 [vars]
 ENVIRONMENT = "dev"
+# Web app base URL for invite/accept-invite links (no trailing slash)
+WEB_APP_URL = "https://studio-platform-dev.slichti.org"
 
 [[d1_databases]]
 binding = "DB"
