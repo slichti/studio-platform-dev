@@ -3,7 +3,7 @@ import { createOpenAPIApp } from '../lib/openapi';
 import { StudioVariables } from '../types';
 import { createDb } from '../db';
 import { classes, bookings, classSeries } from '@studio/db/src/schema';
-import { eq, sql, desc, asc, and, gte, lte, inArray } from 'drizzle-orm';
+import { eq, sql, desc, asc, and, gte, lte, inArray, ne } from 'drizzle-orm';
 import { RRule } from 'rrule';
 import { EncryptionUtils } from '../utils/encryption';
 import { ZoomService } from '../services/zoom';
@@ -159,7 +159,8 @@ app.openapi(createRoute({
             category: z.string().optional(),
             limit: z.coerce.number().int().positive().default(50).optional(),
             offset: z.coerce.number().int().nonnegative().default(0).optional(),
-            isCourse: z.string().optional()
+            isCourse: z.string().optional(),
+            status: z.string().optional()
         })
     },
     responses: {
@@ -190,10 +191,8 @@ app.openapi(createRoute({
         conds.push(eq(classes.status, q.status));
     } else if (!q.status || q.status === 'active') {
         // Default to active classes: exclude archived and cancelled
-        conds.push(and(
-            ne(classes.status, 'archived'),
-            ne(classes.status, 'cancelled')
-        ));
+        conds.push(ne(classes.status, 'archived'));
+        conds.push(ne(classes.status, 'cancelled'));
     }
 
     const results = await db.query.classes.findMany({
