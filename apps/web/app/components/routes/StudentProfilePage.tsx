@@ -1,6 +1,6 @@
 
 import { useParams, useOutletContext, useNavigate, Link } from "react-router";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@clerk/react-router";
 import { format } from "date-fns";
 import {
@@ -95,6 +95,8 @@ export default function StudentProfilePageComponent() {
     const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
     const [packToRevoke, setPackToRevoke] = useState<any>(null);
     const [subscriptionToRevoke, setSubscriptionToRevoke] = useState<any>(null);
+    const [isManagingRoles, setIsManagingRoles] = useState(false);
+    const [roleSelection, setRoleSelection] = useState<string[]>([]);
     const [newNote, setNewNote] = useState("");
     const [emailSubject, setEmailSubject] = useState("");
     const [emailBody, setEmailBody] = useState("");
@@ -251,6 +253,25 @@ export default function StudentProfilePageComponent() {
         onError: (e: any) => toast.error(e.message)
     });
 
+    const updateRolesMutation = useMutation({
+        mutationFn: async (roles: string[]) => {
+            const token = await getToken();
+            const res = await apiRequest(`/members/${memberId}/roles`, token, {
+                method: "PATCH",
+                headers: { 'X-Tenant-Slug': slug! },
+                body: JSON.stringify({ roles })
+            });
+            if ((res as any).error) throw new Error((res as any).error);
+            return res;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['member', slug, memberId] });
+            setIsManagingRoles(false);
+            toast.success("Roles updated");
+        },
+        onError: (e: any) => toast.error(e.message)
+    });
+
     const updateStatusMutation = useMutation({
         mutationFn: async (status: string) => {
             const token = await getToken();
@@ -386,6 +407,28 @@ export default function StudentProfilePageComponent() {
         }
     };
 
+    const actionsRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        if (!showActions) return;
+        const handleClickOutside = (event: MouseEvent) => {
+            if (actionsRef.current && !actionsRef.current.contains(event.target as Node)) {
+                setShowActions(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showActions]);
+
+    const openRolesManager = () => {
+        const currentRoles = Array.isArray(member.roles)
+            ? (member.roles as any[]).map(r => r?.role).filter(Boolean)
+            : [];
+        const next = Array.from(new Set([...(currentRoles || []), 'student']));
+        setRoleSelection(next);
+        setIsManagingRoles(true);
+    };
+
     if (loadingMember) return <div className="p-12 text-center text-zinc-500">Loading student profile...</div>;
     if (!member) return <div className="p-12 text-center text-red-500">Student not found</div>;
 
@@ -431,6 +474,14 @@ export default function StudentProfilePageComponent() {
                                     <Mail className="h-4 w-4" />
                                     <span>{member.user?.email}</span>
                                     <span className="mx-1">•</span>
+                                    <button
+                                        type="button"
+                                        onClick={openRolesManager}
+                                        className="text-xs text-blue-600 hover:underline"
+                                    >
+                                        Edit roles
+                                    </button>
+                                    <span className="mx-1">•</span>
                                     <Badge variant="outline" className="capitalize">{rolesStr}</Badge>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-400">
@@ -442,7 +493,7 @@ export default function StudentProfilePageComponent() {
                         </div>
                     </div>
 
-                    <div className="flex gap-2 relative">
+                    <div className="flex gap-2 relative" ref={actionsRef}>
                         <Button variant="outline" onClick={() => setIsEditingProfile(true)}>
                             Edit Profile
                         </Button>
@@ -1266,6 +1317,79 @@ export default function StudentProfilePageComponent() {
                     description={member.status === 'active' ? "This will prevent the member from booking classes. History preserved." : "This will restore access for this member."}
                     confirmText={member.status === 'active' ? "Deactivate" : "Activate"}
                 />
+
+                <Dialog open={isManagingRoles} onOpenChange={setIsManagingRoles}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Adjust Roles</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-2">
+                            <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                                Owners, admins, and instructors are also treated as students. Use these roles to control staff access inside this studio.
+                            </p>
+                            <div className="space-y-2 rounded-md border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
+                                <label className="flex items-center gap-2 text-sm">
+                                    <input type="checkbox" checked={roleSelection.includes('student')} disabled />
+                                    Student (always)
+                                </label>
+                                <label className="flex items-center gap-2 text-sm">
+                                    <input
+                                        type="checkbox"
+                                        checked={roleSelection.includes('instructor')}
+                                        onChange={() => {
+                                            setRoleSelection(prev => {
+                                                const s = new Set(prev);
+                                                s.has('instructor') ? s.delete('instructor') : s.add('instructor');
+                                                s.add('student');
+                                                return Array.from(s);
+                                            });
+                                        }}
+                                    />
+                                    Instructor
+                                </label>
+                                <label className="flex items-center gap-2 text-sm">
+                                    <input
+                                        type="checkbox"
+                                        checked={roleSelection.includes('admin')}
+                                        onChange={() => {
+                                            setRoleSelection(prev => {
+                                                const s = new Set(prev);
+                                                s.has('admin') ? s.delete('admin') : s.add('admin');
+                                                s.add('student');
+                                                return Array.from(s);
+                                            });
+                                        }}
+                                    />
+                                    Admin
+                                </label>
+                                <label className="flex items-center gap-2 text-sm">
+                                    <input
+                                        type="checkbox"
+                                        checked={roleSelection.includes('owner')}
+                                        onChange={() => {
+                                            setRoleSelection(prev => {
+                                                const s = new Set(prev);
+                                                s.has('owner') ? s.delete('owner') : s.add('owner');
+                                                s.add('student');
+                                                return Array.from(s);
+                                            });
+                                        }}
+                                    />
+                                    Owner
+                                </label>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsManagingRoles(false)}>Cancel</Button>
+                            <Button
+                                onClick={() => updateRolesMutation.mutate(roleSelection)}
+                                disabled={updateRolesMutation.isPending || roleSelection.length === 0}
+                            >
+                                Save Roles
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
 
                 <ConfirmDialog
                     open={!!packToRevoke}

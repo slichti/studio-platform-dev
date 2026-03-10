@@ -146,7 +146,7 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
         <div className="p-6 h-screen flex flex-col space-y-4">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Schedule</h1>
+                    <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Class Schedule</h1>
                     <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
                         {isStudentView ? "View upcoming classes and book sessions." : "Manage your class calendar and bookings."}
                     </p>

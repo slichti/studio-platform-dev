@@ -268,7 +268,7 @@ export default function StudioLayout() {
                         {featureSet.has('community') && (
                             <NavItem to={`/studio/${slug}/community`} icon={<MessageSquare size={18} />}>Community Hub</NavItem>
                         )}
-                        <NavItem to={`/studio/${slug}/schedule`} icon={<Calendar size={18} />}>Schedule</NavItem>
+                        <NavItem to={`/studio/${slug}/schedule`} icon={<Calendar size={18} />}>Class Schedule</NavItem>
                         {featureSet.has('course_management') && (
                             <NavItem to={`/studio/${slug}/courses`} icon={<BookOpen size={18} />}>
                                 {isStudentView ? "Courses" : "Course Management"}
