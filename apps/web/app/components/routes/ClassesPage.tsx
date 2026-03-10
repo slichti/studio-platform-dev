@@ -85,7 +85,10 @@ export default function ClassesPage() {
         limit: 20
     }, contextToken);
 
-    const classes = infiniteData?.pages.flat() || [];
+    let classes = infiniteData?.pages.flat() || [];
+    if (!includeArchived) {
+        classes = classes.filter(cls => cls.status !== 'cancelled' && cls.status !== 'archived');
+    }
 
     // User Data (for bookings)
     const { data: userData } = useUser(slug, contextToken);

@@ -186,6 +186,16 @@ app.openapi(createRoute({
         conds.push(eq(classes.isCourse, q.isCourse === 'true'));
     }
 
+    if (q.status && q.status !== 'all') {
+        conds.push(eq(classes.status, q.status));
+    } else if (!q.status || q.status === 'active') {
+        // Default to active classes: exclude archived and cancelled
+        conds.push(and(
+            ne(classes.status, 'archived'),
+            ne(classes.status, 'cancelled')
+        ));
+    }
+
     const results = await db.query.classes.findMany({
         where: and(...conds),
         with: { instructor: { with: { user: true } }, location: true },

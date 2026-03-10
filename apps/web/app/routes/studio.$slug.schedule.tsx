@@ -34,12 +34,22 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
     const includeArchived = searchParams.get("includeArchived") === "true";
 
     // Data Fetching (mirror list view: useInfiniteClasses)
+    // Fetch from the start of the previous month to ensure current and recent upcoming classes are seen
+    const startDate = useMemo(() => {
+        const d = new Date();
+        d.setMonth(d.getMonth() - 1);
+        d.setDate(1);
+        d.setHours(0, 0, 0, 0);
+        return d;
+    }, []);
+
     const {
         data: infiniteData,
         isLoading: isLoadingClasses,
     } = useInfiniteClasses(slug!, {
         status: includeArchived ? 'all' : 'active',
         limit: 200,
+        dateRange: { start: startDate, end: new Date(startDate.getTime() + 1000 * 60 * 60 * 24 * 365) } // Fetch 1 year window
     }, token);
 
     const classesData = infiniteData?.pages.flat() || [];
