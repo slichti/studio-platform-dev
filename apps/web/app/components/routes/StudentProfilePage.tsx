@@ -8,7 +8,7 @@ import {
     Edit, Shield, Camera, Package, Trash2, Pencil,
     Check, AlertTriangle, X, MoreVertical,
     Send, Clock, ShoppingBag, MessageSquare,
-    MoreHorizontal, Plus
+    MoreHorizontal, Plus, Minus
 } from "lucide-react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/Card";
@@ -188,6 +188,24 @@ export default function StudentProfilePageComponent() {
             queryClient.invalidateQueries({ queryKey: ['member', slug, memberId] });
             setIsAssigningPack(false);
             toast.success("Product assigned successfully");
+        },
+        onError: (e: any) => toast.error(e.message)
+    });
+
+    const adjustCreditsMutation = useMutation({
+        mutationFn: async ({ packId, delta }: { packId: string; delta: number }) => {
+            const token = await getToken();
+            const res = await apiRequest(`/commerce/packs/${packId}/credits`, token, {
+                method: "PATCH",
+                headers: { 'X-Tenant-Slug': slug! },
+                body: JSON.stringify({ delta })
+            });
+            if ((res as any).error) throw new Error((res as any).error);
+            return res;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['member', slug, memberId] });
+            toast.success("Credits updated");
         },
         onError: (e: any) => toast.error(e.message)
     });
@@ -645,7 +663,7 @@ export default function StudentProfilePageComponent() {
                                                 <div>
                                                     <h3 className="font-semibold">{pack.definition?.name || "Unknown Pack"}</h3>
                                                     <div className="text-sm text-zinc-500 mt-1 flex items-center gap-3">
-                                                        <span>Purchased {safeFormat(new Date(), "MMM d, yyyy")}</span>
+                                                        <span>Purchased {safeFormat(pack.createdAt || new Date(), "MMM d, yyyy")}</span>
                                                         {pack.expiresAt && (
                                                             <>
                                                                 <span>•</span>
@@ -656,9 +674,30 @@ export default function StudentProfilePageComponent() {
                                                         )}
                                                     </div>
                                                 </div>
-                                                <div className="text-right">
-                                                    <div className="text-lg font-bold">{pack.remainingCredits} / {pack.initialCredits}</div>
-                                                    <div className="text-xs text-zinc-500 uppercase">Credits Left</div>
+                                                <div className="flex items-center gap-2">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon"
+                                                        className="h-8 w-8"
+                                                        onClick={() => adjustCreditsMutation.mutate({ packId: pack.id, delta: -1 })}
+                                                        disabled={adjustCreditsMutation.isPending || pack.remainingCredits <= 0}
+                                                        title="Decrease credits"
+                                                    >
+                                                        <Minus className="h-4 w-4" />
+                                                    </Button>
+                                                    <div className="text-center min-w-[4rem]">
+                                                        <div className="text-lg font-bold">{pack.remainingCredits} / {pack.initialCredits}</div>
+                                                        <div className="text-xs text-zinc-500 uppercase">Credits</div>
+                                                    </div>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon"
+                                                        className="h-8 w-8"
+                                                        onClick={() => adjustCreditsMutation.mutate({ packId: pack.id, delta: 1 })}
+                                                        disabled={adjustCreditsMutation.isPending}
+                                                    >
+                                                        <Plus className="h-4 w-4" />
+                                                    </Button>
                                                 </div>
                                             </Card>
                                         ))}

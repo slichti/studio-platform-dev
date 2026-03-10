@@ -298,6 +298,7 @@ export class FulfillmentService {
         }
 
         const id = crypto.randomUUID();
+        // Explicit insert: only columns that exist in all DBs (0000 + 0073 + 0081)
         await this.db.insert(subscriptions).values({
             id,
             tenantId: metadata.tenantId,
@@ -305,6 +306,7 @@ export class FulfillmentService {
             memberId,
             planId: plan.id,
             status: 'active',
+            tier: 'basic',
             currentPeriodEnd: periodEnd,
             stripeSubscriptionId: subscriptionId,
             createdAt: new Date()

@@ -286,7 +286,9 @@ app.openapi(createMemberRoute, async (c) => {
         try {
             const es = c.get('email');
             if (token) {
-                await es.sendInvitation(email, `${c.req.header('origin')}/login?email=${encodeURIComponent(email)}&token=${token}`);
+                const webBase = c.env.WEB_APP_URL || c.req.header('origin') || 'https://studio-platform-dev.slichti.org';
+                const inviteUrl = `${String(webBase).replace(/\/$/, '')}/accept-invite?token=${token}`;
+                await es.sendInvitation(email, inviteUrl);
             }
             await es.syncContact(email, firstName, lastName);
             const { AutomationsService } = await import('../services/automations');

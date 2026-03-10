@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants, tenantMembers, coupons, couponRedemptions, classPackDefinitions, giftCards, membershipPlans, users, userRelationships, classes } from '@studio/db/src/schema';
+import { tenants, tenantMembers, coupons, couponRedemptions, classPackDefinitions, giftCards, membershipPlans, users, userRelationships, classes, purchasedPacks } from '@studio/db/src/schema';
 import { eq, and, gt, sql } from 'drizzle-orm';
 import { rateLimitMiddleware } from '../middleware/rate-limit';
 import { HonoContext } from '../types';
@@ -328,6 +328,38 @@ app.patch('/packs/:id', async (c) => {
     }).where(eq(classPackDefinitions.id, packId)).run();
 
     return c.json({ success: true });
+});
+
+// PATCH /packs/:packId/credits - Adjust remaining credits on a purchased pack (manual correction)
+app.patch('/packs/:packId/credits', async (c) => {
+    if (!c.get('can')('manage_commerce') && !c.get('can')('manage_members')) {
+        return c.json({ error: 'Access Denied' }, 403);
+    }
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
+
+    const packId = c.req.param('packId');
+    const body = await c.req.json().catch(() => ({}));
+    const { delta } = body as { delta?: number };
+
+    if (delta === undefined || typeof delta !== 'number') {
+        return c.json({ error: "Missing or invalid 'delta' (number, e.g. 1 or -1)" }, 400);
+    }
+
+    const pack = await db.select().from(purchasedPacks)
+        .where(and(eq(purchasedPacks.id, packId), eq(purchasedPacks.tenantId, tenant.id)))
+        .get();
+
+    if (!pack) return c.json({ error: "Pack not found" }, 404);
+
+    const newCredits = Math.max(0, pack.remainingCredits + delta);
+    await db.update(purchasedPacks)
+        .set({ remainingCredits: newCredits })
+        .where(eq(purchasedPacks.id, packId))
+        .run();
+
+    return c.json({ success: true, remainingCredits: newCredits });
 });
 
 // POST /purchase - Manual Assignment (Internal / admin only)
