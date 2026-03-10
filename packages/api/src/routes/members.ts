@@ -110,8 +110,24 @@ app.openapi(listMembersRoute, async (c) => {
         }
 
         const query = db.select({
-            member: tenantMembers,
-            user: users
+            // Explicit columns only (avoids missing columns in DBs before migrations 0077/0080)
+            member: {
+                id: tenantMembers.id,
+                tenantId: tenantMembers.tenantId,
+                userId: tenantMembers.userId,
+                profile: tenantMembers.profile,
+                settings: tenantMembers.settings,
+                customFields: tenantMembers.customFields,
+                status: tenantMembers.status,
+                joinedAt: tenantMembers.joinedAt,
+            },
+            user: {
+                id: users.id,
+                email: users.email,
+                profile: users.profile,
+                isPlatformAdmin: users.isPlatformAdmin,
+                role: users.role,
+            }
         })
             .from(tenantMembers)
             .innerJoin(users, eq(tenantMembers.userId, users.id));
