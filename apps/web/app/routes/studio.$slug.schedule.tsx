@@ -31,9 +31,13 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
     const queryClient = useQueryClient();
     const canSchedule = !isStudentView && (roles?.includes('owner') || roles?.includes('instructor'));
     const [searchParams, setSearchParams] = useSearchParams();
+    const includeArchived = searchParams.get("includeArchived") === "true";
 
     // Data Fetching
-    const { data: classesData = [], isLoading: isLoadingClasses, error } = useClasses(slug!);
+    const { data: classesData = [], isLoading: isLoadingClasses, error } = useClasses(slug!, {
+        status: includeArchived ? 'all' : 'active',
+        limit: 500
+    });
     const { data: studioData } = useStudioData(slug!);
     const { data: userData } = useUser(slug);
     const { data: plansData = [] } = usePlans(slug!);
@@ -173,6 +177,23 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
                             <ListIcon className="h-3.5 w-3.5 mr-1.5" /> List
                         </Button>
                     </div>
+
+                    {!isStudentView && (
+                        <label className="flex items-center gap-1.5 text-sm cursor-pointer mr-2 select-none">
+                            <input
+                                type="checkbox"
+                                className="rounded border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800"
+                                checked={includeArchived}
+                                onChange={(e) => {
+                                    const newParams = new URLSearchParams(searchParams);
+                                    if (e.target.checked) newParams.set("includeArchived", "true");
+                                    else newParams.delete("includeArchived");
+                                    setSearchParams(newParams);
+                                }}
+                            />
+                            <span className="text-zinc-600 dark:text-zinc-400">Show Archived</span>
+                        </label>
+                    )}
 
                     {canSchedule && (
                         <Button onClick={() => setIsCreateOpen(true)}>
