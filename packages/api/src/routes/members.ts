@@ -358,8 +358,44 @@ app.openapi(acceptInviteRoute, async (c) => {
     const auth = c.get('auth');
     if (!auth?.userId || !token) return c.json({ error: "Unauthorized/Missing" }, 401);
 
-    const pending = (await db.select().from(tenantMembers).where(sql`json_extract(settings, '$.invitationToken') = ${token}`).limit(1))[0];
-    if (!pending) return c.json({ error: "Invalid" }, 404);
+    // Flow 1: Token in tenant_members.settings (create-member invite)
+    let pending = (await db.select().from(tenantMembers).where(sql`json_extract(settings, '$.invitationToken') = ${token}`).limit(1))[0];
+
+    // Flow 2: Token in tenant_invitations (resend invite)
+    if (!pending) {
+        const inv = await db.query.tenantInvitations.findFirst({
+            where: eq(tenantInvitations.token, token),
+            columns: { tenantId: true, email: true, id: true }
+        });
+        if (inv) {
+            const user = await db.query.users.findFirst({ where: eq(users.id, auth.userId), columns: { email: true } });
+            const emailMatch = user?.email && String(user.email).toLowerCase() === String(inv.email).toLowerCase();
+            const existing = await db.query.tenantMembers.findFirst({
+                where: and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, inv.tenantId))
+            });
+            if (existing) {
+                await db.update(tenantInvitations).set({ acceptedAt: new Date() }).where(eq(tenantInvitations.id, inv.id)).run();
+                return c.json({ success: true, tenantId: inv.tenantId }, 200);
+            }
+            if (emailMatch) {
+                const mid = crypto.randomUUID();
+                await db.insert(tenantMembers).values({
+                    id: mid,
+                    tenantId: inv.tenantId,
+                    userId: auth.userId,
+                    status: 'active',
+                    joinedAt: new Date(),
+                    profile: {},
+                    invitedAt: new Date(),
+                    acceptedAt: new Date()
+                }).run();
+                await db.insert(tenantRoles).values({ id: crypto.randomUUID(), memberId: mid, role: 'student' }).run();
+                await db.update(tenantInvitations).set({ acceptedAt: new Date() }).where(eq(tenantInvitations.id, inv.id)).run();
+                return c.json({ success: true, tenantId: inv.tenantId }, 200);
+            }
+        }
+        return c.json({ error: "Invalid" }, 404);
+    }
 
     const exists = await db.query.tenantMembers.findFirst({ where: and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, pending.tenantId)) });
     if (exists) return c.json({ error: "Exists" }, 409);

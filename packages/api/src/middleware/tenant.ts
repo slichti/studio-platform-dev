@@ -1,7 +1,7 @@
 import { Context, Next } from 'hono';
 import { createDb } from '../db';
-import { eq, and } from 'drizzle-orm';
-import { tenants, tenantMembers, tenantRoles, users, tenantFeatures, customRoles, memberCustomRoles } from '@studio/db/src/schema';
+import { eq, and, sql } from 'drizzle-orm';
+import { tenants, tenantMembers, tenantRoles, users, tenantFeatures, customRoles, memberCustomRoles, tenantInvitations } from '@studio/db/src/schema';
 import { EncryptionUtils } from '../utils/encryption';
 import { PermissionService, Permission } from '../services/permissions';
 import { EmailService } from '../services/email';
@@ -133,6 +133,39 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
             tenant = await db.query.tenants.findFirst({
                 where: eq(tenants.slug, pathSlug),
             });
+        }
+    }
+
+    // 4. POST /members/accept-invite: resolve tenant from invitation token in body (no X-Tenant-Slug)
+    if (!tenant && c.req.method === 'POST' && url.pathname === '/members/accept-invite') {
+        try {
+            const cloned = c.req.raw.clone();
+            const body = await cloned.json().catch(() => ({})) as { token?: string };
+            const token = body?.token;
+            if (token) {
+                const inv = await db.query.tenantInvitations.findFirst({
+                    where: eq(tenantInvitations.token, token),
+                    columns: { tenantId: true }
+                });
+                if (inv) {
+                    tenant = await db.query.tenants.findFirst({
+                        where: eq(tenants.id, inv.tenantId),
+                    });
+                }
+                if (!tenant) {
+                    const pending = await db.select({ tenantId: tenantMembers.tenantId }).from(tenantMembers)
+                        .where(sql`json_extract(settings, '$.invitationToken') = ${token}`)
+                        .limit(1)
+                        .get();
+                    if (pending) {
+                        tenant = await db.query.tenants.findFirst({
+                            where: eq(tenants.id, (pending as any).tenantId),
+                        });
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('[TenantMiddleware] accept-invite token lookup error:', e);
         }
     }
 
