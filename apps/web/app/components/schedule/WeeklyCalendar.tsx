@@ -176,10 +176,17 @@ export function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDat
                         </div>
                         {/* Month grid (6 weeks) */}
                         <div className="grid grid-cols-7 auto-rows-[120px]">
-                            {Array.from({ length: 42 }).map((_, index) => {
+            {Array.from({ length: 42 }).map((_, index) => {
                                 const gridStart = startOfWeek(startOfMonth(currentDate), { weekStartsOn: 0 });
                                 const day = addDays(gridStart, index);
-                                const dayEvents = events.filter(e => isSameDay(e.start, day));
+
+                                // Match events by local calendar date (same behavior as list view)
+                                const dayKey = day.toLocaleDateString('en-CA'); // YYYY-MM-DD
+                                const dayEvents = events.filter(e => {
+                                    const d = e.start instanceof Date ? e.start : new Date(e.start);
+                                    const eventKey = d.toLocaleDateString('en-CA');
+                                    return eventKey === dayKey;
+                                });
                                 const isToday = isSameDay(day, new Date());
                                 const isOtherMonth = day.getMonth() !== currentDate.getMonth();
 
@@ -276,8 +283,13 @@ export function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDat
                                 style={{ gridTemplateColumns: `repeat(${visibleDays.length}, minmax(120px, 1fr))` }}
                             >
                                 {visibleDays.map((day) => {
-                                    // Filter events for this day
-                                    const dayEvents = events.filter(e => isSameDay(e.start, day));
+                                    // Filter events for this day using local calendar date (same as list view)
+                                    const dayKey = day.toLocaleDateString('en-CA'); // YYYY-MM-DD
+                                    const dayEvents = events.filter(e => {
+                                        const d = e.start instanceof Date ? e.start : new Date(e.start);
+                                        const eventKey = d.toLocaleDateString('en-CA');
+                                        return eventKey === dayKey;
+                                    });
 
                                     return (
                                         <div
