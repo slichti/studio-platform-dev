@@ -1,6 +1,6 @@
 import { useParams, useOutletContext } from "react-router";
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
-import { Plus, Settings } from "lucide-react";
+import { Plus, Settings, CalendarClock, Trash2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { WeeklyCalendar } from "../components/schedule/WeeklyCalendar";
@@ -12,7 +12,7 @@ import { ComponentErrorBoundary } from "~/components/ErrorBoundary";
 import { Button } from "~/components/ui/button";
 import { ListIcon, Calendar as CalendarIcon } from "lucide-react";
 
-import { useClasses } from "~/hooks/useClasses";
+import { useInfiniteClasses } from "~/hooks/useClasses";
 import { useUser } from "~/hooks/useUser";
 import { useStudioData } from "~/hooks/useStudioData";
 import { useCourses } from "~/hooks/useCourses";
@@ -27,17 +27,22 @@ import { SkeletonLoader } from "~/components/ui/SkeletonLoader";
 const ClassesPage = lazy(() => import("~/components/routes/ClassesPage"));
 
 
-function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tenant, coursesData, me }: any) {
+function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tenant, coursesData, me, token }: any) {
     const queryClient = useQueryClient();
     const canSchedule = !isStudentView && (roles?.includes('owner') || roles?.includes('instructor'));
     const [searchParams, setSearchParams] = useSearchParams();
     const includeArchived = searchParams.get("includeArchived") === "true";
 
-    // Data Fetching
-    const { data: classesData = [], isLoading: isLoadingClasses, error } = useClasses(slug!, {
+    // Data Fetching (mirror list view: useInfiniteClasses)
+    const {
+        data: infiniteData,
+        isLoading: isLoadingClasses,
+    } = useInfiniteClasses(slug!, {
         status: includeArchived ? 'all' : 'active',
-        limit: 500
-    });
+        limit: 200,
+    }, token);
+
+    const classesData = infiniteData?.pages.flat() || [];
     const { data: studioData } = useStudioData(slug!);
     const { data: userData } = useUser(slug);
     const { data: plansData = [] } = usePlans(slug!);
@@ -55,15 +60,19 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
     const [selectedClass, setSelectedClass] = useState<any>(null);
 
     // Derived State
-    const events = useMemo(() => classesData
-        .filter((c: any) => c.status !== 'cancelled')
-        .map((c: any) => ({
-            id: c.id,
-            title: c.title,
-            start: new Date(c.startTime),
-            end: new Date(new Date(c.startTime).getTime() + c.durationMinutes * 60000),
-            resource: c
-        })), [classesData]);
+    const events = useMemo(
+        () =>
+            (classesData as any[])
+                .filter((c: any) => c.status !== 'cancelled')
+                .map((c: any) => ({
+                    id: c.id,
+                    title: c.title,
+                    start: new Date(c.startTime),
+                    end: new Date(new Date(c.startTime).getTime() + c.durationMinutes * 60000),
+                    resource: c,
+                })),
+        [classesData]
+    );
 
     // Keep selectedClass in sync with classesData updates (e.g. after booking)
     useEffect(() => {
@@ -109,6 +118,7 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
     }, []);
 
     const refreshClasses = () => {
+        queryClient.invalidateQueries({ queryKey: ['classes-infinite', slug] });
         queryClient.invalidateQueries({ queryKey: ['classes', slug] });
     };
 
@@ -145,6 +155,12 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
     };
 
     const hourLabel = (h: number) => h === 0 ? '12 AM' : h === 12 ? '12 PM' : h === 24 ? '12 AM' : h > 12 ? `${h - 12} PM` : `${h} AM`;
+
+    const gotoListView = () => {
+        const p = new URLSearchParams(searchParams);
+        p.set('view', 'list');
+        setSearchParams(p);
+    };
 
     return (
         <div className="p-6 h-screen flex flex-col space-y-4">
@@ -196,10 +212,32 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
                     )}
 
                     {canSchedule && (
-                        <Button onClick={() => setIsCreateOpen(true)}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Schedule Class
-                        </Button>
+                        <>
+                            <Button
+                                variant="outline"
+                                className="text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-800 dark:hover:bg-blue-900/20"
+                                onClick={gotoListView}
+                            >
+                                <CalendarClock className="h-4 w-4 mr-2" /> Bulk Reschedule
+                            </Button>
+                            <Button
+                                variant="outline"
+                                className="text-red-600 border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20"
+                                onClick={gotoListView}
+                            >
+                                <Trash2 className="h-4 w-4 mr-2" /> Bulk Cancel
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={gotoListView}
+                            >
+                                <Plus className="h-4 w-4 mr-2" /> Bulk Schedule
+                            </Button>
+                            <Button onClick={() => setIsCreateOpen(true)}>
+                                <Plus className="mr-2 h-4 w-4" />
+                                Schedule Class
+                            </Button>
+                        </>
                     )}
                     {isAdmin && (
                         <div className="relative" ref={calSettingsRef}>
