@@ -1028,7 +1028,7 @@ export default function StudentProfilePageComponent() {
                                                     <span className="font-medium text-sm text-zinc-900 dark:text-zinc-100">
                                                         {item.type === 'pack' ? item.name
                                                             : item.type === 'pos' ? 'Retail Purchase'
-                                                                : 'Membership Subscription'}
+                                                                : (item.planName || 'Membership Subscription')}
                                                     </span>
                                                     <span className="font-mono text-sm text-zinc-600 dark:text-zinc-400">
                                                         {item.amount ? `$${item.amount.toFixed(2)}` : '—'}
@@ -1041,6 +1041,11 @@ export default function StudentProfilePageComponent() {
                                                     {item.type === 'pack' && (
                                                         <span className="text-xs text-blue-600">
                                                             {item.creditsRemaining}/{item.creditsTotal} credits remaining
+                                                        </span>
+                                                    )}
+                                                    {item.type === 'subscription' && item.interval && (
+                                                        <span className="text-xs text-purple-600">
+                                                            {item.interval === 'one_time' ? 'one-time' : `/${item.interval}`}
                                                         </span>
                                                     )}
                                                     {item.type === 'subscription' && (

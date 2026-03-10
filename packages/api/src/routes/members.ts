@@ -1311,14 +1311,14 @@ app.get('/:id/purchases', async (c) => {
         .all();
 
     // Subscriptions
-    const subs = await db.select()
-        .from(subscriptions)
-        .where(and(
+    const subs = await db.query.subscriptions.findMany({
+        where: and(
             eq(subscriptions.tenantId, tenant.id),
             eq(subscriptions.memberId, memberId)
-        ))
-        .orderBy(desc(subscriptions.createdAt))
-        .all();
+        ),
+        with: { plan: true },
+        orderBy: [desc(subscriptions.createdAt)]
+    });
 
     const timeline = [
         ...packs.map(p => ({
@@ -1341,6 +1341,10 @@ app.get('/:id/purchases', async (c) => {
             date: s.createdAt,
             status: s.status,
             tier: s.tier,
+            planId: s.planId,
+            planName: (s as any).plan?.name,
+            interval: (s as any).plan?.interval,
+            amount: (s as any).plan?.price ? (s as any).plan.price / 100 : 0,
             currentPeriodEnd: s.currentPeriodEnd,
             canceledAt: s.canceledAt
         }))
