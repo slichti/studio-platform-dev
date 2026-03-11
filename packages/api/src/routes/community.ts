@@ -398,12 +398,39 @@ app.post('/', async (c) => {
 
     // Notification Logic (Background)
     const communitySettings = (tenant.settings as any)?.community;
-    if (communitySettings?.emailEnabled || communitySettings?.smsEnabled) {
-        console.log(`[Community Notification] Checking global flags for tenant: ${tenant.slug}`);
-        // In a real scenario, we'd fetch platformConfig here or pass it in context
-        // and then trigger the actual email/sms dispatch.
-        // For now, we log the intent.
-        console.log(`[Community Notification] Notification flags detected: Email=${communitySettings.emailEnabled}, SMS=${communitySettings.smsEnabled}`);
+    if (communitySettings?.emailEnabled) {
+        const emailService = c.get('email');
+        const communityService = new CommunityService(db);
+        
+        c.executionCtx.waitUntil((async () => {
+            try {
+                let topicName: string | undefined;
+                if (topicId) {
+                    const topic = await db.query.communityTopics.findFirst({
+                        where: eq(communityTopics.id, topicId)
+                    });
+                    topicName = topic?.name;
+                }
+
+                const recipients = await communityService.getNotificationRecipients(tenant.id, topicId || null, member.id);
+                if (recipients.length === 0) return;
+
+                const authorName = (member.user?.profile as any)?.firstName || 'A member';
+                const postUrl = `https://${tenant.slug}.studio-platform.org/community${topicId ? `/topics/${topicId}` : ''}`;
+
+                // Send notifications to all recipients
+                await Promise.all(recipients.map((r: { email: string; name: string }) => 
+                    emailService.sendCommunityPostNotification(r.email, {
+                        authorName,
+                        content,
+                        postUrl,
+                        topicName
+                    })
+                ));
+            } catch (err) {
+                console.error('[Community Notification] Failed:', err);
+            }
+        })());
     }
 
     return c.json({ id }, 201);

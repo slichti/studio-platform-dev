@@ -12,7 +12,8 @@ import {
     BookingConfirmation,
     InvitationEmail,
     ReceiptEmail,
-    BroadcastEmail
+    BroadcastEmail,
+    CommunityPostEmail
 } from '@studio/emails';
 
 export interface TenantEmailConfig {
@@ -311,6 +312,42 @@ export class EmailService {
         } catch (e: any) {
             console.error("Broadcast failed", e);
             throw e;
+        }
+    }
+
+    async sendCommunityPostNotification(to: string, data: {
+        authorName: string;
+        content: string;
+        postUrl: string;
+        topicName?: string;
+    }) {
+        const subject = `New post from ${data.authorName}${data.topicName ? ` in ${data.topicName}` : ''}`;
+        if (!await this.checkAndTrackUsage()) {
+            await this.logEmail(to, subject, 'community_post', data, 'failed', 'Usage limit reached');
+            return;
+        }
+
+        try {
+            const { error } = await this.resend.emails.send({
+                ...this.getEmailOptions(),
+                to,
+                subject,
+                react: React.createElement(CommunityPostEmail, {
+                    ...this.getBaseProps(),
+                    ...data,
+                    studioName: this.studioName || 'Studio Platform'
+                })
+            });
+
+            if (error) {
+                await this.logEmail(to, subject, 'community_post', data, 'failed', error.message);
+                return;
+            }
+
+            await this.incrementUsage();
+            await this.logEmail(to, subject, 'community_post', data, 'sent');
+        } catch (e: any) {
+            await this.logEmail(to, subject, 'community_post', data, 'failed', e.message);
         }
     }
 

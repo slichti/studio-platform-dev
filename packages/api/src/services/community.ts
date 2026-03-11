@@ -1,4 +1,4 @@
-import { eq, sql, and } from 'drizzle-orm';
+import { eq, sql, and, inArray } from 'drizzle-orm';
 import { communityPosts, communityReactions, tenantMembers, users, communityTopics, communityTopicMemberships, communityTopicAccessRules, courseEnrollments, subscriptions } from '@studio/db/src/schema';
 
 export class CommunityService {
@@ -144,5 +144,45 @@ export class CommunityService {
             }
         }
         return results;
+    }
+
+    /**
+     * Gets a list of members to notify for a new post.
+     */
+    async getNotificationRecipients(tenantId: string, topicId: string | null, authorId: string) {
+        let memberIds: string[] = [];
+
+        if (topicId) {
+            // Topic-specific: notify members of the topic
+            const memberships = await this.db.select({ memberId: communityTopicMemberships.memberId })
+                .from(communityTopicMemberships)
+                .where(eq(communityTopicMemberships.topicId, topicId))
+                .all();
+            memberIds = memberships.map((m: any) => m.memberId);
+        } else {
+            // General post: notify all active studio members
+            const activeMembers = await this.db.select({ id: tenantMembers.id })
+                .from(tenantMembers)
+                .where(and(eq(tenantMembers.tenantId, tenantId), eq(tenantMembers.status, 'active')))
+                .all();
+            memberIds = activeMembers.map((m: any) => m.id);
+        }
+
+        // Filter out author
+        const recipientMemberIds = memberIds.filter(id => id !== authorId);
+        if (recipientMemberIds.length === 0) return [];
+
+        // Fetch emails and names
+        return await this.db.select({
+            email: users.email,
+            firstName: sql`json_extract(${users.profile}, '$.firstName')`,
+            lastName: sql`json_extract(${users.profile}, '$.lastName')`
+        })
+            .from(tenantMembers)
+            .innerJoin(users, eq(tenantMembers.userId, users.id))
+            .where(and(
+                inArray(tenantMembers.id, recipientMemberIds)
+            ))
+            .all();
     }
 }
