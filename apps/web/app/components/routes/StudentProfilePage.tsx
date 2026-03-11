@@ -108,7 +108,7 @@ export default function StudentProfilePageComponent() {
     const fullName = [userProfile.firstName, userProfile.lastName].filter(Boolean).join(" ") || member?.user?.email || "Unknown";
     const rolesStr = Array.from(new Set((member?.roles || []).map((r: any) => r?.role).filter(Boolean))).join(", ") || "student";
     const totalCredits = (member?.purchasedPacks || []).reduce((acc: number, p: any) => acc + p.remainingCredits, 0);
-    const hasActiveMembership = member?.memberships?.some((m: any) => m.status === 'active');
+    const hasActiveMembership = member?.memberships?.some((m: any) => m.status === 'active') || totalCredits > 0;
     const membershipStatus = hasActiveMembership ? 'Active' : 'Inactive';
 
     const customFieldsDef = tenant?.customFieldDefinitions || {};

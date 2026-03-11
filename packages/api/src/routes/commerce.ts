@@ -419,7 +419,13 @@ app.post('/purchase', async (c) => {
     try {
         if (type === 'pack') {
             await fulfillment.fulfillPackPurchase(
-                { packId: productId, tenantId: tenant.id, memberId: memberId, userId: member.userId },
+                {
+                    packId: productId,
+                    tenantId: tenant.id,
+                    memberId: memberId,
+                    userId: member.userId,
+                    source: 'admin_assignment'
+                },
                 mockPaymentId,
                 0 // manual assignments are 0 price logged usually or handled externally
             );
@@ -427,7 +433,13 @@ app.post('/purchase', async (c) => {
             // fulfillMembershipPurchase expects a stripe subscription ID usually, but we bypass stripe for manual
             // So we can pass a mock sub ID
             await fulfillment.fulfillMembershipPurchase(
-                { type: 'membership_purchase', planId: productId, tenantId: tenant.id, userId: member.userId },
+                {
+                    type: 'membership_purchase',
+                    planId: productId,
+                    tenantId: tenant.id,
+                    userId: member.userId,
+                    source: 'admin_assignment'
+                },
                 mockPaymentId,
                 'manual_customer'
             );
@@ -758,11 +770,25 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
 
         const metadata = {
             type: pack ? 'pack_purchase' : (plan ? 'membership_purchase' : (recording ? 'recording_purchase' : 'gift_card_purchase')),
-            packId: pack?.id || '', planId: plan?.id || '', recordingId: recording?.id || '', tenantId: tenant.id, userId: auth.userId || 'guest',
-            couponId: appliedCouponId || '', recipientEmail, recipientName, senderName, message,
-            productName: pack ? pack.name : (plan ? plan.name : (recording ? recording.title : 'Gift Card')), totalCharge: String(amountWithFee),
+            packId: pack?.id || '',
+            packName: pack?.name || '',
+            packCredits: pack?.credits || undefined,
+            planId: plan?.id || '',
+            planName: plan?.name || '',
+            planInterval: plan?.interval || '',
+            recordingId: recording?.id || '',
+            tenantId: tenant.id,
+            userId: auth.userId || 'guest',
+            couponId: appliedCouponId || '',
+            recipientEmail,
+            recipientName,
+            senderName,
+            message,
+            productName: pack ? pack.name : (plan ? plan.name : (recording ? recording.title : 'Gift Card')),
+            totalCharge: String(amountWithFee),
             usedGiftCardId: appliedGiftCardId || '',
-            autoRenew: plan ? String(plan.autoRenew) : ''
+            autoRenew: plan ? String(plan.autoRenew) : '',
+            source: platform === 'mobile' ? 'mobile_checkout' : 'web_checkout'
         };
 
         if (platform === 'mobile') {

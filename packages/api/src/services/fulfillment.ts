@@ -61,8 +61,10 @@ export class FulfillmentService {
                 expiresAt = new Date();
                 expiresAt.setDate(expiresAt.getDate() + packDef.expirationDays);
             }
+            const packPurchaseId = crypto.randomUUID();
+
             await this.db.insert(purchasedPacks).values({
-                id: crypto.randomUUID(),
+                id: packPurchaseId,
                 tenantId: metadata.tenantId,
                 memberId, // Ensure credits are attached to the member when possible
                 packDefinitionId: metadata.packId,
@@ -83,6 +85,82 @@ export class FulfillmentService {
                     orderId: paymentId,
                     redeemedAt: new Date()
                 }).run();
+            }
+
+            // Notify the user about their new class pack (purchase or admin assignment).
+            if ((this.env?.RESEND_API_KEY || this.resendApiKey) && metadata.userId && metadata.userId !== 'guest') {
+                try {
+                    const tenant = await this.db.select().from(tenants).where(eq(tenants.id, metadata.tenantId)).get();
+                    const user = await this.db.query.users.findFirst({ where: eq(users.id, metadata.userId) });
+
+                    if (tenant && user?.email) {
+                        const usageService = new UsageService(this.db, metadata.tenantId);
+                        const emailService = new EmailService(
+                            (this.env?.RESEND_API_KEY || this.resendApiKey) as string,
+                            { branding: tenant.branding, settings: tenant.settings },
+                            { slug: tenant.slug },
+                            usageService
+                        );
+
+                        const firstName = (user.profile as any)?.firstName || 'Friend';
+                        const isManual = metadata.source === 'admin_assignment';
+                        const subject = isManual
+                            ? `You've been granted a new class pack at ${tenant.name}`
+                            : `Your class pack purchase at ${tenant.name} is complete`;
+
+                        const creditsText = `${packDef.credits} class${packDef.credits === 1 ? '' : 'es'}`;
+                        const expiresText = expiresAt
+                            ? `This pack expires on <strong>${expiresAt.toLocaleDateString()}</strong>.`
+                            : `This pack does not have a set expiration date.`;
+
+                        const originLine = isManual
+                            ? `This pack was added to your account by the studio team.`
+                            : `This pack was just added to your account from your recent purchase.`;
+
+                        const html = `
+                            <h1 style="margin-bottom: 12px;">Hi ${firstName},</h1>
+                            <p>${originLine}</p>
+                            <p style="margin-top: 16px; margin-bottom: 8px;"><strong>What you received:</strong></p>
+                            <ul>
+                                <li><strong>Pack:</strong> ${packDef.name}</li>
+                                <li><strong>Credits:</strong> ${creditsText}</li>
+                                <li><strong>Current balance:</strong> ${packDef.credits} credits</li>
+                            </ul>
+                            <p style="margin-top: 8px;">${expiresText}</p>
+                            <p style="margin-top: 16px;">You can view and use your new credits from your student portal when booking classes.</p>
+                        `;
+
+                        await emailService.sendGenericEmail(user.email, subject, html);
+
+                        // Optional: fire automation trigger so studios can build richer flows.
+                        const smsService = new SmsService(
+                            tenant.twilioCredentials as any,
+                            this.env,
+                            usageService,
+                            this.db,
+                            metadata.tenantId
+                        );
+                        const pushService = new PushService(this.db, metadata.tenantId);
+                        const autoService = new AutomationsService(this.db, metadata.tenantId, emailService, smsService, pushService);
+
+                        await autoService.dispatchTrigger('pack_purchased', {
+                            userId: user.id,
+                            email: user.email,
+                            firstName,
+                            data: {
+                                packId: metadata.packId,
+                                packName: packDef.name,
+                                credits: packDef.credits,
+                                expiresAt,
+                                amount,
+                                source: metadata.source || (metadata.type === 'pack_purchase' ? 'checkout' : 'unknown'),
+                                purchasedPackId: packPurchaseId
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.error("[FulfillmentService] Pack purchase notification error", e);
+                }
             }
 
             // [NEW] Referral Check: Does this user have a pending referral for this tenant?
@@ -364,7 +442,7 @@ export class FulfillmentService {
             createdAt: new Date()
         }).run();
 
-        // Trigger Automation: membership_started
+        // Send transactional membership email + trigger automations.
         if (this.env?.RESEND_API_KEY || this.resendApiKey) {
             try {
                 const tenant = await this.db.select().from(tenants).where(eq(tenants.id, metadata.tenantId)).get();
@@ -391,21 +469,52 @@ export class FulfillmentService {
                     const autoService = new AutomationsService(this.db, metadata.tenantId, emailService, smsService, pushService);
 
                     // Fetch User for details
-                    // metadata.userId is available
                     let user = null;
                     if (metadata.userId) {
                         user = await this.db.query.users.findFirst({ where: eq(users.id, metadata.userId) });
                     }
 
                     if (user) {
+                        const firstName = (user.profile as any)?.firstName || 'Friend';
+                        const isManual = metadata.source === 'admin_assignment';
+                        const subject = isManual
+                            ? `You've been granted a membership at ${tenant.name}`
+                            : `Your membership at ${tenant.name} is active`;
+
+                        const intervalLabel =
+                            plan.interval === 'year'
+                                ? 'yearly'
+                                : plan.interval === 'week'
+                                    ? 'weekly'
+                                    : plan.interval === 'one_time'
+                                        ? 'one-time'
+                                        : 'monthly';
+
+                        const html = `
+                            <h1 style="margin-bottom: 12px;">Hi ${firstName},</h1>
+                            <p>${isManual
+                                ? 'The studio team just added a membership to your account.'
+                                : 'Thank you for your purchase—your membership is now active.'}</p>
+                            <p style="margin-top: 16px; margin-bottom: 8px;"><strong>Membership details:</strong></p>
+                            <ul>
+                                <li><strong>Plan:</strong> ${plan.name}</li>
+                                <li><strong>Billing:</strong> ${intervalLabel}</li>
+                                <li><strong>Next renewal:</strong> ${periodEnd.toLocaleDateString()}</li>
+                            </ul>
+                            <p style="margin-top: 16px;">You can view your membership and manage your account from your student portal.</p>
+                        `;
+
+                        await emailService.sendGenericEmail(user.email, subject, html);
+
                         await autoService.dispatchTrigger('membership_started', {
                             userId: user.id,
                             email: user.email,
-                            firstName: (user.profile as any)?.firstName || 'Friend',
+                            firstName,
                             data: {
                                 planId: plan.id,
                                 planName: plan.name,
-                                subscriptionId: id
+                                subscriptionId: id,
+                                source: metadata.source || (metadata.type === 'membership_purchase' ? 'checkout' : 'unknown')
                             }
                         });
                     }

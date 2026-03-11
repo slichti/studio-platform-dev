@@ -105,7 +105,8 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
 
     // Recommended Fields Mapping
     const recommendedFields: Record<string, string[]> = {
-        'membership_started': ['planName', 'price'],
+        'membership_started': ['planName', 'price', 'source'],
+        'pack_purchased': ['packName', 'credits', 'expiresAt', 'source'],
         'subscription_canceled': ['planName'],
         'class_milestone': ['milestone'],
         'class_noshow': ['classTitle', 'instructorName'],
@@ -306,7 +307,8 @@ export default function MarketingPageComponent({ campaigns: initialCampaigns, au
         'subscription_canceled': 'Subscription Canceled',
         'credits_low': 'Low Class Credits',
         'class_milestone': 'Milestone Celebration',
-        'membership_started': 'Membership Started'
+        'membership_started': 'Membership Started',
+        'pack_purchased': 'Class Pack Purchased or Assigned'
     };
 
     const getTimingLabel = (auto: any) => {
