@@ -5,6 +5,7 @@ import { eq, and, gt, sql } from 'drizzle-orm';
 import { rateLimitMiddleware } from '../middleware/rate-limit';
 import { HonoContext } from '../types';
 import { PricingService } from '../services/pricing';
+import { AuditService } from '../services/audit';
 
 const app = new Hono<HonoContext>();
 
@@ -387,6 +388,7 @@ app.post('/purchase', async (c) => {
 
     // Provide auth user context for fulfillment logs if needed
     const authUser = c.get('auth');
+    const audit = new AuditService(db);
 
     const body = await c.req.json();
     const { memberId, productId, type } = body;
@@ -445,6 +447,24 @@ app.post('/purchase', async (c) => {
             );
         } else {
             return c.json({ error: "Invalid product type" }, 400);
+        }
+
+        // Audit manual assignment for packs and memberships
+        if (authUser) {
+            await audit.log({
+                actorId: authUser.userId,
+                tenantId: tenant.id,
+                action: 'commerce.admin_assignment',
+                targetId: memberId,
+                targetType: 'tenant_member',
+                details: {
+                    type,
+                    productId,
+                    memberId,
+                    source: 'admin_assignment'
+                },
+                ipAddress: c.req.header('CF-Connecting-IP') || undefined
+            });
         }
 
         return c.json({ success: true });

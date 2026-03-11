@@ -6,6 +6,7 @@ import { checkAndPromoteWaitlist } from './waitlist';
 import { WebhookService } from '../services/webhooks';
 import { HonoContext } from '../types';
 import { BookingService } from '../services/bookings';
+import { AuditService } from '../services/audit';
 import { ConflictService } from '../services/conflicts';
 import { rateLimitMiddleware } from '../middleware/rate-limit';
 
@@ -198,6 +199,8 @@ app.post('/', bookingLimit, async (c) => {
     const tenant = c.get('tenant')!;
     const auth = c.get('auth')!;
 
+    const audit = new AuditService(db);
+
     let targetId = memberId;
 
     // Resolve Target Member (Self or Family)
@@ -285,6 +288,23 @@ app.post('/', bookingLimit, async (c) => {
             if (!canManageClasses && !(allowInstructorEnrollments && isInstructor)) {
                 return c.json({ error: "Forbidden" }, 403);
             }
+
+            // At this point, caller is allowed to book on behalf of another member.
+            // Log an audit entry for traceability.
+            await audit.log({
+                actorId: auth.userId,
+                tenantId: tenant.id,
+                action: 'booking.create_on_behalf',
+                targetId: tm.id,
+                targetType: 'tenant_member',
+                details: {
+                    classId,
+                    targetMemberId: tm.id,
+                    attendanceType: attendanceType || 'in_person',
+                    via: canManageClasses ? 'manage_classes' : 'instructor_enrollments'
+                },
+                ipAddress: c.req.header('CF-Connecting-IP') || undefined
+            });
         }
         targetId = tm.id;
     }
