@@ -431,6 +431,24 @@ export const classes = sqliteTable('classes', {
     locationTimeIdx: index('class_location_time_idx').on(table.locationId, table.startTime),
 }));
 
+// --- Multiple Instructors Junction Tables ---
+export const classInstructors = sqliteTable('class_instructors', {
+    classId: text('class_id').notNull().references(() => classes.id, { onDelete: 'cascade' }),
+    instructorId: text('instructor_id').notNull().references(() => tenantMembers.id, { onDelete: 'cascade' }),
+    isSubstitute: integer('is_substitute', { mode: 'boolean' }).default(false).notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    pk: primaryKey({ columns: [table.classId, table.instructorId] }),
+}));
+
+export const classSeriesInstructors = sqliteTable('class_series_instructors', {
+    seriesId: text('series_id').notNull().references(() => classSeries.id, { onDelete: 'cascade' }),
+    instructorId: text('instructor_id').notNull().references(() => tenantMembers.id, { onDelete: 'cascade' }),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+}, (table) => ({
+    pk: primaryKey({ columns: [table.seriesId, table.instructorId] }),
+}));
+
 // --- Student Notes (CRM) ---
 export const studentNotes = sqliteTable('student_notes', {
     id: text('id').primaryKey(),
@@ -1892,6 +1910,11 @@ export const tenantRolesRelations = relations(tenantRoles, ({ one }) => ({
     }),
 }));
 
+export const tenantMembersClassesRelations = relations(tenantMembers, ({ many }) => ({
+    classes: many(classInstructors),
+    series: many(classSeriesInstructors),
+}));
+
 export const classesRelations = relations(classes, ({ one, many }) => ({
     tenant: one(tenants, {
         fields: [classes.tenantId],
@@ -1905,11 +1928,23 @@ export const classesRelations = relations(classes, ({ one, many }) => ({
         fields: [classes.instructorId],
         references: [tenantMembers.id],
     }),
+    classInstructors: many(classInstructors),
     bookings: many(bookings),
     substitutions: many(substitutions),
     series: one(classSeries, {
         fields: [classes.seriesId],
         references: [classSeries.id],
+    }),
+}));
+
+export const classInstructorsRelations = relations(classInstructors, ({ one }) => ({
+    class: one(classes, {
+        fields: [classInstructors.classId],
+        references: [classes.id],
+    }),
+    instructor: one(tenantMembers, {
+        fields: [classInstructors.instructorId],
+        references: [tenantMembers.id],
     }),
 }));
 
@@ -1926,7 +1961,19 @@ export const classSeriesRelations = relations(classSeries, ({ one, many }) => ({
         fields: [classSeries.locationId],
         references: [locations.id],
     }),
+    seriesInstructors: many(classSeriesInstructors),
     classes: many(classes),
+}));
+
+export const classSeriesInstructorsRelations = relations(classSeriesInstructors, ({ one }) => ({
+    series: one(classSeries, {
+        fields: [classSeriesInstructors.seriesId],
+        references: [classSeries.id],
+    }),
+    instructor: one(tenantMembers, {
+        fields: [classSeriesInstructors.instructorId],
+        references: [tenantMembers.id],
+    }),
 }));
 
 export const bookingsRelations = relations(bookings, ({ one }) => ({

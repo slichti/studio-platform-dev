@@ -2,7 +2,7 @@ import { createRoute, z } from '@hono/zod-openapi';
 import { createOpenAPIApp } from '../lib/openapi';
 import { StudioVariables } from '../types';
 import { createDb } from '../db';
-import { classes, bookings, classSeries } from '@studio/db/src/schema';
+import { classes, bookings, classSeries, classInstructors, classSeriesInstructors } from '@studio/db/src/schema';
 import { eq, sql, desc, asc, and, gte, lte, inArray, ne } from 'drizzle-orm';
 import { RRule } from 'rrule';
 import { EncryptionUtils } from '../utils/encryption';
@@ -88,6 +88,7 @@ const ClassSchema = z.object({
     bookingCount: z.number().optional(),
     waitlistCount: z.number().optional(),
     instructor: z.any().optional(), // Expand later
+    instructors: z.array(z.any()).optional(),
     location: z.any().optional(),
     myBooking: z.object({
         id: z.string(),
@@ -104,6 +105,7 @@ const CreateClassSchema = z.object({
     startTime: z.string(), // ISO string from frontend
     durationMinutes: z.coerce.number(),
     instructorId: z.string().optional(),
+    instructorIds: z.array(z.string()).optional(),
     locationId: z.string().optional(),
     zoomEnabled: z.boolean().default(false),
     createZoomMeeting: z.boolean().optional(),
@@ -197,7 +199,7 @@ app.openapi(createRoute({
 
     const results = await db.query.classes.findMany({
         where: and(...conds),
-        with: { instructor: { with: { user: true } }, location: true },
+        with: { instructor: { with: { user: true } }, location: true, classInstructors: { with: { instructor: { with: { user: true } } } } },
         orderBy: [asc(classes.startTime)],
         limit: limit || 100,
         offset: offset || 0
@@ -238,6 +240,15 @@ app.openapi(createRoute({
 
     return c.json(results.map(r => {
         const myBooking = myBookingsMap.get(r.id);
+        
+        let instructors: any[] = [];
+        if (r.instructor) instructors.push(r.instructor);
+        if ((r as any).classInstructors && (r as any).classInstructors.length > 0) {
+            instructors.push(...(r as any).classInstructors.map((ci: any) => ci.instructor));
+        }
+        // Deduplicate instructors
+        instructors = instructors.filter((v, i, a) => a.findIndex((t: any) => (t.id === v.id)) === i);
+
         return {
             ...r,
             startTime: (r.startTime instanceof Date ? r.startTime : new Date(r.startTime)).toISOString(),
@@ -247,6 +258,7 @@ app.openapi(createRoute({
             zoomEnabled: !!r.zoomEnabled,
             inPersonCount: bm.get(r.id) || 0,
             virtualCount: 0,
+            instructors,
             myBooking: myBooking ? {
                 id: myBooking.id,
                 status: myBooking.status,
@@ -276,7 +288,7 @@ app.openapi(createRoute({
     const tenant = c.get('tenant');
     const { id } = c.req.valid('param');
 
-    const res = await db.query.classes.findFirst({ where: and(eq(classes.id, id), eq(classes.tenantId, tenant.id)), with: { instructor: { with: { user: true } }, location: true } });
+    const res = await db.query.classes.findFirst({ where: and(eq(classes.id, id), eq(classes.tenantId, tenant.id)), with: { instructor: { with: { user: true } }, location: true, classInstructors: { with: { instructor: { with: { user: true } } } } } });
     if (!res) return c.json({ error: "Not found" }, 404);
 
     const [bc, wc] = await Promise.all([
@@ -284,11 +296,20 @@ app.openapi(createRoute({
         db.select({ c: sql<number>`count(*)` }).from(bookings).where(and(eq(bookings.classId, res.id), eq(bookings.status, 'waitlisted'))).get()
     ]);
 
+    let instructors: any[] = [];
+    if (res.instructor) instructors.push(res.instructor);
+    if ((res as any).classInstructors && (res as any).classInstructors.length > 0) {
+        instructors.push(...(res as any).classInstructors.map((ci: any) => ci.instructor));
+    }
+    // Deduplicate instructors
+    instructors = instructors.filter((v, i, a) => a.findIndex((t: any) => (t.id === v.id)) === i);
+
     return c.json({
         ...res,
         startTime: res.startTime.toISOString(), // Ensure string
         bookingCount: bc?.c || 0,
-        waitlistCount: wc?.c || 0
+        waitlistCount: wc?.c || 0,
+        instructors
     });
 });
 
@@ -336,6 +357,10 @@ app.openapi(createRoute({
     const body = c.req.valid('json');
     const { title, startTime, durationMinutes, instructorId, locationId, zoomEnabled, createZoomMeeting, isRecurring, recurrenceRule, recurrenceEnd } = body;
 
+    // Use instructorId if instructorsIds is empty
+    let newInstructorIds = body.instructorIds && body.instructorIds.length > 0 ? body.instructorIds : (instructorId ? [instructorId] : []);
+
+
     const cs = new ConflictService(db);
     const start = new Date(startTime);
     const dur = durationMinutes;
@@ -379,7 +404,13 @@ app.openapi(createRoute({
             gradientColor2: body.gradientColor2,
             gradientDirection: body.gradientDirection,
             createdAt: new Date()
-        }).run();
+        // Also insert classSeriesInstructors
+        for (const iid of newInstructorIds) {
+            await db.insert(classSeriesInstructors).values({
+                seriesId,
+                instructorId: iid
+            }).run();
+        }
 
         let occurrences: Date[];
         try {
@@ -450,6 +481,13 @@ app.openapi(createRoute({
         // Insert one row at a time (D1 has a 100 bind parameter limit per statement)
         for (const cls of classData) {
             await db.insert(classes).values(cls).run();
+            // Insert classInstructors
+            for (const iid of newInstructorIds) {
+                await db.insert(classInstructors).values({
+                    classId: cls.id,
+                    instructorId: iid
+                }).run();
+            }
         }
         return c.json({ seriesId, classes: classData.length }, 201);
     } else {
@@ -493,6 +531,13 @@ app.openapi(createRoute({
             createdAt: new Date()
         }).returning();
 
+        for (const iid of newInstructorIds) {
+            await db.insert(classInstructors).values({
+                classId: id,
+                instructorId: iid
+            }).run();
+        }
+
         return c.json({ ...nc, startTime: nc.startTime.toISOString() }, 201);
     }
 });
@@ -533,6 +578,20 @@ app.openapi(createRoute({
         }
     });
 
+    let updateInstructors = false;
+    let newInstructorIds: string[] = [];
+    if ('instructorIds' in body && Array.isArray(body.instructorIds)) {
+        updateInstructors = true;
+        newInstructorIds = body.instructorIds;
+    } else if ('instructorId' in body && body.instructorId) {
+        updateInstructors = true;
+        newInstructorIds = [body.instructorId];
+    } else if ('instructorId' in body && body.instructorId === null) {
+        updateInstructors = true;
+        newInstructorIds = [];
+    }
+
+
     // For single scope or non-series classes, check conflicts and update just this one
     if (scope === 'single' || !ex.seriesId) {
         if (up.startTime || up.durationMinutes || up.instructorId || up.locationId) {
@@ -541,6 +600,14 @@ app.openapi(createRoute({
             if ((up.locationId || ex.locationId) && (await cs.checkRoomConflict(up.locationId || ex.locationId!, up.startTime || ex.startTime, up.durationMinutes || ex.durationMinutes, id)).length) return c.json({ error: "Location Conflict" }, 409);
         }
         await db.update(classes).set(up).where(eq(classes.id, id)).run();
+
+        if (updateInstructors) {
+            await db.delete(classInstructors).where(eq(classInstructors.classId, id)).run();
+            for (const iid of newInstructorIds) {
+                await db.insert(classInstructors).values({ classId: id, instructorId: iid }).run();
+            }
+        }
+
         return c.json({ success: true, updated: 1 });
     }
 
@@ -578,6 +645,33 @@ app.openapi(createRoute({
         if (Object.keys(seriesUpdate).length > 0) {
             await db.update(classSeries).set(seriesUpdate).where(eq(classSeries.id, ex.seriesId!)).run();
         }
+
+        if (updateInstructors) {
+            if (ex.seriesId) {
+                await db.delete(classSeriesInstructors).where(eq(classSeriesInstructors.seriesId, ex.seriesId)).run();
+                for (const iid of newInstructorIds) {
+                    await db.insert(classSeriesInstructors).values({ seriesId: ex.seriesId, instructorId: iid }).run();
+                }
+            }
+            
+            const futureClasses = await db.select({ id: classes.id })
+                .from(classes)
+                .where(and(
+                    eq(classes.seriesId, ex.seriesId!),
+                    eq(classes.tenantId, tid),
+                    gte(classes.startTime, ex.startTime),
+                    eq(classes.status, 'active')
+                ))
+                .all();
+
+            for (const cls of futureClasses) {
+                await db.delete(classInstructors).where(eq(classInstructors.classId, cls.id)).run();
+                for (const iid of newInstructorIds) {
+                    await db.insert(classInstructors).values({ classId: cls.id, instructorId: iid }).run();
+                }
+            }
+        }
+
         return c.json({ success: true, updated: result.meta?.changes || 0 });
     }
 
@@ -606,6 +700,32 @@ app.openapi(createRoute({
         if (Object.keys(seriesUpdate).length > 0) {
             await db.update(classSeries).set(seriesUpdate).where(eq(classSeries.id, ex.seriesId!)).run();
         }
+
+        if (updateInstructors) {
+            if (ex.seriesId) {
+                await db.delete(classSeriesInstructors).where(eq(classSeriesInstructors.seriesId, ex.seriesId)).run();
+                for (const iid of newInstructorIds) {
+                    await db.insert(classSeriesInstructors).values({ seriesId: ex.seriesId, instructorId: iid }).run();
+                }
+            }
+            
+            const allClasses = await db.select({ id: classes.id })
+                .from(classes)
+                .where(and(
+                    eq(classes.seriesId, ex.seriesId!),
+                    eq(classes.tenantId, tid),
+                    eq(classes.status, 'active')
+                ))
+                .all();
+
+            for (const cls of allClasses) {
+                await db.delete(classInstructors).where(eq(classInstructors.classId, cls.id)).run();
+                for (const iid of newInstructorIds) {
+                    await db.insert(classInstructors).values({ classId: cls.id, instructorId: iid }).run();
+                }
+            }
+        }
+
         return c.json({ success: true, updated: result.meta?.changes || 0 });
     }
 
@@ -748,6 +868,25 @@ app.openapi(createRoute({
         // Insert one row at a time (D1 has a 100 bind parameter limit per statement)
         for (const cls of classData) {
             await db.insert(classes).values(cls).run();
+            // Instructors mapping
+            if (ex.instructorId) {
+                await db.insert(classInstructors).values({ classId: cls.id, instructorId: ex.instructorId }).run();
+            } else {
+                const existInstr = await db.select().from(classInstructors).where(eq(classInstructors.classId, id)).all();
+                for (const ei of existInstr) {
+                    await db.insert(classInstructors).values({ classId: cls.id, instructorId: ei.instructorId }).run();
+                }
+            }
+        }
+
+        // Add classSeriesInstructors too
+        if (ex.instructorId) {
+            await db.insert(classSeriesInstructors).values({ seriesId, instructorId: ex.instructorId }).run();
+        } else {
+            const existInstr = await db.select().from(classInstructors).where(eq(classInstructors.classId, id)).all();
+            for (const ei of existInstr) {
+                await db.insert(classSeriesInstructors).values({ seriesId, instructorId: ei.instructorId }).run();
+            }
         }
 
         console.log('[MAKE-RECURRING] Created series', seriesId, 'with', classData.length, 'classes');

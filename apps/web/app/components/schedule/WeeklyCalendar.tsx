@@ -346,6 +346,38 @@ export function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDat
                                                     >
                                                         <div className="font-semibold truncate">{event.title}</div>
                                                         <div className="opacity-75">{format(event.start, 'h:mm a')}</div>
+                                                        
+                                                        {/* Instructors */}
+                                                        {height > 40 && (
+                                                            <div className="mt-1 flex -space-x-1 overflow-hidden">
+                                                                {event.resource?.instructors?.length > 0 ? (
+                                                                    event.resource.instructors.map((inst: any) => {
+                                                                        const photoUrl = inst.user?.profile?.portraitUrl || inst.user?.profile?.avatarUrl;
+                                                                        const name = inst.user?.profile?.firstName || '?';
+                                                                        return photoUrl ? (
+                                                                            <img key={inst.id} src={photoUrl} alt={name} className="inline-block h-4 w-4 rounded-full ring-1 ring-white dark:ring-zinc-900 object-cover" title={name} />
+                                                                        ) : (
+                                                                            <div key={inst.id} className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-zinc-200 dark:bg-zinc-700 ring-1 ring-white dark:ring-zinc-900" title={name}>
+                                                                                <span className="text-[8px] font-medium text-zinc-600 dark:text-zinc-300">{name.charAt(0)}</span>
+                                                                            </div>
+                                                                        );
+                                                                    })
+                                                                ) : event.resource?.instructor ? (
+                                                                    (() => {
+                                                                        const inst = event.resource.instructor;
+                                                                        const photoUrl = inst.user?.profile?.portraitUrl || inst.user?.profile?.avatarUrl;
+                                                                        const name = inst.user?.profile?.firstName || '?';
+                                                                        return photoUrl ? (
+                                                                            <img src={photoUrl} alt={name} className="inline-block h-4 w-4 rounded-full ring-1 ring-white dark:ring-zinc-900 object-cover" title={name} />
+                                                                        ) : (
+                                                                            <div className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-zinc-200 dark:bg-zinc-700 ring-1 ring-white dark:ring-zinc-900" title={name}>
+                                                                                <span className="text-[8px] font-medium text-zinc-600 dark:text-zinc-300">{name.charAt(0)}</span>
+                                                                            </div>
+                                                                        );
+                                                                    })()
+                                                                ) : null}
+                                                            </div>
+                                                        )}
                                                     </button>
                                                 );
                                             })}

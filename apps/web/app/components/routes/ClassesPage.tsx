@@ -51,9 +51,19 @@ type ClassEvent = {
             profile?: {
                 firstName: string;
                 lastName: string;
+                portraitUrl?: string | null;
             }
         }
-    }
+    };
+    instructors?: {
+        user?: {
+            profile?: {
+                firstName: string;
+                lastName: string;
+                portraitUrl?: string | null;
+            }
+        }
+    }[];
 };
 
 export default function ClassesPage() {
@@ -392,9 +402,37 @@ export default function ClassesPage() {
                                                                     {cls.durationMinutes} min
                                                                 </span>
                                                             </div>
-                                                            {cls.instructor?.user?.profile && (
-                                                                <div className="flex items-center gap-1.5">
-                                                                    <Users className="h-3 w-3 shrink-0" />
+                                                            {(cls.instructors && cls.instructors.length > 0) ? (
+                                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                                    <div className="flex -space-x-1.5 shrink-0">
+                                                                        {cls.instructors.map((inst, i) => (
+                                                                            inst.user?.profile?.portraitUrl ? (
+                                                                                <img 
+                                                                                    key={inst.user?.profile?.firstName || i} 
+                                                                                    src={inst.user.profile.portraitUrl} 
+                                                                                    alt={inst.user.profile.firstName} 
+                                                                                    className="w-4 h-4 rounded-full border border-white dark:border-zinc-950 object-cover" 
+                                                                                />
+                                                                            ) : (
+                                                                                <div key={i} className="w-4 h-4 rounded-full border border-white dark:border-zinc-950 bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-[8px] font-bold text-zinc-500">
+                                                                                    {inst.user?.profile?.firstName?.charAt(0)}
+                                                                                </div>
+                                                                            )
+                                                                        ))}
+                                                                    </div>
+                                                                    <span className="truncate">w/ {cls.instructors.map(i => i.user?.profile?.firstName).join(', ')}</span>
+                                                                </div>
+                                                            ) : cls.instructor?.user?.profile && (
+                                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                                    {cls.instructor.user.profile.portraitUrl ? (
+                                                                        <img 
+                                                                            src={cls.instructor.user.profile.portraitUrl} 
+                                                                            alt={cls.instructor.user.profile.firstName} 
+                                                                            className="w-4 h-4 rounded-full border border-white dark:border-zinc-950 object-cover shrink-0" 
+                                                                        />
+                                                                    ) : (
+                                                                        <Users className="h-3 w-3 shrink-0" />
+                                                                    )}
                                                                     <span className="truncate">w/ {cls.instructor.user.profile.firstName}</span>
                                                                 </div>
                                                             )}

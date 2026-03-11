@@ -25,7 +25,7 @@ export function CreateBulkClassModal({ isOpen, onClose, onSuccess, locations = [
     const [formData, setFormData] = useState({
         name: "",
         description: "",
-        instructorId: "",
+        instructorIds: [] as string[],
         locationId: "",
         durationMinutes: 60,
         capacity: 20,
@@ -87,7 +87,7 @@ export function CreateBulkClassModal({ isOpen, onClose, onSuccess, locations = [
                 body: JSON.stringify({
                     title: formData.name,
                     description: formData.description,
-                    instructorId: formData.instructorId || undefined,
+                    instructorIds: formData.instructorIds.length > 0 ? formData.instructorIds : undefined,
                     locationId: formData.locationId || undefined,
                     durationMinutes: Number(formData.durationMinutes),
                     capacity: Number(formData.capacity),
@@ -126,7 +126,7 @@ export function CreateBulkClassModal({ isOpen, onClose, onSuccess, locations = [
                 setFormData({
                     name: "",
                     description: "",
-                    instructorId: "",
+                    instructorIds: [],
                     locationId: "",
                     durationMinutes: 60,
                     capacity: 20,
@@ -254,20 +254,29 @@ export function CreateBulkClassModal({ isOpen, onClose, onSuccess, locations = [
                         />
                     </div>
                     <div>
-                        <label htmlFor="instructorBulk" className="block text-sm font-medium text-zinc-700 mb-1">Instructor</label>
-                        <select
-                            id="instructorBulk"
-                            className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                            value={formData.instructorId}
-                            onChange={(e) => setFormData({ ...formData, instructorId: e.target.value })}
-                        >
-                            <option value="">TBA (No Instructor)</option>
-                            {instructors.map((inst: any) => (
-                                <option key={inst.id} value={inst.id}>
-                                    {inst.user?.profile?.firstName} {inst.user?.profile?.lastName}
-                                </option>
-                            ))}
-                        </select>
+                        <label className="block text-sm font-medium text-zinc-700 mb-1">Instructors</label>
+                        <div className="max-h-32 overflow-y-auto border border-zinc-300 rounded-md bg-white p-2 space-y-1">
+                            {instructors.length === 0 ? (
+                                <span className="text-sm text-zinc-500 italic">No instructors available</span>
+                            ) : (
+                                instructors.map((inst: any) => (
+                                    <label key={inst.id} className="flex items-center gap-2 text-sm text-zinc-700 cursor-pointer hover:bg-zinc-50 p-1 rounded">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.instructorIds.includes(inst.id)}
+                                            onChange={(e) => {
+                                                const newIds = e.target.checked
+                                                    ? [...formData.instructorIds, inst.id]
+                                                    : formData.instructorIds.filter(id => id !== inst.id);
+                                                setFormData({ ...formData, instructorIds: newIds });
+                                            }}
+                                            className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                        <span>{inst.user?.profile?.firstName} {inst.user?.profile?.lastName}</span>
+                                    </label>
+                                ))
+                            )}
+                        </div>
                     </div>
                 </div>
 

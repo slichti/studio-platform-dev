@@ -104,11 +104,35 @@ export function BookingModal({ isOpen, onClose, classEvent, family, member, onSu
                                     )}
 
                                     {/* Instructor Info */}
-                                    {classEvent.instructor && (
+                                    {(classEvent.instructors && classEvent.instructors.length > 0) ? (
                                         <div className="flex items-center gap-3 bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-lg">
-                                            {classEvent.instructor.user?.profile?.avatarUrl ? (
+                                            <div className="flex -space-x-3 shrink-0">
+                                                {classEvent.instructors.map((inst: any, i: number) => (
+                                                    (inst.user?.profile?.portraitUrl || inst.user?.profile?.avatarUrl) ? (
+                                                        <img
+                                                            key={i}
+                                                            src={inst.user.profile.portraitUrl || inst.user.profile.avatarUrl}
+                                                            alt={inst.user.profile.firstName || 'Instructor'}
+                                                            className="w-10 h-10 rounded-full border-2 border-white dark:border-zinc-800 object-cover"
+                                                        />
+                                                    ) : (
+                                                        <div key={i} className="w-10 h-10 rounded-full border-2 border-white dark:border-zinc-800 bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center">
+                                                            <span className="text-xs font-bold text-zinc-500">{inst.user?.profile?.firstName?.charAt(0) || <User size={16} />}</span>
+                                                        </div>
+                                                    )
+                                                ))}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                                                    with {classEvent.instructors.map((i: any) => i.user?.profile?.firstName).filter(Boolean).join(', ') || 'Instructors'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ) : classEvent.instructor && (
+                                        <div className="flex items-center gap-3 bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-lg">
+                                            {(classEvent.instructor.user?.profile?.portraitUrl || classEvent.instructor.user?.profile?.avatarUrl) ? (
                                                 <img
-                                                    src={classEvent.instructor.user.profile.avatarUrl}
+                                                    src={classEvent.instructor.user.profile.portraitUrl || classEvent.instructor.user.profile.avatarUrl}
                                                     alt="Instructor"
                                                     className="w-10 h-10 rounded-full object-cover"
                                                 />
@@ -121,7 +145,6 @@ export function BookingModal({ isOpen, onClose, classEvent, family, member, onSu
                                                 <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
                                                     with {classEvent.instructor.user?.profile?.firstName || 'Instructor'}
                                                 </p>
-                                                {/* Could add instructor bio here if available in classEvent.instructor.profile */}
                                             </div>
                                         </div>
                                     )}
