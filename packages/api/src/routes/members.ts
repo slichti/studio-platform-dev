@@ -1384,4 +1384,113 @@ app.get('/:id/purchases', async (c) => {
     return c.json({ purchases: timeline });
 });
 
+// POST /members/invite
+const createStaffInviteRoute = createRoute({
+    method: 'post',
+    path: '/invite',
+    tags: ['Members'],
+    summary: 'Invite a staff member',
+    request: {
+        body: {
+            content: {
+                'application/json': {
+                    schema: z.object({
+                        email: z.string().email(),
+                        role: z.string()
+                    })
+                }
+            }
+        }
+    },
+    responses: {
+        200: { content: { 'application/json': { schema: z.object({ member: z.any() }) } }, description: 'Member invited' },
+        400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Bad request' },
+        403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Unauthorized' },
+        409: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Conflict' },
+        500: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Internal Server Error' }
+    }
+});
+
+app.openapi(createStaffInviteRoute, async (c) => {
+    if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403);
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant')!;
+    const { email, role } = c.req.valid('json');
+
+    const emailService = c.get('email');
+
+    // Find or create user
+    let u = await db.query.users.findFirst({
+        where: eq(users.email, email.toLowerCase())
+    });
+
+    if (!u) {
+        const userId = crypto.randomUUID();
+        await db.insert(users).values({
+            id: userId,
+            email: email.toLowerCase(),
+            createdAt: new Date(),
+        }).run();
+        u = { id: userId, email: email.toLowerCase(), lastActiveAt: null } as any;
+    }
+
+    if (!u) return c.json({ error: 'Failed to create user' }, 500);
+
+    // Check if member already exists
+    let m = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.userId, u.id), eq(tenantMembers.tenantId, tenant.id))
+    });
+
+    if (m) {
+        return c.json({ error: 'Member already exists in this studio' }, 409);
+    }
+
+    const memberId = `mem_${crypto.randomUUID()}`;
+    const inviteToken = crypto.randomUUID();
+
+    await db.insert(tenantMembers).values({
+        id: memberId,
+        tenantId: tenant.id,
+        userId: u.id,
+        status: 'active',
+        joinedAt: new Date(),
+        invitedAt: new Date(),
+        settings: JSON.stringify({ invitationToken: inviteToken }),
+    }).run();
+
+    // Assign role
+    // Check if it's a system role
+    const systemRoles = ['owner', 'admin', 'instructor', 'student'];
+    if (systemRoles.includes(role)) {
+        await db.insert(tenantRoles).values({
+            id: crypto.randomUUID(),
+            memberId: memberId,
+            role: role as any
+        }).run();
+    } else {
+        // Look for custom role
+        const { customRoles } = await import('@studio/db/src/schema');
+        const customR = await db.query.customRoles.findFirst({
+            where: and(eq(customRoles.tenantId, tenant.id), eq(customRoles.name, role))
+        });
+        if (customR) {
+            await db.insert(tenantRoles).values({
+                id: crypto.randomUUID(),
+                memberId: memberId,
+                role: 'custom',
+                customRoleId: customR.id
+            }).run();
+        }
+    }
+
+    // Always send invitation if they haven't been active globally
+    if (!u.lastActiveAt) {
+        const webBase = c.env.WEB_APP_URL || c.req.header('origin') || 'https://studio-platform-dev.slichti.org';
+        const inviteUrl = `${String(webBase || 'https://studio-platform-dev.slichti.org').replace(/\/$/, '')}/accept-invite?token=${inviteToken}`;
+        await emailService.sendInvitation(email, inviteUrl);
+    }
+
+    return c.json({ member: { id: memberId } }, 200);
+});
+
 export default app;

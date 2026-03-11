@@ -166,12 +166,18 @@ export class EmailService {
         }
 
         try {
-            await this.resend.emails.send({
+            const { error } = await this.resend.emails.send({
                 ...this.getEmailOptions(),
                 ...this.getRecipients(to, 'transactional'),
                 subject,
                 react: React.createElement(WelcomeEmail, { ...this.getBaseProps(), name, studioUrl: `https://${this.tenantId}.slichti.org` })
             });
+
+            if (error) {
+                await this.logEmail(to, subject, 'welcome_member', { name }, 'failed', error.message);
+                return;
+            }
+
             await this.incrementUsage();
             await this.logEmail(to, subject, 'welcome_member', { name }, 'sent');
         } catch (e: any) {
@@ -194,7 +200,7 @@ export class EmailService {
         }
 
         try {
-            await this.resend.emails.send({
+            const { error } = await this.resend.emails.send({
                 ...this.getEmailOptions(),
                 ...this.getRecipients(to, 'transactional'),
                 subject,
@@ -209,6 +215,12 @@ export class EmailService {
                     bookedBy: classDetails.bookedBy
                 })
             });
+
+            if (error) {
+                await this.logEmail(to, subject, 'booking_confirmation', classDetails, 'failed', error.message);
+                return;
+            }
+
             await this.incrementUsage();
             await this.logEmail(to, subject, 'booking_confirmation', classDetails, 'sent');
         } catch (e: any) {
@@ -224,12 +236,18 @@ export class EmailService {
         }
 
         try {
-            await this.resend.emails.send({
+            const { error } = await this.resend.emails.send({
                 ...this.getEmailOptions(),
                 ...this.getRecipients(to, 'transactional'),
                 subject,
                 react: React.createElement(InvitationEmail, { ...this.getBaseProps(), inviteUrl })
             });
+
+            if (error) {
+                await this.logEmail(to, subject, 'invitation', { inviteUrl }, 'failed', error.message);
+                return;
+            }
+
             await this.incrementUsage();
             await this.logEmail(to, subject, 'invitation', { inviteUrl }, 'sent');
         } catch (e: any) {
@@ -252,7 +270,7 @@ export class EmailService {
         }
 
         try {
-            await this.resend.emails.send({
+            const { error } = await this.resend.emails.send({
                 ...this.getEmailOptions(),
                 ...this.getRecipients(to, 'transactional'),
                 subject,
@@ -267,6 +285,12 @@ export class EmailService {
                     receiptUrl: data.receiptUrl
                 })
             });
+
+            if (error) {
+                await this.logEmail(to, subject, 'receipt', data, 'failed', error.message);
+                return;
+            }
+
             await this.incrementUsage();
             await this.logEmail(to, subject, 'receipt', data, 'sent');
         } catch (e: any) {
@@ -322,7 +346,7 @@ export class EmailService {
             return;
         }
         try {
-            await this.resend.emails.send({
+            const { error } = await this.resend.emails.send({
                 ...this.getEmailOptions(),
                 ...this.getRecipients(to, isNotification ? 'notification' : 'transactional'),
                 subject,
@@ -330,6 +354,12 @@ export class EmailService {
                 attachments,
                 tags
             });
+
+            if (error) {
+                await this.logEmail(to, subject, 'generic_email', { html }, 'failed', error.message);
+                return;
+            }
+
             await this.incrementUsage();
             await this.logEmail(to, subject, 'generic_email', { html }, 'sent');
         } catch (e: any) {
