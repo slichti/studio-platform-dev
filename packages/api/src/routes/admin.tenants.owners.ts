@@ -4,6 +4,7 @@ import { users, tenantMembers, tenantRoles, tenants, tenantInvitations } from '@
 import { eq, and } from 'drizzle-orm';
 import { HonoContext } from '../types';
 import { EmailService } from '../services/email';
+import { getFullName } from '../utils/profile';
 
 const app = new Hono<HonoContext>();
 
@@ -100,7 +101,7 @@ app.post('/:id/owners', async (c) => {
             // Use API URL for now if frontend route not ready, but usually frontend handles token.
             // We'll point to a generic invite handler on the frontend.
 
-            const inviterName = inviter.profile ? `${(inviter.profile as any).firstName} ${(inviter.profile as any).lastName}` : 'An administrator';
+            const inviterName = getFullName(inviter.profile, 'An administrator');
 
             await emailService.sendOwnerInvitation(email, {
                 url: inviteUrl,

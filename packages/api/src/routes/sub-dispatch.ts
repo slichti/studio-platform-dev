@@ -3,6 +3,7 @@ import { eq, and, sql, desc, ne } from 'drizzle-orm';
 import { createDb } from '../db';
 import { subRequests, classes, tenantMembers, tenantRoles, users } from '@studio/db/src/schema';
 import { HonoContext } from '../types';
+import { getFirstName } from '../utils/profile';
 
 const app = new Hono<HonoContext>();
 
@@ -68,7 +69,7 @@ app.post('/classes/:classId/request', async (c) => {
                 .where(and(eq(tenantMembers.tenantId, tenant.id), eq(tenantRoles.role, 'instructor'), ne(tenantMembers.id, member.id))).all();
 
             const dateStr = formatShortDate(classData.startTime);
-            const reqName = member.profile && typeof member.profile === 'string' ? JSON.parse(member.profile).firstName : member.profile?.firstName;
+            const reqName = getFirstName(member.profile, 'Instructor');
 
             for (const inst of instructors) {
                 const s = (inst.settings as any)?.notifications?.substitutions || { email: true, sms: false, push: false };
@@ -112,7 +113,7 @@ app.post('/items/:requestId/approve', async (c) => {
             }
             if (origMem) {
                 const u = await db.select().from(users).where(eq(users.id, origMem.userId)).get();
-                const coverName = covMem?.profile && typeof covMem.profile === 'string' ? JSON.parse(covMem.profile).firstName : (covMem?.profile as any)?.firstName;
+                const coverName = getFirstName(covMem?.profile, 'Cover');
                 if (u) await email.sendSubRequestFilled(u.email, { classTitle: cls?.title || 'Class', date: dateStr, coveredBy: String(coverName) });
             }
         } catch (e) { console.error(e); }
@@ -163,7 +164,7 @@ app.post('/items/:requestId/accept', async (c) => {
         try {
             const { EmailService } = await import('../services/email');
             const email = new EmailService(c.env.RESEND_API_KEY as string, tenant.settings as any, { slug: tenant.slug }, undefined, false, db, tenant.id);
-            const coverName = member.profile && typeof member.profile === 'string' ? JSON.parse(member.profile).firstName : member.profile?.firstName;
+            const coverName = getFirstName(member.profile, 'Cover');
             const cls = await db.select().from(classes).where(eq(classes.id, request.classId)).get();
             const dateStr = formatShortDate(cls?.startTime || new Date());
 

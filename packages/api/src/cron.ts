@@ -15,6 +15,7 @@ import { createSystemBackup } from '../scripts/backup-system';
 import { backupAllTenants } from '../scripts/backup-tenants';
 import { ContentAutomationService } from './services/content-automation';
 import { ResendManagementService } from './services/resend';
+import { getFirstName } from './utils/profile';
 
 export const scheduled = async (event: any, env: any, ctx: any) => {
     console.log("Cron trigger fired:", event.cron);
@@ -698,7 +699,7 @@ async function send24hClassReminders(db: any, env: any) {
             });
             if (!member?.user?.email) continue;
 
-            const firstName = (member.user.profile as any)?.firstName ?? 'there';
+            const firstName = getFirstName(member.user.profile, 'there');
             const startTime = cls.startTime instanceof Date ? cls.startTime : new Date(cls.startTime);
             const dateStr = startTime.toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 

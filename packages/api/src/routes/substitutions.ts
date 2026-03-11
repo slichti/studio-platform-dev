@@ -4,6 +4,7 @@ import { substitutions, classes, tenantMembers, users, tenantRoles } from '@stud
 import { eq, and, desc } from 'drizzle-orm';
 import { ConflictService } from '../services/conflicts';
 import { HonoContext } from '../types';
+import { getFirstName } from '../utils/profile';
 
 const app = new Hono<HonoContext>();
 
@@ -52,7 +53,7 @@ app.post('/request', async (c) => {
     const owners = await db.select({ email: users.email }).from(tenantMembers).innerJoin(users, eq(tenantMembers.userId, users.id)).innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId)).where(and(eq(tenantMembers.tenantId, tenant!.id), eq(tenantRoles.role, 'owner'))).all();
 
     c.executionCtx.waitUntil((async () => {
-        const name = member.user.profile && typeof member.user.profile === 'string' ? JSON.parse(member.user.profile).firstName : member.user.profile?.firstName;
+        const name = getFirstName(member.user?.profile, 'Instructor');
         for (const o of owners) await sendSubEmail(c.env, tenant, o.email, `Sub Request: ${cls.title}`, `<p>${name} needs cover for ${cls.title} on ${new Date(cls.startTime).toLocaleString()}.</p>`);
     })());
 
@@ -79,7 +80,7 @@ app.post('/:id/claim', async (c) => {
     const owners = await db.select({ email: users.email }).from(tenantMembers).innerJoin(users, eq(tenantMembers.userId, users.id)).innerJoin(tenantRoles, eq(tenantMembers.id, tenantRoles.memberId)).where(and(eq(tenantMembers.tenantId, tenant!.id), eq(tenantRoles.role, 'owner'))).all();
 
     c.executionCtx.waitUntil((async () => {
-        const coverName = member.user.profile && typeof member.user.profile === 'string' ? JSON.parse(member.user.profile).firstName : member.user.profile?.firstName;
+        const coverName = getFirstName(member.user?.profile, 'Instructor');
         if (requester) await sendSubEmail(c.env, tenant, requester.email, `Sub Claimed: ${sub.class.title}`, `<p>${coverName} offered to cover ${sub.class.title}.</p>`);
         for (const o of owners) await sendSubEmail(c.env, tenant, o.email, `Sub Claimed`, `<p>${coverName} offered to cover ${sub.class.title}. Approve in dashboard.</p>`);
     })());

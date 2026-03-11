@@ -13,6 +13,7 @@ import { PushService } from './push';
 import { WebhookService } from './webhooks';
 import { MonitoringService } from './monitoring';
 import { Bindings } from '../types';
+import { getFirstName } from '../utils/profile';
 
 export class StripeWebhookHandler {
     protected db: ReturnType<typeof createDb>;
@@ -240,7 +241,7 @@ export class StripeWebhookHandler {
                 if (tenant) {
                     const { autoService } = await this.getTenantServices(tenant);
                     const user = await this.db.query.users.findFirst({ where: eq(schema.users.stripeCustomerId, subscription.customer as string) });
-                    if (user) await autoService.dispatchTrigger('subscription_canceled', { userId: user.id, email: user.email, firstName: (user.profile as any)?.firstName, data: { planId: subscription.metadata?.planId, subscriptionId: subscription.id } });
+                    if (user) await autoService.dispatchTrigger('subscription_canceled', { userId: user.id, email: user.email, firstName: getFirstName(user.profile, 'Member'), data: { planId: subscription.metadata?.planId, subscriptionId: subscription.id } });
                 }
             } catch (e) { console.error('Failed to trigger subscription_canceled', e) }
         } else if (tenantId) {
@@ -290,7 +291,7 @@ export class StripeWebhookHandler {
                 if (tenant) {
                     const { autoService } = await this.getTenantServices(tenant);
                     const user = await this.db.query.users.findFirst({ where: eq(schema.users.stripeCustomerId, subscription.customer as string) });
-                    if (user) await autoService.dispatchTrigger('subscription_canceled', { userId: user.id, email: user.email, firstName: (user.profile as any)?.firstName, data: { planId: subscription.metadata?.planId } });
+                    if (user) await autoService.dispatchTrigger('subscription_canceled', { userId: user.id, email: user.email, firstName: getFirstName(user.profile, 'Member'), data: { planId: subscription.metadata?.planId } });
                 }
             } catch (e) { console.error('Failed to trigger subscription_terminated', e); }
         }

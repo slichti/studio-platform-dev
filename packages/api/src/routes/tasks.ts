@@ -3,6 +3,7 @@ import { eq, and, desc, asc } from 'drizzle-orm';
 import { createDb } from '../db';
 import { tasks, tenantMembers, leads, users } from '@studio/db/src/schema';
 import { Bindings, Variables } from '../types';
+import { getFirstName } from '../utils/profile';
 
 // Manual types for request body
 type TaskCreate = {
@@ -81,7 +82,7 @@ app.get('/', async (c) => {
         ...r.task,
         assignee: r.assigneeMember ? {
             id: r.assigneeMember.id,
-            firstName: (r.assigneeUser?.profile as any)?.firstName || 'Unknown',
+            firstName: getFirstName(r.assigneeUser?.profile, 'Unknown'),
             // users.profile is defined as { mode: 'json' } in schema.
             // drizzle should parse it.
             // Let's assume parsed.

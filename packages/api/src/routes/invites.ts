@@ -4,6 +4,7 @@ import { createDb } from '../db';
 import { users, tenantMembers, tenantRoles, tenants, tenantInvitations } from '@studio/db/src/schema';
 import { eq, and } from 'drizzle-orm';
 import { HonoContext } from '../types';
+import { getFirstName } from '../utils/profile';
 
 const app = new Hono<HonoContext>();
 
@@ -28,7 +29,7 @@ app.get('/:token', async (c) => {
         email: invite.email,
         role: invite.role,
         tenantName: tenant?.name,
-        inviterName: inviter?.profile ? `${(inviter.profile as any).firstName}` : 'Admin',
+        inviterName: getFirstName(inviter?.profile, 'Admin'),
         expiresAt: invite.expiresAt
     });
 });

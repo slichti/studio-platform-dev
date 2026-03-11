@@ -3,6 +3,7 @@ import { createDb } from '../db';
 import { appointmentServices, availabilities, appointments, tenantMembers, users } from '@studio/db/src/schema';
 import { eq, and, gte, lte, lt, gt, inArray, sql } from 'drizzle-orm';
 import { HonoContext } from '../types';
+import { getFirstName } from '../utils/profile';
 
 const app = new Hono<HonoContext>();
 
@@ -238,7 +239,7 @@ app.post('/', async (c) => {
                 const creds = tenant!.googleCalendarCredentials as any;
                 const token = await encryption.decrypt(creds.accessToken);
                 const g = new GoogleCalendarService(c.env.GOOGLE_CLIENT_ID as string, c.env.GOOGLE_CLIENT_SECRET as string, '');
-                const event = await g.createEvent(token, 'primary', { summary: `Appt: ${service.title}`, description: `Client: ${actingMember!.profile && typeof actingMember!.profile === 'string' ? JSON.parse(actingMember!.profile).firstName : actingMember!.profile?.firstName}\nNotes: ${notes || ''}`, start: { dateTime: start.toISOString() }, end: { dateTime: end.toISOString() } });
+                const event = await g.createEvent(token, 'primary', { summary: `Appt: ${service.title}`, description: `Client: ${getFirstName(actingMember!.profile, 'Client')}\nNotes: ${notes || ''}`, start: { dateTime: start.toISOString() }, end: { dateTime: end.toISOString() } });
                 if (event.id) await db.update(appointments).set({ googleEventId: event.id }).where(eq(appointments.id, id)).run();
             } catch (e) { console.error(e); }
         })());

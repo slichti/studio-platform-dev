@@ -5,6 +5,7 @@ import { EmailService } from './email';
 import { SmsService } from './sms'; // Active
 import { PushService } from './push';
 import { UsageService } from './pricing';
+import { getFirstName, getFullName, parseProfile } from '../utils/profile';
 
 export class AutomationsService {
     private db: any;
@@ -140,7 +141,7 @@ export class AutomationsService {
                 await this.enrollUser(auto, {
                     userId: m.userId,
                     email: m.email,
-                    firstName: (m.profile as any)?.firstName
+                    firstName: getFirstName(m.profile, 'Member')
                 });
             }
         }
@@ -203,7 +204,7 @@ export class AutomationsService {
                 await this.enrollUser(auto, {
                     userId: c.userId,
                     email: c.email,
-                    firstName: (c.profile as any)?.firstName
+                    firstName: getFirstName(c.profile, 'Customer')
                 });
             }
         }
@@ -244,7 +245,7 @@ export class AutomationsService {
                 await this.enrollUser(auto, {
                     userId: m.userId,
                     email: m.email,
-                    firstName: (m.profile as any)?.firstName
+                    firstName: getFirstName(m.profile, 'Member')
                 });
             }
         }
@@ -339,7 +340,7 @@ export class AutomationsService {
                     await this.enrollUser(auto, {
                         userId: m.userId,
                         email: m.email,
-                        firstName: (m.profile as any)?.firstName
+                        firstName: getFirstName(m.profile, 'Member')
                     });
                 }
             }
@@ -381,7 +382,7 @@ export class AutomationsService {
                 await this.enrollUser(auto, {
                     userId: user.id,
                     email: user.email,
-                    firstName: (user.profile as any)?.firstName,
+                    firstName: getFirstName(user.profile, 'Member'),
                     data: { planId: sub.planId }
                 });
             }
@@ -416,7 +417,7 @@ export class AutomationsService {
                     candidates.push({
                         userId: user.id,
                         email: user.email,
-                        firstName: (user.profile as any)?.firstName
+                        firstName: getFirstName(user.profile, 'Member')
                     });
                 }
             }
@@ -441,7 +442,7 @@ export class AutomationsService {
                     candidates.push({
                         userId: user.id,
                         email: user.email,
-                        firstName: (user.profile as any)?.firstName,
+                        firstName: getFirstName(user.profile, 'Member'),
                         data: { planId: s.planId, status: s.status }
                     });
                 }
@@ -486,7 +487,7 @@ export class AutomationsService {
                 candidates.push({
                     userId: member.user.id,
                     email: member.user.email,
-                    firstName: (member.user.profile as any)?.firstName,
+                    firstName: getFirstName(member.user.profile, 'Member'),
                     data: {
                         classTitle: cls.title,
                         startTime: cls.startTime,
@@ -570,7 +571,7 @@ export class AutomationsService {
                 await this.enrollUser(auto, {
                     userId: member.user.id,
                     email: member.user.email,
-                    firstName: (member.user.profile as any)?.firstName,
+                    firstName: getFirstName(member.user.profile, 'Member'),
                     data: {
                         classTitle: cls.title,
                         startTime: cls.startTime,
@@ -773,8 +774,8 @@ export class AutomationsService {
                 const ownerContext = {
                     userId: owner.userId,
                     email: owner.email,
-                    firstName: (owner.profile as any)?.firstName || 'Owner',
-                    lastName: (owner.profile as any)?.lastName || '',
+                    firstName: getFirstName(owner.profile, 'Owner'),
+                    lastName: (parseProfile(owner.profile)?.lastName as string) || '',
                     data: {
                         ...context.data,
                         studentName: `${context.firstName || ''} ${context.lastName || ''}`.trim(),
@@ -930,7 +931,7 @@ export class AutomationsService {
             const alertContext = {
                 userId: owner.userId,
                 email: owner.email,
-                firstName: (owner.profile as any)?.firstName || 'Owner',
+                firstName: getFirstName(owner.profile, 'Owner'),
                 data: {
                     ...context.data,
                     studentName,
@@ -999,8 +1000,8 @@ export class AutomationsService {
         if (!context.lastName || !context.firstName) {
             const user = await this.db.query.users.findFirst({ where: eq(users.id, context.userId) });
             if (user) {
-                context.firstName = context.firstName || (user.profile as any)?.firstName;
-                context.lastName = context.lastName || (user.profile as any)?.lastName;
+                context.firstName = context.firstName || getFirstName(user.profile, 'Member');
+                context.lastName = context.lastName || (parseProfile(user.profile)?.lastName as string) || '';
                 context.email = context.email || user.email;
             }
         }

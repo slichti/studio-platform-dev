@@ -2,6 +2,7 @@ import { eq, and, sql, gte, lte } from 'drizzle-orm';
 import * as schema from '@studio/db/src/schema';
 import { BookingService } from './bookings';
 import { AuditService } from './audit'; // [NEW] Audit
+import { getFullName } from '../utils/profile';
 
 export interface AggregatorFeedItem {
     id: string;
@@ -71,7 +72,7 @@ export class AggregatorService {
                 duration: cls.durationMinutes,
                 capacity: cls.capacity,
                 spots_remaining: remaining,
-                instructor_name: `${(cls.instructor?.user?.profile as any)?.firstName || ''} ${(cls.instructor?.user?.profile as any)?.lastName || ''}`.trim() || 'Staff',
+                instructor_name: getFullName(cls.instructor?.user?.profile, 'Staff'),
                 location_name: cls.location?.name || 'Main Studio',
                 price: cls.price || 0,
                 currency: 'USD' // Default

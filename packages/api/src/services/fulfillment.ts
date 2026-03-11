@@ -258,7 +258,7 @@ export class FulfillmentService {
                                     await autoService.dispatchTrigger('referral_conversion_success', {
                                         userId: referrer.id,
                                         email: referrer.email,
-                                        firstName: (referrer.profile as any)?.firstName || 'Friend',
+                                        firstName: getFirstName(referrer.profile, 'Friend'),
                                         data: {
                                             referredFirstName: metadata.recipientName || 'Your friend', // metadata might not have it if they just signed up
                                             rewardAmount: pendingReferral.amount

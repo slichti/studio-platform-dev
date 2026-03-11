@@ -6,6 +6,7 @@ import { eq, and, sql, count, gte, inArray } from 'drizzle-orm';
 import { HonoContext } from '../types';
 import churnRouter from './reports.churn';
 import scheduledRouter from './reports.scheduled';
+import { getFirstName } from '../utils/profile';
 import { desc } from 'drizzle-orm';
 import { tenantMembers } from '@studio/db/src/schema';
 
@@ -407,7 +408,7 @@ app.get('/upcoming-renewals', async (c) => {
         const plan = r.planId ? planMap.get(r.planId) : null;
         return {
             id: r.subscriptionId,
-            memberName: member?.profile && typeof member.profile === 'string' ? JSON.parse(member.profile).firstName : member?.profile?.firstName || 'Unknown',
+            memberName: getFirstName(member?.profile, 'Unknown'),
             planName: plan?.name || 'Unknown Plan',
             renewsAt: r.currentPeriodEnd,
             daysUntilRenewal: r.currentPeriodEnd ? Math.ceil((new Date(r.currentPeriodEnd).getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : null

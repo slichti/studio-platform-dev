@@ -7,6 +7,7 @@ import { sign, verify } from 'hono/jwt';
 import { StripeService } from '../services/stripe';
 import { EncryptionUtils } from '../utils/encryption';
 import { StudioVariables } from '../types';
+import { getFirstName } from '../utils/profile';
 
 const app = createOpenAPIApp<StudioVariables>();
 
@@ -384,7 +385,7 @@ app.openapi(createRoute({
             await as.dispatchTrigger('new_student', {
                 userId: auth.userId,
                 email: user?.email || '',
-                firstName: (user?.profile as any)?.firstName || 'User',
+                firstName: getFirstName(user?.profile, 'User'),
                 data: { memberId }
             });
         } catch (e) { console.error("Join notify error:", e); }

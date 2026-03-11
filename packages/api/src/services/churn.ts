@@ -3,6 +3,7 @@ import { DrizzleD1Database } from 'drizzle-orm/d1';
 import { bookings, classes, tenantMembers, users } from '@studio/db/src/schema';
 import { eq, and, sql, lt, gt, desc } from 'drizzle-orm';
 import * as schema from '@studio/db/src/schema';
+import { getFirstName } from '../utils/profile';
 
 export type ChurnRiskLevel = 'low' | 'medium' | 'high';
 
@@ -173,7 +174,7 @@ export class ChurnService {
                         userId: m.userId,
                         memberId: m.id,
                         email: m.user.email,
-                        firstName: (m.user.profile as any)?.firstName || 'Friend',
+                        firstName: getFirstName(m.user.profile, 'Friend'),
                         data: {
                             churnScore: result.churnScore,
                             daysAbsent: result.daysSinceLastAttendance,

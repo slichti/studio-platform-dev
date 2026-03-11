@@ -6,6 +6,7 @@ import { waitlist, classes, bookings, users, tenants, automationLogs, marketingA
 import { authMiddleware } from '../middleware/auth';
 import { HonoContext } from '../types';
 import { z } from 'zod';
+import { getFirstName } from '../utils/profile';
 // import { zValidator } from '@hono/zod-validator';
 
 const app = new Hono<HonoContext>();
@@ -144,7 +145,7 @@ export const checkAndPromoteWaitlist = async (classId: string, tenantId: string,
                         user.email,
                         `Spot Open: ${classData.title}`,
                         `<h1>Good news! A spot opened up!</h1>
-                        <p>Hi ${(user.profile as any)?.firstName || 'there'},</p>
+                        <p>Hi ${getFirstName(user.profile, 'there')},</p>
                         <p>A spot has become available in <strong>${classData.title}</strong> on ${new Date(classData.startTime).toLocaleDateString()}.</p>
                         <p>You have 2 hours to claim this spot before it is offered to the next person.</p>
                         <p><a href="https://${tenant.slug}.studio.platform/schedule">Claim Spot Now</a></p>`

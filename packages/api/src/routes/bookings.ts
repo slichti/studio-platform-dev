@@ -9,6 +9,7 @@ import { BookingService } from '../services/bookings';
 import { AuditService } from '../services/audit';
 import { ConflictService } from '../services/conflicts';
 import { rateLimitMiddleware } from '../middleware/rate-limit';
+import { getFirstName } from '../utils/profile';
 
 const app = new Hono<HonoContext>();
 
@@ -33,7 +34,7 @@ app.get('/my-upcoming', async (c) => {
             id: b.class.id,
             title: b.class.title,
             startTime: b.class.startTime,
-            instructor: (b.class.instructor?.user?.profile as any)?.firstName || "Staff",
+            instructor: getFirstName(b.class.instructor?.user?.profile, 'Staff'),
             zoomMeetingUrl: b.class.zoomMeetingUrl,
             zoomPassword: b.class.zoomPassword
         }
