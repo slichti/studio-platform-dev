@@ -60,7 +60,7 @@ export const authMiddleware = createMiddleware<{ Variables: Variables, Bindings:
     // [E2E BYPASS] Allow raw user IDs in Dev/Test
     // If token starts with 'user_' and we are in dev/test, treat it as the ID.
     const env = (c.env as any).ENVIRONMENT || 'production';
-    if (token.startsWith('user_') && ['test'].includes(env)) {
+    if (token.startsWith('user_') && ['test', 'dev', 'development'].includes(env)) {
         c.set('auth', { userId: token, claims: { sub: token } });
         // Mock isImpersonating to allow logic that depends on it or strict checks?
         // No, just set auth is enough for standard endpoints.
@@ -75,10 +75,15 @@ export const authMiddleware = createMiddleware<{ Variables: Variables, Bindings:
 
         // 1. Check for Impersonation Token (Custom JWT, HS256)
         if (header.alg === 'HS256') {
-            const signingSecret = c.env.IMPERSONATION_SECRET || ((c.env as any).ENVIRONMENT === 'test' ? c.env.CLERK_SECRET_KEY : null);
+            let signingSecret = c.env.IMPERSONATION_SECRET || ((c.env as any).ENVIRONMENT === 'test' ? c.env.CLERK_SECRET_KEY : null);
             if (!signingSecret) {
-                console.error('IMPERSONATION_SECRET is not configured');
-                return c.json({ error: 'Server configuration error' }, 500);
+                if ((c.env as any).ENVIRONMENT === 'dev' || (c.env as any).ENVIRONMENT === 'development' || (c.env as any).ENVIRONMENT === 'test') {
+                    console.warn('IMPERSONATION_SECRET is not configured, using development fallback');
+                    signingSecret = 'test-impersonation-secret-key-change-me-locally-32-chars';
+                } else {
+                    console.error('IMPERSONATION_SECRET is not configured');
+                    return c.json({ error: 'Server configuration error' }, 500);
+                }
             }
             try {
                 const payload = await verify(token, signingSecret, 'HS256');
@@ -105,8 +110,17 @@ export const authMiddleware = createMiddleware<{ Variables: Variables, Bindings:
         // We use the PEM Public Key provided in environment variables.
         let publicKey = (c.env as any).CLERK_PEM_PUBLIC_KEY;
         if (!publicKey) {
-            console.error("Server Configuration Error: Missing Public Key");
-            return c.json({ error: "Server Configuration Error" }, 500);
+            if ((c.env as any).ENVIRONMENT === 'dev' || (c.env as any).ENVIRONMENT === 'development' || (c.env as any).ENVIRONMENT === 'test') {
+                console.warn("Server Configuration Error: Missing Public Key, using development fallback");
+                // A dummy public key that won't verify but allows the middleware to proceed past the check
+                // In practice, if token is present but we have no key, it will just fail verification later
+                publicKey = `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA75P8...
+-----END PUBLIC KEY-----`;
+            } else {
+                console.error("Server Configuration Error: Missing Public Key");
+                return c.json({ error: "Server Configuration Error" }, 500);
+            }
         }
 
         // SANITIZATION: Aggressive PEM cleanup
@@ -188,6 +202,7 @@ export const optionalAuthMiddleware = createMiddleware<{ Variables: Variables, B
     const authHeader = c.req.header('Authorization');
     const testAuth = c.req.header('TEST-AUTH');
     const env = (c.env as any).ENVIRONMENT;
+    let publicKey = (c.env as any).CLERK_PEM_PUBLIC_KEY;
 
     console.log(`[OptionalAuth DEBUG] Path: ${c.req.path}, ENV: ${env}, TEST-AUTH: ${testAuth ? 'PRESENT' : 'MISSING'}`);
 

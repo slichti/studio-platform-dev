@@ -63,6 +63,39 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
         if (!tenant) console.log('[TenantMiddleware] Slug Header provided but not found:', headerTenantSlug);
     }
 
+    // [NEW] Resolve via Query Parameters (Useful for debugging/testing)
+    if (!tenant) {
+        const queryTenantSlug = (c.req.query('tenantSlug') || c.req.query('slug'))?.toLowerCase();
+        const queryTenantId = c.req.query('tenantId') || c.req.query('id');
+
+        if (queryTenantId) {
+            tenant = await db.query.tenants.findFirst({
+                where: eq(tenants.id, queryTenantId),
+            });
+        }
+
+        if (!tenant && queryTenantSlug) {
+            tenant = await db.query.tenants.findFirst({
+                where: eq(tenants.slug, queryTenantSlug),
+            });
+
+            // Virtual Platform Tenant Fallback
+            if (!tenant && queryTenantSlug === 'platform') {
+                tenant = {
+                    id: 'platform',
+                    slug: 'platform',
+                    name: 'Studio Platform',
+                    branding: { primaryColor: '#2563eb' },
+                    status: 'active',
+                    subscriptionStatus: 'active',
+                    tier: 'scale',
+                    isPublic: true,
+                    createdAt: new Date()
+                } as any;
+            }
+        }
+    }
+
     if (!tenant && c.req.header('Upgrade')?.toLowerCase() === 'websocket') {
         const queryTenantSlug = c.req.query('tenantSlug');
         const queryTenantId = c.req.query('tenantId');
@@ -180,11 +213,19 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
     // -------------------------------------------------------------
     // Credential Decryption (BYOK)
     // -------------------------------------------------------------
-    if (!c.env.ENCRYPTION_SECRET) {
-        console.error("Configuration Error: ENCRYPTION_SECRET is missing");
-        return c.json({ error: "Server Configuration Error" }, 500);
+    let encryptionSecret = c.env.ENCRYPTION_SECRET;
+    const isDev = (c.env as any).ENVIRONMENT === 'dev' || (c.env as any).ENVIRONMENT === 'development' || (c.env as any).ENVIRONMENT === 'test';
+
+    if (!encryptionSecret) {
+        if (isDev) {
+            console.warn("ENCRYPTION_SECRET is missing, using development fallback");
+            encryptionSecret = "test-secret-key-change-me-locally-32-chars";
+        } else {
+            console.error("Configuration Error: ENCRYPTION_SECRET is missing");
+            return c.json({ error: "Server Configuration Error" }, 500);
+        }
     }
-    const encryption = new EncryptionUtils(c.env.ENCRYPTION_SECRET);
+    const encryption = new EncryptionUtils(encryptionSecret);
 
     // 1. Email (Resend)
     let emailApiKey = c.env.RESEND_API_KEY;

@@ -17,6 +17,6 @@
     "devDependencies": {
         "react-email": "^5.2.9",
         "typescript": "^5.9.3",
-        "wrangler": "^4.70.0"
+        "wrangler": "^4.72.0"
     }
 }

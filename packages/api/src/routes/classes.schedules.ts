@@ -240,7 +240,7 @@ app.openapi(createRoute({
         const myBooking = myBookingsMap.get(r.id);
         return {
             ...r,
-            startTime: r.startTime.toISOString(),
+            startTime: (r.startTime instanceof Date ? r.startTime : new Date(r.startTime)).toISOString(),
             price: (r.price ?? 0) as any as number,
             bookingCount: bm.get(r.id) || 0,
             waitlistCount: wm.get(r.id) || 0,
