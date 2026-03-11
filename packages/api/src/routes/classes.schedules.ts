@@ -544,14 +544,22 @@ app.openapi(createRoute({
         return c.json({ success: true, updated: 1 });
     }
 
-    // Series-aware edits: don't apply startTime changes to bulk (each class has its own time)
+    // Calculate time difference if startTime is being updated
+    const timeShiftMs = (up.startTime && ex.startTime) ? up.startTime.getTime() - ex.startTime.getTime() : 0;
+
+    // Series-aware edits: don't apply absolute startTime changes to bulk (each class has its own time)
     const seriesUp = { ...up };
-    delete seriesUp.startTime; // Don't override individual class times
+    delete seriesUp.startTime; // We will use SQL math to shift times instead
 
     if (scope === 'future') {
+        const updatePayload: any = { ...seriesUp };
+        if (timeShiftMs !== 0) {
+            updatePayload.startTime = sql`${classes.startTime} + ${timeShiftMs}`;
+        }
+
         // Update this class + all future active classes in the same series
         const result = await db.update(classes)
-            .set(seriesUp)
+            .set(updatePayload)
             .where(and(
                 eq(classes.seriesId, ex.seriesId!),
                 eq(classes.tenantId, tid),
@@ -563,6 +571,9 @@ app.openapi(createRoute({
         const seriesKeys = ['title', 'description', 'durationMinutes', 'price', 'instructorId', 'locationId', 'thumbnailUrl', 'gradientPreset', 'gradientColor1', 'gradientColor2', 'gradientDirection'];
         const seriesUpdate: any = {};
         seriesKeys.forEach(k => { if (seriesUp[k] !== undefined) seriesUpdate[k] = seriesUp[k]; });
+        if (timeShiftMs !== 0) {
+            seriesUpdate.validFrom = sql`${classSeries.validFrom} + ${timeShiftMs}`;
+        }
         if (Object.keys(seriesUpdate).length > 0) {
             await db.update(classSeries).set(seriesUpdate).where(eq(classSeries.id, ex.seriesId!)).run();
         }
@@ -570,9 +581,14 @@ app.openapi(createRoute({
     }
 
     if (scope === 'all') {
+        const updatePayload: any = { ...seriesUp };
+        if (timeShiftMs !== 0) {
+            updatePayload.startTime = sql`${classes.startTime} + ${timeShiftMs}`;
+        }
+
         // Update ALL active classes in the series
         const result = await db.update(classes)
-            .set(seriesUp)
+            .set(updatePayload)
             .where(and(
                 eq(classes.seriesId, ex.seriesId!),
                 eq(classes.tenantId, tid),
@@ -583,6 +599,9 @@ app.openapi(createRoute({
         const seriesKeys = ['title', 'description', 'durationMinutes', 'price', 'instructorId', 'locationId', 'thumbnailUrl', 'gradientPreset', 'gradientColor1', 'gradientColor2', 'gradientDirection'];
         const seriesUpdate: any = {};
         seriesKeys.forEach(k => { if (seriesUp[k] !== undefined) seriesUpdate[k] = seriesUp[k]; });
+        if (timeShiftMs !== 0) {
+            seriesUpdate.validFrom = sql`${classSeries.validFrom} + ${timeShiftMs}`;
+        }
         if (Object.keys(seriesUpdate).length > 0) {
             await db.update(classSeries).set(seriesUpdate).where(eq(classSeries.id, ex.seriesId!)).run();
         }
