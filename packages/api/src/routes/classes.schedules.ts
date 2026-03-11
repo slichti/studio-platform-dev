@@ -2,7 +2,7 @@ import { createRoute, z } from '@hono/zod-openapi';
 import { createOpenAPIApp } from '../lib/openapi';
 import { StudioVariables } from '../types';
 import { createDb } from '../db';
-import { classes, bookings, classSeries, classInstructors, classSeriesInstructors } from '@studio/db/src/schema';
+import { classes, bookings, classSeries, classInstructors, classSeriesInstructors, tenantMembers, users } from '@studio/db/src/schema';
 import { eq, sql, desc, asc, and, gte, lte, inArray, ne } from 'drizzle-orm';
 import { RRule } from 'rrule';
 import { EncryptionUtils } from '../utils/encryption';
@@ -10,6 +10,8 @@ import { ZoomService } from '../services/zoom';
 import { ConflictService } from '../services/conflicts';
 import { cacheMiddleware } from '../middleware/cache';
 import { quotaMiddleware } from '../middleware/quota';
+import { EmailService } from '../services/email';
+import { UsageService } from '../services/pricing';
 
 const app = createOpenAPIApp<StudioVariables>();
 
@@ -538,6 +540,51 @@ app.openapi(createRoute({
                 classId: id,
                 instructorId: iid
             }).run();
+        }
+
+        // Notify primary instructor of new assignment (single class).
+        if (instructorId) {
+            try {
+                const tenantSettings = tenant.settings as any;
+                const notify = tenantSettings?.notificationSettings?.instructorClassAssignedEmail !== false;
+                if (notify) {
+                    const instructor = await db.query.tenantMembers.findFirst({
+                        where: and(eq(tenantMembers.id, instructorId), eq(tenantMembers.tenantId, tenant.id)),
+                        with: { user: true }
+                    });
+                    if (instructor?.user?.email) {
+                        const usageService = new UsageService(db, tenant.id);
+                        const emailService = new EmailService(
+                            c.env.RESEND_API_KEY || '',
+                            { branding: tenant.branding as any, settings: tenant.settings as any },
+                            { slug: tenant.slug },
+                            usageService
+                        );
+                        const startsAt = start instanceof Date ? start : new Date(start);
+                        const durationLabel = `${dur} min`;
+                        const html = `
+                            <h1 style="margin-bottom: 12px;">New Class Assigned</h1>
+                            <p>Hi ${(instructor.user.profile as any)?.firstName || 'Instructor'},</p>
+                            <p>You’ve been assigned to teach the following class:</p>
+                            <ul>
+                                <li><strong>Class:</strong> ${title}</li>
+                                <li><strong>Date:</strong> ${startsAt.toLocaleDateString()}</li>
+                                <li><strong>Time:</strong> ${startsAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</li>
+                                <li><strong>Duration:</strong> ${durationLabel}</li>
+                            </ul>
+                            <p style="margin-top: 12px;">You can view your upcoming classes from your teaching schedule in the studio portal.</p>
+                        `;
+                        await emailService.sendGenericEmail(
+                            instructor.user.email,
+                            `New class assigned: ${title}`,
+                            html,
+                            true
+                        );
+                    }
+                }
+            } catch (err) {
+                console.error('[Classes] Failed to send instructor assignment email', err);
+            }
         }
 
         return c.json({ ...nc, startTime: nc.startTime.toISOString() }, 201);

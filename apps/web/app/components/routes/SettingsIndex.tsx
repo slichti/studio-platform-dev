@@ -728,7 +728,7 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6 shadow-sm mb-8">
                 <div className="mb-4">
                     <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Class Management</h2>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Configure booking windows and cancellation policies.</p>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Configure booking windows, instructor access, and cancellation policies.</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
@@ -998,6 +998,105 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                                         }}
                                     />
                                     <span className="text-sm text-zinc-700 dark:text-zinc-300">SMS</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        {/* Instructor Permissions */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
+                            <div className="flex items-start justify-between p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded border border-zinc-200 dark:border-zinc-700">
+                                <div>
+                                    <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Instructors Can View Rosters</span>
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Allow instructors to see who is enrolled in their classes.</p>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer ml-3">
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only peer"
+                                        checked={tenant.settings?.classSettings?.instructorCanViewRosters || false}
+                                        onChange={async (e) => {
+                                            const checked = e.target.checked;
+                                            setTenant((prev: any) => ({
+                                                ...prev,
+                                                settings: {
+                                                    ...prev.settings,
+                                                    classSettings: { ...prev.settings?.classSettings, instructorCanViewRosters: checked }
+                                                }
+                                            }));
+                                            const token = await (window as any).Clerk?.session?.getToken();
+                                            await apiRequest(`/tenant/settings`, token, {
+                                                method: "PATCH",
+                                                headers: { 'X-Tenant-Slug': tenant.slug },
+                                                body: JSON.stringify({ settings: { classSettings: { ...tenant.settings?.classSettings, instructorCanViewRosters: checked } } })
+                                            });
+                                            toast.success("Saved");
+                                        }}
+                                    />
+                                    <div className="w-9 h-5 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                                </label>
+                            </div>
+
+                            <div className="flex items-start justify-between p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded border border-zinc-200 dark:border-zinc-700">
+                                <div>
+                                    <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Instructors Can Manage Enrollments</span>
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Allow instructors to add/remove students and check-in for their own classes.</p>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer ml-3">
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only peer"
+                                        checked={tenant.settings?.classSettings?.instructorCanManageEnrollments || false}
+                                        onChange={async (e) => {
+                                            const checked = e.target.checked;
+                                            setTenant((prev: any) => ({
+                                                ...prev,
+                                                settings: {
+                                                    ...prev.settings,
+                                                    classSettings: { ...prev.settings?.classSettings, instructorCanManageEnrollments: checked }
+                                                }
+                                            }));
+                                            const token = await (window as any).Clerk?.session?.getToken();
+                                            await apiRequest(`/tenant/settings`, token, {
+                                                method: "PATCH",
+                                                headers: { 'X-Tenant-Slug': tenant.slug },
+                                                body: JSON.stringify({ settings: { classSettings: { ...tenant.settings?.classSettings, instructorCanManageEnrollments: checked } } })
+                                            });
+                                            toast.success("Saved");
+                                        }}
+                                    />
+                                    <div className="w-9 h-5 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                                </label>
+                            </div>
+
+                            <div className="flex items-start justify-between p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded border border-zinc-200 dark:border-zinc-700">
+                                <div>
+                                    <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Instructors Can Check-In Any Class</span>
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Allow instructors to check-in students for any class at the studio.</p>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer ml-3">
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only peer"
+                                        checked={tenant.settings?.classSettings?.instructorCanCheckInAnyClass || false}
+                                        onChange={async (e) => {
+                                            const checked = e.target.checked;
+                                            setTenant((prev: any) => ({
+                                                ...prev,
+                                                settings: {
+                                                    ...prev.settings,
+                                                    classSettings: { ...prev.settings?.classSettings, instructorCanCheckInAnyClass: checked }
+                                                }
+                                            }));
+                                            const token = await (window as any).Clerk?.session?.getToken();
+                                            await apiRequest(`/tenant/settings`, token, {
+                                                method: "PATCH",
+                                                headers: { 'X-Tenant-Slug': tenant.slug },
+                                                body: JSON.stringify({ settings: { classSettings: { ...tenant.settings?.classSettings, instructorCanCheckInAnyClass: checked } } })
+                                            });
+                                            toast.success("Saved");
+                                        }}
+                                    />
+                                    <div className="w-9 h-5 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
                                 </label>
                             </div>
                         </div>

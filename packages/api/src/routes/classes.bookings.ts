@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { classes, bookings, tenantMembers, users, progressMetricDefinitions } from '@studio/db/src/schema'; // Added progressMetricDefinitions
+import { classes, bookings, tenantMembers, users, progressMetricDefinitions, tenantRoles } from '@studio/db/src/schema'; // Added progressMetricDefinitions
 import { eq, and, inArray } from 'drizzle-orm';
 import { HonoContext } from '../types';
 import { BookingService } from '../services/bookings';
@@ -36,10 +36,41 @@ app.post('/:id/book', async (c) => {
     }
 });
 
+// Helper: determine if current user is an instructor for a given class
+async function isInstructorForClass(c: any, db: any, classId: string): Promise<boolean> {
+    const tenant = c.get('tenant');
+    const auth = c.get('auth');
+    if (!tenant || !auth?.userId) return false;
+
+    const member = await db.query.tenantMembers.findFirst({
+        where: and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenant.id)),
+        with: { roles: true }
+    });
+    if (!member) return false;
+    const isInstructorRole = (member.roles || []).some((r: any) => r.role === 'instructor');
+    if (!isInstructorRole) return false;
+
+    const cls = await db.select({ instructorId: classes.instructorId }).from(classes)
+        .where(and(eq(classes.id, classId), eq(classes.tenantId, tenant.id))).get();
+    if (!cls) return false;
+    return cls.instructorId === member.id;
+}
+
 // GET /:id/bookings
 app.get('/:id/bookings', async (c) => {
-    if (!c.get('can')('manage_classes')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context missing' }, 400);
+
+    const canManage = c.get('can')('manage_classes');
+    if (!canManage) {
+        const classSettings = (tenant.settings as any)?.classSettings || {};
+        const allowInstructorView = !!classSettings.instructorCanViewRosters;
+        if (!allowInstructorView) return c.json({ error: 'Unauthorized' }, 403);
+        const allowed = await isInstructorForClass(c, db, c.req.param('id'));
+        if (!allowed) return c.json({ error: 'Unauthorized' }, 403);
+    }
+
     return c.json(await db.select({
         id: bookings.id,
         status: bookings.status,
@@ -58,8 +89,35 @@ app.get('/:id/bookings', async (c) => {
 
 // PATCH /:id/bookings/:bookingId/check-in
 app.patch('/:id/bookings/:bookingId/check-in', async (c) => {
-    if (!c.get('can')('manage_classes')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context missing' }, 400);
+
+    const canManage = c.get('can')('manage_classes');
+    if (!canManage) {
+        const classSettings = (tenant.settings as any)?.classSettings || {};
+        const allowAny = !!classSettings.instructorCanCheckInAnyClass;
+        const allowOwn = !!classSettings.instructorCanManageEnrollments;
+        if (!allowAny && !allowOwn) return c.json({ error: 'Unauthorized' }, 403);
+
+        let allowed = false;
+        if (allowAny) {
+            // Any instructor with the instructor role may check in
+            const auth = c.get('auth');
+            if (auth?.userId) {
+                const member = await db.query.tenantMembers.findFirst({
+                    where: and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenant.id)),
+                    with: { roles: true }
+                });
+                allowed = !!member && (member.roles || []).some((r: any) => r.role === 'instructor');
+            }
+        } else if (allowOwn) {
+            allowed = await isInstructorForClass(c, db, c.req.param('id'));
+        }
+
+        if (!allowed) return c.json({ error: 'Unauthorized' }, 403);
+    }
+
     const { checkedIn } = await c.req.json();
     const service = new BookingService(db, c.env);
 
@@ -75,8 +133,34 @@ app.patch('/:id/bookings/:bookingId/check-in', async (c) => {
 
 // POST /:id/bulk-check-in
 app.post('/:id/bulk-check-in', async (c) => {
-    if (!c.get('can')('manage_classes')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant context missing' }, 400);
+
+    const canManage = c.get('can')('manage_classes');
+    if (!canManage) {
+        const classSettings = (tenant.settings as any)?.classSettings || {};
+        const allowAny = !!classSettings.instructorCanCheckInAnyClass;
+        const allowOwn = !!classSettings.instructorCanManageEnrollments;
+        if (!allowAny && !allowOwn) return c.json({ error: 'Unauthorized' }, 403);
+
+        let allowed = false;
+        if (allowAny) {
+            const auth = c.get('auth');
+            if (auth?.userId) {
+                const member = await db.query.tenantMembers.findFirst({
+                    where: and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenant.id)),
+                    with: { roles: true }
+                });
+                allowed = !!member && (member.roles || []).some((r: any) => r.role === 'instructor');
+            }
+        } else if (allowOwn) {
+            allowed = await isInstructorForClass(c, db, c.req.param('id'));
+        }
+
+        if (!allowed) return c.json({ error: 'Unauthorized' }, 403);
+    }
+
     const { bookingIds, checkedIn } = await c.req.json();
     if (!bookingIds?.length) return c.json({ error: "Missing IDs" }, 400);
 
