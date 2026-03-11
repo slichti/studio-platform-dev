@@ -103,6 +103,15 @@ async function sendInstructorAssignmentEmail(
     }
 }
 
+/** Schedule instructor email: use waitUntil when available (Workers), else fire-and-forget (tests). */
+function scheduleInstructorEmail(c: any, promise: Promise<void>) {
+    try {
+        c.executionCtx.waitUntil(promise);
+    } catch {
+        promise.catch((err: unknown) => console.error('[Classes] Instructor assignment email failed', err));
+    }
+}
+
 // Schemas
 const ClassSchema = z.object({
     id: z.string(),
@@ -596,7 +605,7 @@ app.openapi(createRoute({
             }).run();
         }
 
-        c.executionCtx.waitUntil(sendInstructorAssignmentEmail(db, c.env, tenant, instructorId || null, title, start, dur));
+        scheduleInstructorEmail(c, sendInstructorAssignmentEmail(db, c.env, tenant, instructorId || null, title, start, dur));
 
         return c.json({ ...nc, startTime: nc.startTime.toISOString() }, 201);
     }
@@ -676,7 +685,7 @@ app.openapi(createRoute({
         if (instructorChanged) {
             const startsAt = (up.startTime as Date | undefined) || ex.startTime;
             const duration = (up.durationMinutes as number | undefined) || ex.durationMinutes;
-            c.executionCtx.waitUntil(sendInstructorAssignmentEmail(db, c.env, tenant, newPrimaryInstructorId, ex.title, startsAt instanceof Date ? startsAt : new Date(startsAt), duration));
+            scheduleInstructorEmail(c, sendInstructorAssignmentEmail(db, c.env, tenant, newPrimaryInstructorId, ex.title, startsAt instanceof Date ? startsAt : new Date(startsAt), duration));
         }
 
         return c.json({ success: true, updated: 1 });
