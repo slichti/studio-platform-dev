@@ -426,6 +426,7 @@ export const classes = sqliteTable('classes', {
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     tenantTimeIdx: index('tenant_time_idx').on(table.tenantId, table.startTime),
+    tenantInstructorTimeIdx: index('class_tenant_instructor_time_idx').on(table.tenantId, table.instructorId, table.startTime),
     seriesIdx: index('series_idx').on(table.seriesId),
     instructorIdx: index('class_instructor_idx').on(table.instructorId, table.startTime),
     locationTimeIdx: index('class_location_time_idx').on(table.locationId, table.startTime),

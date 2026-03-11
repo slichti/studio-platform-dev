@@ -12,6 +12,7 @@ import { cacheMiddleware } from '../middleware/cache';
 import { quotaMiddleware } from '../middleware/quota';
 import { EmailService } from '../services/email';
 import { UsageService } from '../services/pricing';
+import { getFirstName } from '../utils/profile';
 
 const app = createOpenAPIApp<StudioVariables>();
 
@@ -81,7 +82,7 @@ async function sendInstructorAssignmentEmail(
         const durationLabel = `${duration} min`;
         const html = `
                 <h1 style="margin-bottom: 12px;">New Class Assigned</h1>
-                <p>Hi ${(instructor.user.profile as any)?.firstName || 'Instructor'},</p>
+                <p>Hi ${getFirstName(instructor.user.profile, 'Instructor')},</p>
                 <p>You’ve been assigned to teach the following class:</p>
                 <ul>
                     <li><strong>Class:</strong> ${clsTitle}</li>
@@ -595,7 +596,7 @@ app.openapi(createRoute({
             }).run();
         }
 
-        await sendInstructorAssignmentEmail(db, c.env, tenant, instructorId || null, title, start, dur);
+        c.executionCtx.waitUntil(sendInstructorAssignmentEmail(db, c.env, tenant, instructorId || null, title, start, dur));
 
         return c.json({ ...nc, startTime: nc.startTime.toISOString() }, 201);
     }
@@ -675,7 +676,7 @@ app.openapi(createRoute({
         if (instructorChanged) {
             const startsAt = (up.startTime as Date | undefined) || ex.startTime;
             const duration = (up.durationMinutes as number | undefined) || ex.durationMinutes;
-            await sendInstructorAssignmentEmail(db, c.env, tenant, newPrimaryInstructorId, ex.title, startsAt instanceof Date ? startsAt : new Date(startsAt), duration);
+            c.executionCtx.waitUntil(sendInstructorAssignmentEmail(db, c.env, tenant, newPrimaryInstructorId, ex.title, startsAt instanceof Date ? startsAt : new Date(startsAt), duration));
         }
 
         return c.json({ success: true, updated: 1 });
