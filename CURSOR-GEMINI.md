@@ -97,6 +97,20 @@
   - Fixed Hono `app.route` middleware signature errors to resolve CI/CD typecheck failures.
   - Verified and enabled all core feature flags in the Cloud D1 production database.
 
+### Session 20 — Card Creator & Profile UX Hardening
+- **Card Creator Fixes**:
+  - **Cropping Preview**: Resolved a bug where the image preview failed to update after cropping; `imageSrc` now refreshes immediately upon `handleCropSave`.
+  - **Text Overlay Duplication**: Eliminated redundant text rendering by clearing the `title` and `subtitle` fields when applying a generated card (where text is burned into the image).
+  - **State Synchronization**: Added `useEffect` hooks to ensure internal component state remains in sync with external prop updates for images and text.
+- **Student Profile UX**:
+  - **Button Consolidation**: Merged the redundant "Add Plan" and "Assign Pack" triggers into a single, intuitive "Assign Product" flow.
+  - **Form Centering**: Refactored the manual assignment form to be centered and width-constrained (`max-w-2xl`) for better visual focus.
+- **API Standardization**:
+  - Updated `/commerce/packs` to return a direct array, mirroring the `/plans` pattern and resolving data structure inconsistencies in the assignment dropdown.
+- **Bug Fixes**:
+  - Resolved a JSX syntax error (duplicate `</p>` tag) in `StudentProfilePage.tsx` that was blocking build completion.
+  - Verified a clean `npm run typecheck` across the `apps/web` package.
+
 ## 🎯 Design Philosophy
 - **Edge Native**: Minimize round-trips via `D1.batch()` and SARGable queries.
 - **Brand Dynamic**: Single mobile binary and web shell that rebrands on-the-fly via tenant metadata.

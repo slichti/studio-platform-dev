@@ -681,8 +681,9 @@ export default function StudentProfilePageComponent() {
                             </div>
 
                             {isAssigningPack && (
-                                <Card className="bg-zinc-50 dark:bg-zinc-800/50 mb-6 border-blue-100 dark:border-blue-900/50">
-                                    <CardContent className="pt-6">
+                                <div className="flex justify-center mb-10">
+                                    <Card className="w-full max-w-2xl bg-zinc-50 dark:bg-zinc-800/50 border-blue-100 dark:border-blue-900/50 shadow-sm">
+                                        <CardContent className="pt-6">
                                         <div className="flex justify-between items-center mb-4">
                                             <h4 className="font-semibold text-sm text-blue-900 dark:text-blue-100">Assign Product (Internal / POS)</h4>
                                             <Button variant="ghost" size="sm" onClick={() => setIsAssigningPack(false)} className="h-6 w-6 p-0 text-zinc-500 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-700">
@@ -737,8 +738,9 @@ export default function StudentProfilePageComponent() {
                                                 This assigns the product manually and bypasses Stripe checkout. Use this when the student has paid via an external POS system, cash, or if this is a complimentary gift.
                                             </span>
                                         </p>
-                                    </CardContent>
-                                </Card>
+                                        </CardContent>
+                                    </Card>
+                                </div>
                             )}
 
                             <div>

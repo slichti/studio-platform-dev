@@ -264,8 +264,18 @@ export const CardCreator = forwardRef<CardCreatorRef, CardCreatorProps>(({ initi
     const [tab, setTab] = useState<'upload' | 'generate'>(initialImage ? 'upload' : (initialGradient ? 'generate' : 'upload'));
 
     // Sync with parent when initial props change
-    useEffect(() => setTitle(initialTitle || ""), [initialTitle]);
-    useEffect(() => setSubtitle(initialSubtitle || ""), [initialSubtitle]);
+    useEffect(() => {
+        setTitle(initialTitle || "");
+    }, [initialTitle]);
+    useEffect(() => {
+        setSubtitle(initialSubtitle || "");
+    }, [initialSubtitle]);
+    useEffect(() => {
+        if (initialImage) {
+            setImageSrc(initialImage);
+            setUploadMode('preview');
+        }
+    }, [initialImage]);
 
     // --- Font size state ---
     const [fontSizeIndex, setFontSizeIndex] = useState(5); // Default to '2XL' (64px title)
@@ -355,6 +365,10 @@ export const CardCreator = forwardRef<CardCreatorRef, CardCreatorProps>(({ initi
             if (!imageSrc || !croppedAreaPixels) return;
             const croppedImageBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
             const previewUrl = URL.createObjectURL(croppedImageBlob);
+            
+            // CRITICAL: Update imageSrc so the local preview reflects the crop!
+            setImageSrc(previewUrl);
+            
             onChange({
                 image: croppedImageBlob,
                 title,
@@ -392,10 +406,19 @@ export const CardCreator = forwardRef<CardCreatorRef, CardCreatorProps>(({ initi
             });
             const blob = await canvasToBlob(canvas);
             const previewUrl = URL.createObjectURL(blob);
+            
+            // IMPORTANT: Since we burned the text into the image, 
+            // we should clear the overlay title/subtitle to avoid doubling up!
+            const finalTitle = "";
+            const finalSubtitle = "";
+            
+            setTitle(finalTitle);
+            setSubtitle(finalSubtitle);
+
             onChange({
                 image: blob,
-                title,
-                subtitle,
+                title: finalTitle,
+                subtitle: finalSubtitle,
                 previewUrl,
                 gradient: bgType === 'gradient' ? { preset: activePreset, color1, color2, direction, textAlign, textPosition } : undefined
             });

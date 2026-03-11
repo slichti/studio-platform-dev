@@ -19,7 +19,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
         const membershipsData: any = membershipsRes.ok ? await membershipsRes.json() : { definitions: [] };
 
         return {
-            packs: packsData.packs || [],
+            packs: Array.isArray(packsData) ? packsData : [],
             memberships: membershipsData.definitions || [],
             error: null
         };

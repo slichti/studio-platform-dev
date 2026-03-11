@@ -30,7 +30,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
     if (res.error) throw new Error(res.error);
 
-    return { params, packs: res.packs as ClassPackDefinition[] };
+    return { params, packs: (res || []) as ClassPackDefinition[] };
 };
 
 export const action = async (args: ActionFunctionArgs) => {

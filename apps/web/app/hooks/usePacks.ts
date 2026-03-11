@@ -19,7 +19,7 @@ export function usePacks(tenantSlug: string) {
             const res = await apiRequest("/commerce/packs", token, {
                 headers: { 'X-Tenant-Slug': tenantSlug }
             });
-            return (res as any).packs as PackDefinition[] || [];
+            return (res || []) as PackDefinition[];
         },
         enabled: !!tenantSlug
     });
