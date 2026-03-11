@@ -75,5 +75,10 @@ Topics can have different visibility levels regulated by a dynamic eligibility e
 `packages/api/src/services/eligibility.ts`
 - Evaluates `course` and `plan` rules against a member's active enrollments and subscriptions to determine topic access in real-time.
 
-### Real-Time Interactions
+### Real-Time Interactions & Notifications
 - Leverages the `ChatRoom` Durable Object for live notification indicators and potentially real-time feed updates.
+- **Automated Email Notifications**: When a post is created:
+    - **General Posts**: Notify all active studio members.
+    - **Topic Posts**: Notify manual members of that specific topic.
+    - Author is automatically excluded from notification recipients.
+    - Respects tenant-level `community_notifications_enabled` setting.

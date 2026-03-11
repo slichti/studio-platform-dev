@@ -2,6 +2,19 @@
 
 This document tracks the iterative development of features and capabilities over time, generated from the project commit history.
 
+## 2026-03-12
+
+- **🚀 Feature:** Implement Automated Community Post Notifications:
+    - [x] Asynchronous email notifications for new community posts via EmailService.
+    - [x] Automated recipient targeting for General vs Topic posts.
+    - [x] Topic author exclusion from notification lists.
+- **🐛 Fix:** Update Membership Status logic to include active class pack credits (not just subscriptions).
+- **🚀 Feature:** SEO & Metadata Management (Sessions 16-18):
+    - [x] Automated class removals for unpaid bookings.
+    - [x] SEO Site Configs & Page Meta integration.
+    - [x] Integrated Community Hub & Topic Visibility enhancements.
+- **📚 Docs:** Comprehensive internal documentation synchronization from project logs.
+
 ## 2026-03-11
 
 - **🐛 Fix:** Resolve disappearing recurring classes when editing class times by correctly applying Drizzle ORM SQLite timestamp math (seconds vs milliseconds offset).

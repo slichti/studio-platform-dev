@@ -11,7 +11,7 @@ Studio Platform memberships are Stripe-backed recurring subscriptions. Plans are
 There are **two related but distinct** concepts in the admin UI:
 
 - **Member status** (`tenant_members.status`): `active` / `inactive` / `archived` — controls whether a person can book classes.
-- **Membership status** (derived from subscriptions): whether the member currently has an *active subscription*.
+- **Membership status** (derived from subscriptions & credits): whether the member currently has an *active subscription* OR *positive credit balance*.
 
 ### What should activate a member?
 
