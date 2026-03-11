@@ -101,12 +101,12 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
 
     // Handlers
     const handleCreateSuccess = () => {
-        queryClient.invalidateQueries({ queryKey: ['classes', slug] });
+        refreshClasses();
         setIsCreateOpen(false);
     };
 
     const handleEditSuccess = () => {
-        queryClient.invalidateQueries({ queryKey: ['classes', slug] });
+        refreshClasses();
         setIsEditOpen(false);
     };
 

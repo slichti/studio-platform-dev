@@ -1,7 +1,52 @@
 import { startOfWeek, startOfMonth, addDays, addMonths, format, isSameDay } from 'date-fns';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, User } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { cn } from '~/utils/cn';
+
+// Helper to compute side-by-side layout for overlapping events
+function computeEventLayouts(dayEvents: Event[]) {
+    if (dayEvents.length === 0) return new Map<string, { left: number; width: number }>();
+
+    const sorted = [...dayEvents].sort((a, b) => a.start.getTime() - b.start.getTime());
+    const groups: Event[][] = [];
+    let currentGroup: Event[] = [];
+    let groupEnd: number | null = null;
+
+    for (const event of sorted) {
+        if (groupEnd === null || event.start.getTime() < groupEnd) {
+            currentGroup.push(event);
+            groupEnd = Math.max(groupEnd || 0, event.end.getTime());
+        } else {
+            groups.push(currentGroup);
+            currentGroup = [event];
+            groupEnd = event.end.getTime();
+        }
+    }
+    if (currentGroup.length > 0) groups.push(currentGroup);
+
+    const layouts = new Map<string, { left: number; width: number }>();
+
+    for (const group of groups) {
+        const columns: Event[][] = [];
+        for (const event of group) {
+            let colIndex = columns.findIndex(col => col[col.length - 1].end.getTime() <= event.start.getTime());
+            if (colIndex === -1) {
+                columns.push([event]);
+            } else {
+                columns[colIndex].push(event);
+            }
+        }
+
+        const count = columns.length;
+        columns.forEach((col, i) => {
+            col.forEach(event => {
+                layouts.set(event.id, { left: i / count, width: 1 / count });
+            });
+        });
+    }
+
+    return layouts;
+}
 
 interface Event {
     id: string;
@@ -310,40 +355,44 @@ export function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDat
                                                 );
                                             })}
 
-                                            {/* Events */}
-                                            {dayEvents.map(event => {
-                                                // Calculate position
-                                                const evStartHour = event.start.getHours();
-                                                const startMin = event.start.getMinutes();
+                                            {(() => {
+                                                const layouts = computeEventLayouts(dayEvents);
+                                                return dayEvents.map(event => {
+                                                    const layout = layouts.get(event.id) || { left: 0, width: 1 };
+                                                    // Calculate position
+                                                    const evStartHour = event.start.getHours();
+                                                    const startMin = event.start.getMinutes();
 
-                                                const startOffset = (evStartHour - startHour) * 80 + (startMin / 60) * 80; // 80px per hour
-                                                const durationMins = (event.end.getTime() - event.start.getTime()) / 60000;
-                                                const height = (durationMins / 60) * 80;
+                                                    const startOffset = (evStartHour - startHour) * 80 + (startMin / 60) * 80; // 80px per hour
+                                                    const durationMins = (event.end.getTime() - event.start.getTime()) / 60000;
+                                                    const height = (durationMins / 60) * 80;
 
-                                                if (evStartHour < startHour) return null; // Skip events before calendar start
+                                                    if (evStartHour < startHour) return null; // Skip events before calendar start
 
-                                                const gradient = event.resource?.gradientColor1 && event.resource?.gradientColor2
-                                                    ? `linear-gradient(${event.resource.gradientDirection || 135}deg, ${event.resource.gradientColor1}, ${event.resource.gradientColor2})`
-                                                    : event.resource?.gradientColor1 || 'var(--calendar-event-bg, #eff6ff)';
+                                                    const gradient = event.resource?.gradientColor1 && event.resource?.gradientColor2
+                                                        ? `linear-gradient(${event.resource.gradientDirection || 135}deg, ${event.resource.gradientColor1}, ${event.resource.gradientColor2})`
+                                                        : event.resource?.gradientColor1 || 'var(--calendar-event-bg, #eff6ff)';
 
-                                                return (
-                                                    <button
-                                                        key={event.id}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            onSelectEvent({ resource: event.resource });
-                                                        }}
-                                                        className="absolute left-1 right-1 rounded px-2 py-1 text-xs text-left overflow-hidden hover:brightness-95 transition-all shadow-sm focus:ring-2 focus:ring-blue-500 z-10"
-                                                        style={{
-                                                            top: `${startOffset}px`,
-                                                            height: `${Math.max(height, 24)}px`, // Min height
-                                                            background: gradient,
-                                                            border: event.resource?.gradientColor1 ? 'none' : '1px solid var(--calendar-event-border, #bfdbfe)',
-                                                            color: event.resource?.gradientColor1 ? '#ffffff' : 'var(--calendar-event-text, #1e40af)',
-                                                            textShadow: event.resource?.gradientColor1 ? '0 1px 2px rgba(0,0,0,0.3)' : 'none'
-                                                        }}
-                                                        aria-label={`${event.title}, ${format(event.start, 'h:mm a')} to ${format(event.end, 'h:mm a')}`}
-                                                    >
+                                                    return (
+                                                        <button
+                                                            key={event.id}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                onSelectEvent({ resource: event.resource });
+                                                            }}
+                                                            className="absolute rounded px-2 py-1 text-xs text-left overflow-hidden hover:brightness-95 transition-all shadow-sm focus:ring-2 focus:ring-blue-500 z-10"
+                                                            style={{
+                                                                top: `${startOffset}px`,
+                                                                height: `${Math.max(height, 24)}px`, // Min height
+                                                                left: `${layout.left * 100}%`,
+                                                                width: `${layout.width * 98}%`, // Slightly less than 100% to show gap
+                                                                background: gradient,
+                                                                border: event.resource?.gradientColor1 ? 'none' : '1px solid var(--calendar-event-border, #bfdbfe)',
+                                                                color: event.resource?.gradientColor1 ? '#ffffff' : 'var(--calendar-event-text, #1e40af)',
+                                                                textShadow: event.resource?.gradientColor1 ? '0 1px 2px rgba(0,0,0,0.3)' : 'none'
+                                                            }}
+                                                            aria-label={`${event.title}, ${format(event.start, 'h:mm a')} to ${format(event.end, 'h:mm a')}`}
+                                                        >
                                                         <div className="font-semibold truncate">{event.title}</div>
                                                         <div className="opacity-75">{format(event.start, 'h:mm a')}</div>
                                                         
@@ -380,7 +429,8 @@ export function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDat
                                                         )}
                                                     </button>
                                                 );
-                                            })}
+                                            });
+                                        })()}
                                         </div>
                                     );
                                 })}

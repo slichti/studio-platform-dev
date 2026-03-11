@@ -294,6 +294,7 @@ export default function StudentsPage() {
                                     />
                                 </TableHead>
                                 <TableHead>Name</TableHead>
+                                <TableHead>Roles</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead>Joined</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
@@ -344,6 +345,15 @@ export default function StudentsPage() {
                                                     <div className="text-xs text-zinc-500">{member.user?.email}</div>
                                                 </div>
                                             </Link>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex flex-wrap gap-1 max-w-[150px]">
+                                                {member.roles?.map((r: any) => (
+                                                    <Badge key={r.id || r.role} variant="outline" className="capitalize text-[10px] px-1.5 py-0 h-4 min-w-fit">
+                                                        {r.role}
+                                                    </Badge>
+                                                ))}
+                                            </div>
                                         </TableCell>
                                         <TableCell>
                                             <DropdownMenu>
@@ -399,10 +409,9 @@ export default function StudentsPage() {
                         </TableBody>
                     </Table>
 
-                    <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 text-center text-xs text-zinc-500">
+                     <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 text-center text-xs text-zinc-500">
                         Showing {filteredMembers.length} member{filteredMembers.length !== 1 && 's'}
                     </div>
-                        // ... (rest of render) ...
 
                     {hasNextPage && (
                         <div

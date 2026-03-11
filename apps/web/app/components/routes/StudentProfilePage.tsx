@@ -627,16 +627,16 @@ export default function StudentProfilePageComponent() {
                                                 <div className="border-t border-zinc-100 dark:border-zinc-800 pt-3 mt-3">
                                                     <label className="block text-xs text-zinc-400">Invitation Status</label>
                                                     <div className="flex flex-col gap-1 mt-1">
-                                                        {member.invitedAt && (
-                                                            <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400">
-                                                                <Clock className="h-3 w-3" />
-                                                                <span>Sent: {safeFormat(member.invitedAt, "MMM d, p")}</span>
-                                                            </div>
-                                                        )}
                                                         {member.acceptedAt && (
                                                             <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
                                                                 <Check className="h-3 w-3" />
                                                                 <span>Accepted: {safeFormat(member.acceptedAt, "MMM d, p")}</span>
+                                                            </div>
+                                                        )}
+                                                        {member.invitedAt && (
+                                                            <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400">
+                                                                <Clock className="h-3 w-3" />
+                                                                <span>Sent: {safeFormat(member.invitedAt, "MMM d, p")}</span>
                                                             </div>
                                                         )}
                                                     </div>
