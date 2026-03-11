@@ -2,6 +2,12 @@
 
 This document tracks the iterative development of features and capabilities over time, generated from the project commit history.
 
+## 2026-03-11
+
+- **🐛 Fix:** Resolve disappearing recurring classes when editing class times by correctly applying Drizzle ORM SQLite timestamp math (seconds vs milliseconds offset).
+- **🐛 Fix:** Resolve 500 error in `web` application due to missing `useLoaderData` router context by adding missing React Router dependencies.
+- **🔧 Maintenance:** Fix API typecheck issues involving @studio/ui and other dependencies.
+
 ## 2026-03-06
 
 - **🚀 Feature:** Implement Integrated Community Hub across Platform and Tenants:

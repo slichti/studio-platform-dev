@@ -833,3 +833,12 @@ Full SDK migration from Expo 54 to 55:
 
   - Fixed persistent test failures in `booking-integration.test.ts` and `debug_fixes.test.ts` by synchronizing manual SQL schemas with the production D1 schema.
   - Validated the entire non-mobile monorepo test suite (47/47 API tests, all Web tests passing).
+
+### Session 22 — Core System Fixes & Type Safety (March 2026)
+- **Database & Math Correctness**:
+  - Found and fixed a critical bug where Drizzle ORM's SQLite `timestamp` mode returns seconds instead of milliseconds.
+  - Corrected SQL math for recurring class editing to use a seconds-based offset to prevent dates shifting by days/months when updated.
+- **Type Safety & Build**:
+  - Resolved `typecheck` errors in the `api` workspace caused by unresolvable internal modules (e.g., `@studio/ui` imports mismatching).
+- **React Router Fixes**:
+  - Repaired a critical `useLoaderData` hook placement returning a 500 error on the web frontend.
