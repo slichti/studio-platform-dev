@@ -671,10 +671,26 @@ export default function StudentProfilePageComponent() {
                     {activeTab === "memberships" && (
                         <div className="space-y-6">
                             <div className="flex justify-end gap-2">
-                                <Button variant="outline" size="sm" onClick={() => setIsAssigningPack(!isAssigningPack)}>
+                                <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={() => {
+                                        setAssignProductType('pack');
+                                        setSelectedProductId('');
+                                        setIsAssigningPack(true);
+                                    }}
+                                >
                                     <Plus className="h-4 w-4 mr-2" /> Assign Pack
                                 </Button>
-                                <Button variant="outline" size="sm" disabled>
+                                <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={() => {
+                                        setAssignProductType('membership');
+                                        setSelectedProductId('');
+                                        setIsAssigningPack(true);
+                                    }}
+                                >
                                     <Plus className="h-4 w-4 mr-2" /> Add Plan
                                 </Button>
                             </div>
