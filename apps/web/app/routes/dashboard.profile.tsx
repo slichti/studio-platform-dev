@@ -5,6 +5,7 @@ import { useLoaderData, Form, useActionData, useNavigation } from "react-router"
 import { getAuth } from "@clerk/react-router/server";
 import { UserProfile } from "@clerk/react-router";
 import { apiRequest } from "../utils/api";
+import { ProfilePhotoUpload } from "../components/ProfilePhotoUpload";
 
 type UserProfile = {
     id: string;
@@ -24,9 +25,10 @@ type UserProfile = {
 export const loader: LoaderFunction = async (args) => {
     const { getToken } = await getAuth(args);
     const token = await getToken();
+    const { slug } = args.params;
     try {
         const user = await apiRequest("/users/me", token);
-        return { user };
+        return { user, token, slug };
     } catch (e) {
         // If user not found or error, likely explicit access denied or new user issue
         return { user: null, error: "Could not load profile" };
@@ -63,17 +65,34 @@ export const action: ActionFunction = async (args) => {
 };
 
 export default function ProfileRoute() {
-    const { user, error } = useLoaderData<{ user: UserProfile | null, error?: string }>();
+    const { user, token, slug, error } = useLoaderData<{ user: UserProfile | null, token: string, slug?: string, error?: string }>();
 
     if (error || !user) {
         return <div style={{ color: 'red' }}>Error loading profile: {error || "Unknown error"}</div>;
     }
 
+    const initials = (user.profile?.firstName?.[0] || user.email?.[0] || "?").toUpperCase();
+
     return (
         <div className="max-w-4xl mx-auto py-10 px-4">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">Account Settings</h1>
-                <p className="text-zinc-500 dark:text-zinc-400 mt-2">Manage your personal details and security settings.</p>
+            <div className="mb-8 flex items-center gap-5">
+                {slug && token ? (
+                    <ProfilePhotoUpload
+                        currentPhotoUrl={(user.profile as any)?.portraitUrl}
+                        initials={initials}
+                        token={token}
+                        slug={slug}
+                        size={80}
+                    />
+                ) : (
+                    <div className="w-20 h-20 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-2xl font-bold shrink-0">
+                        {initials}
+                    </div>
+                )}
+                <div>
+                    <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">Account Settings</h1>
+                    <p className="text-zinc-500 dark:text-zinc-400 mt-1">Manage your personal details and security settings.</p>
+                </div>
             </div>
 
             {/* Clerk User Profile Component */}

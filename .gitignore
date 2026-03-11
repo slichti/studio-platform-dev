@@ -24,3 +24,4 @@ packages/emails/out/
 
 .token
 .dev.vars
+packages/api/typecheck_output.txt

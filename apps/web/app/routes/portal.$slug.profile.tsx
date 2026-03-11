@@ -2,11 +2,13 @@
 import { useLoaderData, useOutletContext, Form, useFetcher, Link } from "react-router";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { getAuth } from "~/utils/auth-wrapper.server";
+import { useAuth } from "@clerk/react-router";
 import { apiRequest } from "~/utils/api";
 import { User, Mail, Calendar, LogOut, Shield, TrendingUp, Award, CreditCard, AlertCircle, Edit2, Phone, Save, X, Bell } from "lucide-react";
 import { ProgressRing } from "~/components/ui/ProgressRing";
 import { StreakBadge, MilestoneBadge } from "~/components/ui/StreakBadge";
-import { useState } from "react";
+import { ProfilePhotoUpload } from "~/components/ProfilePhotoUpload";
+import { useState, useEffect } from "react";
 import { cn } from "~/utils/cn";
 
 export const loader = async (args: LoaderFunctionArgs) => {
@@ -197,6 +199,13 @@ export default function StudentPortalProfile() {
     const [firstName, setFirstName] = useState(me?.firstName || "");
     const [lastName, setLastName] = useState(me?.lastName || "");
     const [phone, setPhone] = useState((me as any)?.phone || "");
+    const [photoToken, setPhotoToken] = useState<string>("");
+    const { getToken } = useAuth();
+
+    // Get token for photo upload
+    useEffect(() => {
+        getToken().then(t => { if (t) setPhotoToken(t); });
+    }, []);
 
     const displayFirst = me?.firstName || "Student";
     const displayLast = me?.lastName || "";
@@ -215,9 +224,13 @@ export default function StudentPortalProfile() {
                 {!editing ? (
                     /* View mode */
                     <div className="flex items-start gap-4">
-                        <div className="h-16 w-16 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-2xl font-bold shrink-0">
-                            {displayFirst[0]}
-                        </div>
+                        <ProfilePhotoUpload
+                            currentPhotoUrl={(me as any)?.portraitUrl || (me as any)?.profile?.portraitUrl}
+                            initials={displayFirst[0]}
+                            token={photoToken}
+                            slug={(tenant as any)?.slug || ""}
+                            size={64}
+                        />
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-3">
                                 <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
@@ -274,9 +287,13 @@ export default function StudentPortalProfile() {
                     >
                         <input type="hidden" name="intent" value="update-profile" />
                         <div className="flex items-center gap-3 mb-4">
-                            <div className="h-16 w-16 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-2xl font-bold shrink-0">
-                                {(firstName[0] || displayFirst[0]).toUpperCase()}
-                            </div>
+                            <ProfilePhotoUpload
+                                currentPhotoUrl={(me as any)?.portraitUrl || (me as any)?.profile?.portraitUrl}
+                                initials={(firstName[0] || displayFirst[0]).toUpperCase()}
+                                token={photoToken}
+                                slug={(tenant as any)?.slug || ""}
+                                size={64}
+                            />
                             <div>
                                 <p className="font-semibold text-zinc-900 dark:text-zinc-100">Edit Profile</p>
                                 <p className="text-xs text-zinc-500">Changes apply to your display name.</p>

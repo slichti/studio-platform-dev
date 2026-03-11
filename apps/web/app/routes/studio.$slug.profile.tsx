@@ -8,6 +8,7 @@ import { FamilyManager } from "~/components/FamilyManager";
 import { AvailabilityManager } from "~/components/AvailabilityManager";
 import { toast } from "sonner";
 import { BillingHistory } from "~/components/billing-history";
+import { ProfilePhotoUpload } from "~/components/ProfilePhotoUpload";
 
 export const loader: LoaderFunction = async (args: any) => {
     const { getToken } = await getAuth(args);
@@ -250,18 +251,27 @@ export default function StudioProfilePage() {
 
             <div className="bg-white rounded-lg border border-zinc-200 p-6 mb-6">
                 <h3 className="text-lg font-semibold mb-4">Personal Info</h3>
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="text-xs font-semibold text-zinc-500 uppercase">First Name</label>
-                        <p className="text-zinc-900">{user.profile?.firstName}</p>
-                    </div>
-                    <div>
-                        <label className="text-xs font-semibold text-zinc-500 uppercase">Last Name</label>
-                        <p className="text-zinc-900">{user.profile?.lastName}</p>
-                    </div>
-                    <div className="col-span-2">
-                        <label className="text-xs font-semibold text-zinc-500 uppercase">Email</label>
-                        <p className="text-zinc-900">{user.email}</p>
+                <div className="flex items-start gap-5">
+                    <ProfilePhotoUpload
+                        currentPhotoUrl={user.profile?.portraitUrl}
+                        initials={(user.profile?.firstName?.[0] || user.email?.[0] || "?").toUpperCase()}
+                        token={token}
+                        slug={slug}
+                        size={80}
+                    />
+                    <div className="grid grid-cols-2 gap-4 flex-1">
+                        <div>
+                            <label className="text-xs font-semibold text-zinc-500 uppercase">First Name</label>
+                            <p className="text-zinc-900">{user.profile?.firstName}</p>
+                        </div>
+                        <div>
+                            <label className="text-xs font-semibold text-zinc-500 uppercase">Last Name</label>
+                            <p className="text-zinc-900">{user.profile?.lastName}</p>
+                        </div>
+                        <div className="col-span-2">
+                            <label className="text-xs font-semibold text-zinc-500 uppercase">Email</label>
+                            <p className="text-zinc-900">{user.email}</p>
+                        </div>
                     </div>
                 </div>
             </div>
