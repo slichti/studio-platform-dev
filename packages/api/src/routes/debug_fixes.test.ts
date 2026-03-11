@@ -99,6 +99,17 @@ describe('Debug Fixes Verification', () => {
             id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL, address TEXT, capacity INTEGER, 
             timezone TEXT, layout TEXT, settings TEXT, created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`);
+        sqlite.exec(`CREATE TABLE class_instructors (
+            class_id TEXT NOT NULL, instructor_id TEXT NOT NULL,
+            is_substitute INTEGER DEFAULT 0 NOT NULL,
+            created_at INTEGER DEFAULT (strftime('%s', 'now')),
+            PRIMARY KEY (class_id, instructor_id)
+        )`);
+        sqlite.exec(`CREATE TABLE class_series_instructors (
+            series_id TEXT NOT NULL, instructor_id TEXT NOT NULL,
+            created_at INTEGER DEFAULT (strftime('%s', 'now')),
+            PRIMARY KEY (series_id, instructor_id)
+        )`);
         sqlite.exec(`CREATE TABLE appointments (
             id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, service_id TEXT NOT NULL, member_id TEXT NOT NULL, 
             title TEXT NOT NULL, start_time INTEGER NOT NULL, end_time INTEGER NOT NULL,

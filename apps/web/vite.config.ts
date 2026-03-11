@@ -39,8 +39,5 @@ export default defineConfig({
         environment: 'jsdom',
         include: ['app/**/*.test.ts', 'app/**/*.test.tsx'],
         globals: true,
-        environmentMatchGlobs: [
-            ['**/*.server.test.ts', 'node'],
-        ],
     },
 });
