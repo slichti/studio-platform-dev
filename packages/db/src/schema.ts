@@ -1884,6 +1884,8 @@ export const tenantMembersRelations = relations(tenantMembers, ({ one, many }) =
     waiverSignatures: many(waiverSignatures),
     tags: many(tagAssignments),
     communityTopics: many(communityTopicMemberships),
+    classes: many(classInstructors),
+    series: many(classSeriesInstructors),
 }));
 
 export const studentNotesRelations = relations(studentNotes, ({ one }) => ({
@@ -1910,10 +1912,6 @@ export const tenantRolesRelations = relations(tenantRoles, ({ one }) => ({
     }),
 }));
 
-export const tenantMembersClassesRelations = relations(tenantMembers, ({ many }) => ({
-    classes: many(classInstructors),
-    series: many(classSeriesInstructors),
-}));
 
 export const classesRelations = relations(classes, ({ one, many }) => ({
     tenant: one(tenants, {

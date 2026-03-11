@@ -404,6 +404,8 @@ app.openapi(createRoute({
             gradientColor2: body.gradientColor2,
             gradientDirection: body.gradientDirection,
             createdAt: new Date()
+        }).run();
+
         // Also insert classSeriesInstructors
         for (const iid of newInstructorIds) {
             await db.insert(classSeriesInstructors).values({
