@@ -16,6 +16,3 @@ CREATE TABLE `class_series_instructors` (
 	FOREIGN KEY (`series_id`) REFERENCES `class_series`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`instructor_id`) REFERENCES `tenant_members`(`id`) ON UPDATE no action ON DELETE cascade
 );
---> statement-breakpoint
-ALTER TABLE `tenant_members` ADD `invited_at` integer;--> statement-breakpoint
-ALTER TABLE `tenant_members` ADD `accepted_at` integer;
