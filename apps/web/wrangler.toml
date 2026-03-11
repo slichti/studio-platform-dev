@@ -2,6 +2,8 @@ name = "studio-platform-web"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
+# Required for Cloudflare Pages: tells Wrangler where the static client build lives.
+pages_build_output_dir = "build/client"
 
 [vars]
 ENVIRONMENT = "dev"
