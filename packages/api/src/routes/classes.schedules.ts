@@ -546,6 +546,7 @@ app.openapi(createRoute({
 
     // Calculate time difference if startTime is being updated
     const timeShiftMs = (up.startTime && ex.startTime) ? up.startTime.getTime() - ex.startTime.getTime() : 0;
+    const timeShiftSeconds = Math.round(timeShiftMs / 1000);
 
     // Series-aware edits: don't apply absolute startTime changes to bulk (each class has its own time)
     const seriesUp = { ...up };
@@ -553,8 +554,8 @@ app.openapi(createRoute({
 
     if (scope === 'future') {
         const updatePayload: any = { ...seriesUp };
-        if (timeShiftMs !== 0) {
-            updatePayload.startTime = sql`${classes.startTime} + ${timeShiftMs}`;
+        if (timeShiftSeconds !== 0) {
+            updatePayload.startTime = sql`${classes.startTime} + ${timeShiftSeconds}`;
         }
 
         // Update this class + all future active classes in the same series
@@ -571,8 +572,8 @@ app.openapi(createRoute({
         const seriesKeys = ['title', 'description', 'durationMinutes', 'price', 'instructorId', 'locationId', 'thumbnailUrl', 'gradientPreset', 'gradientColor1', 'gradientColor2', 'gradientDirection'];
         const seriesUpdate: any = {};
         seriesKeys.forEach(k => { if (seriesUp[k] !== undefined) seriesUpdate[k] = seriesUp[k]; });
-        if (timeShiftMs !== 0) {
-            seriesUpdate.validFrom = sql`${classSeries.validFrom} + ${timeShiftMs}`;
+        if (timeShiftSeconds !== 0) {
+            seriesUpdate.validFrom = sql`${classSeries.validFrom} + ${timeShiftSeconds}`;
         }
         if (Object.keys(seriesUpdate).length > 0) {
             await db.update(classSeries).set(seriesUpdate).where(eq(classSeries.id, ex.seriesId!)).run();
@@ -582,8 +583,8 @@ app.openapi(createRoute({
 
     if (scope === 'all') {
         const updatePayload: any = { ...seriesUp };
-        if (timeShiftMs !== 0) {
-            updatePayload.startTime = sql`${classes.startTime} + ${timeShiftMs}`;
+        if (timeShiftSeconds !== 0) {
+            updatePayload.startTime = sql`${classes.startTime} + ${timeShiftSeconds}`;
         }
 
         // Update ALL active classes in the series
@@ -599,8 +600,8 @@ app.openapi(createRoute({
         const seriesKeys = ['title', 'description', 'durationMinutes', 'price', 'instructorId', 'locationId', 'thumbnailUrl', 'gradientPreset', 'gradientColor1', 'gradientColor2', 'gradientDirection'];
         const seriesUpdate: any = {};
         seriesKeys.forEach(k => { if (seriesUp[k] !== undefined) seriesUpdate[k] = seriesUp[k]; });
-        if (timeShiftMs !== 0) {
-            seriesUpdate.validFrom = sql`${classSeries.validFrom} + ${timeShiftMs}`;
+        if (timeShiftSeconds !== 0) {
+            seriesUpdate.validFrom = sql`${classSeries.validFrom} + ${timeShiftSeconds}`;
         }
         if (Object.keys(seriesUpdate).length > 0) {
             await db.update(classSeries).set(seriesUpdate).where(eq(classSeries.id, ex.seriesId!)).run();
