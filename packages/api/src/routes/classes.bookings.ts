@@ -64,8 +64,8 @@ app.get('/:id/bookings', async (c) => {
 
     const canManage = c.get('can')('manage_classes');
     if (!canManage) {
-        const classSettings = (tenant.settings as any)?.classSettings || {};
-        const allowInstructorView = !!classSettings.instructorCanViewRosters;
+    const classSettings = (tenant.settings as any)?.classSettings || {};
+    const allowInstructorView = classSettings.instructorCanViewRosters === true;
         if (!allowInstructorView) return c.json({ error: 'Unauthorized' }, 403);
         const allowed = await isInstructorForClass(c, db, c.req.param('id'));
         if (!allowed) return c.json({ error: 'Unauthorized' }, 403);
@@ -95,9 +95,9 @@ app.patch('/:id/bookings/:bookingId/check-in', async (c) => {
 
     const canManage = c.get('can')('manage_classes');
     if (!canManage) {
-        const classSettings = (tenant.settings as any)?.classSettings || {};
-        const allowAny = !!classSettings.instructorCanCheckInAnyClass;
-        const allowOwn = !!classSettings.instructorCanManageEnrollments;
+    const classSettings = (tenant.settings as any)?.classSettings || {};
+    const allowAny = classSettings.instructorCanCheckInAnyClass === true;
+    const allowOwn = classSettings.instructorCanManageEnrollments === true;
         if (!allowAny && !allowOwn) return c.json({ error: 'Unauthorized' }, 403);
 
         let allowed = false;
@@ -139,9 +139,9 @@ app.post('/:id/bulk-check-in', async (c) => {
 
     const canManage = c.get('can')('manage_classes');
     if (!canManage) {
-        const classSettings = (tenant.settings as any)?.classSettings || {};
-        const allowAny = !!classSettings.instructorCanCheckInAnyClass;
-        const allowOwn = !!classSettings.instructorCanManageEnrollments;
+    const classSettings = (tenant.settings as any)?.classSettings || {};
+    const allowAny = classSettings.instructorCanCheckInAnyClass === true;
+    const allowOwn = classSettings.instructorCanManageEnrollments === true;
         if (!allowAny && !allowOwn) return c.json({ error: 'Unauthorized' }, 403);
 
         let allowed = false;

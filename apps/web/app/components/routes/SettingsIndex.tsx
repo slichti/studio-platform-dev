@@ -1045,7 +1045,7 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                                     <input
                                         type="checkbox"
                                         className="sr-only peer"
-                                        checked={tenant.settings?.classSettings?.instructorCanViewRosters || false}
+                                    checked={tenant.settings?.classSettings?.instructorCanViewRosters === true}
                                         onChange={async (e) => {
                                             const checked = e.target.checked;
                                             setTenant((prev: any) => ({
@@ -1077,7 +1077,7 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                                     <input
                                         type="checkbox"
                                         className="sr-only peer"
-                                        checked={tenant.settings?.classSettings?.instructorCanManageEnrollments || false}
+                                    checked={tenant.settings?.classSettings?.instructorCanManageEnrollments === true}
                                         onChange={async (e) => {
                                             const checked = e.target.checked;
                                             setTenant((prev: any) => ({
@@ -1109,7 +1109,7 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
                                     <input
                                         type="checkbox"
                                         className="sr-only peer"
-                                        checked={tenant.settings?.classSettings?.instructorCanCheckInAnyClass || false}
+                                    checked={tenant.settings?.classSettings?.instructorCanCheckInAnyClass === true}
                                         onChange={async (e) => {
                                             const checked = e.target.checked;
                                             setTenant((prev: any) => ({
