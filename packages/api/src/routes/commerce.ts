@@ -768,11 +768,11 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
 
         const feeBasisPoints = await PricingService.getApplicationFeeConfig(db, tenant.id);
 
-        const metadata = {
+        const metadata: Record<string, string> = {
             type: pack ? 'pack_purchase' : (plan ? 'membership_purchase' : (recording ? 'recording_purchase' : 'gift_card_purchase')),
             packId: pack?.id || '',
             packName: pack?.name || '',
-            packCredits: pack?.credits || undefined,
+            packCredits: pack ? String(pack.credits ?? '') : '',
             planId: plan?.id || '',
             planName: plan?.name || '',
             planInterval: plan?.interval || '',
@@ -780,10 +780,10 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
             tenantId: tenant.id,
             userId: auth.userId || 'guest',
             couponId: appliedCouponId || '',
-            recipientEmail,
-            recipientName,
-            senderName,
-            message,
+            recipientEmail: recipientEmail || '',
+            recipientName: recipientName || '',
+            senderName: senderName || '',
+            message: message || '',
             productName: pack ? pack.name : (plan ? plan.name : (recording ? recording.title : 'Gift Card')),
             totalCharge: String(amountWithFee),
             usedGiftCardId: appliedGiftCardId || '',
