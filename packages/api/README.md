@@ -25,6 +25,19 @@ Uses Expo Push API for sending notifications to the mobile app.
     *   Substitute Filled (notify requester)
 *   **Requirements**:
     *   User must have `pushToken` stored in `users` table.
+
+### Pack & Membership Notifications
+
+The API also emits both **transactional emails** and **automation triggers** around commerce events:
+
+- **Transactional Emails**
+  - **Class packs**: When a pack is purchased or admin-assigned, `FulfillmentService` sends a summary email (pack name, credits, remaining balance, expiration) to the member.
+  - **Memberships**: When a membership starts (checkout or admin assignment), `FulfillmentService` sends an email describing the plan name, billing interval, and next renewal date.
+  - Emails are scoped per-tenant, respect branding, and can be toggled via tenant notification settings.
+
+- **Automation Triggers**
+  - `pack_purchased` – Fired whenever a pack is purchased/assigned; payload includes `packId`, `packName`, `credits`, `expiresAt`, `amount`, `source`, and `purchasedPackId`.
+  - `membership_started` – Fired when a subscription becomes active and now includes a `source` field (`web_checkout`, `mobile_checkout`, `admin_assignment`) for more granular workflows.
 ### SEO Management (Tier 2, 3 & 4)
 Advanced multi-tenant SEO infrastructure with automated local search integration.
 *   **Google Business Profile**: OAuth-based NAP (Name, Address, Phone) syncing and Review Engine automation.

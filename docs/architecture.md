@@ -552,6 +552,7 @@ The student-facing portal lives at `/portal/:slug/*` and requires the authentica
 |---|---|---|
 | `/portal/:slug` | Dashboard (achievements, challenges) | `/progress/my-stats` |
 | `/portal/:slug/classes` | Class schedule + book/cancel | `GET /classes`, `GET /bookings/my-upcoming` |
+| `/portal/:slug/teaching` | **My Teaching Schedule** (instructors only) | `GET /classes?instructorId=:memberId` |
 | `/portal/:slug/history` | Past attendance, paginated by month | `GET /bookings/history` |
 | `/portal/:slug/packs` | Purchased pack credits + buy new | `GET /members/me/packs`, `GET /commerce/packs` |
 | `/portal/:slug/courses` | Course catalog + enrollments | `GET /courses`, `GET /courses/:id/my-completions` |

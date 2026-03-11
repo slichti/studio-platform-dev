@@ -196,23 +196,24 @@ app.post('/', bookingLimit, async (c) => {
     console.log(`[DEBUG] POST /bookings - Class: ${classId}, AuthUser: ${c.get('auth')?.userId}, Tenant: ${c.get('tenant')?.id}`);
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant')!;
+    const auth = c.get('auth')!;
 
     let targetId = memberId;
 
     // Resolve Target Member (Self or Family)
     if (!targetId) {
         // Default to self
-        const m = await db.select().from(tenantMembers).where(and(eq(tenantMembers.userId, c.get('auth')!.userId), eq(tenantMembers.tenantId, tenant.id))).get();
+        const m = await db.select().from(tenantMembers).where(and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenant.id))).get();
 
         if (!m && c.get('isPlatformAdmin')) {
             // Auto-create for Platform Admin if missing
-            console.log(`[BOOKING] Creating admin member record for ${c.get('auth')!.userId}`);
+            console.log(`[BOOKING] Creating admin member record for ${auth.userId}`);
             const newMemberId = crypto.randomUUID();
             try {
                 await db.insert(tenantMembers).values({
                     id: newMemberId,
                     tenantId: tenant.id,
-                    userId: c.get('auth')!.userId,
+                    userId: auth.userId,
                     status: 'active',
                     joinedAt: new Date()
                 }).run();
@@ -225,19 +226,19 @@ app.post('/', bookingLimit, async (c) => {
                 targetId = newMemberId;
             } catch (e) {
                 // Ignore race condition if already created
-                const existing = await db.select().from(tenantMembers).where(and(eq(tenantMembers.userId, c.get('auth')!.userId), eq(tenantMembers.tenantId, tenant.id))).get();
+                const existing = await db.select().from(tenantMembers).where(and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenant.id))).get();
                 if (existing) targetId = existing.id;
             }
         } else if (!m) {
             // Auto-join Logic
             const settings = tenant.settings as any;
             if (settings?.enableStudentRegistration) {
-                console.log(`[BOOKING] Auto-joining student ${c.get('auth')!.userId}`);
+                console.log(`[BOOKING] Auto-joining student ${auth.userId}`);
                 const newMemberId = crypto.randomUUID();
                 await db.insert(tenantMembers).values({
                     id: newMemberId,
                     tenantId: tenant.id,
-                    userId: c.get('auth')!.userId,
+                    userId: auth.userId,
                     status: 'active',
                     joinedAt: new Date()
                 }).run();
@@ -263,12 +264,29 @@ app.post('/', bookingLimit, async (c) => {
             targetId = m.id;
         }
     } else {
-        // Verify target member belongs to user (Family check)
-        // TODO: Strict family check. For now, we trust the ID if it belongs to the tenant, 
-        // but ideally we should check if `targetId` is linked to `auth.userId` via family relationship.
-        // Assuming the select below verifies existence in tenant.
+        // Verify target member belongs to tenant and enforce permissions for booking on behalf of others
         const tm = await db.select().from(tenantMembers).where(and(eq(tenantMembers.id, targetId), eq(tenantMembers.tenantId, tenant.id))).get();
         if (!tm) return c.json({ error: "Target member not found" }, 404);
+
+        // If booking for self (memberId explicitly provided), allow without extra checks
+        if (tm.userId !== auth.userId) {
+            const canManageClasses = c.get('can')('manage_classes');
+            const allowInstructorEnrollments = (tenant.settings as any)?.classSettings?.instructorCanManageEnrollments === true;
+
+            let isInstructor = false;
+            if (allowInstructorEnrollments) {
+                const currentMember = await db.select().from(tenantMembers).where(and(eq(tenantMembers.userId, auth.userId), eq(tenantMembers.tenantId, tenant.id))).get();
+                if (currentMember) {
+                    const roleRow = await db.select().from(tenantRoles).where(and(eq(tenantRoles.memberId, currentMember.id), eq(tenantRoles.role, 'instructor'))).get();
+                    isInstructor = !!roleRow;
+                }
+            }
+
+            if (!canManageClasses && !(allowInstructorEnrollments && isInstructor)) {
+                return c.json({ error: "Forbidden" }, 403);
+            }
+        }
+        targetId = tm.id;
     }
 
     const cl = await db.select().from(classes).where(and(eq(classes.id, classId), eq(classes.tenantId, tenant.id))).get();

@@ -49,6 +49,59 @@ function adjustForDST(occurrences: Date[], originalDate: Date, timezone: string)
     });
 }
 
+async function sendInstructorAssignmentEmail(
+    db: ReturnType<typeof createDb>,
+    env: any,
+    tenant: any,
+    primaryInstructorId: string | null | undefined,
+    clsTitle: string,
+    clsStart: Date,
+    duration: number
+) {
+    if (!primaryInstructorId) return;
+    try {
+        const tenantSettings = tenant.settings as any;
+        const notify = tenantSettings?.notificationSettings?.instructorClassAssignedEmail !== false;
+        if (!notify) return;
+
+        const instructor = await db.query.tenantMembers.findFirst({
+            where: and(eq(tenantMembers.id, primaryInstructorId), eq(tenantMembers.tenantId, tenant.id)),
+            with: { user: true }
+        });
+        if (!instructor?.user?.email) return;
+
+        const usageService = new UsageService(db, tenant.id);
+        const emailService = new EmailService(
+            env.RESEND_API_KEY || '',
+            { branding: tenant.branding as any, settings: tenant.settings as any },
+            { slug: tenant.slug },
+            usageService
+        );
+        const startsAt = clsStart instanceof Date ? clsStart : new Date(clsStart);
+        const durationLabel = `${duration} min`;
+        const html = `
+                <h1 style="margin-bottom: 12px;">New Class Assigned</h1>
+                <p>Hi ${(instructor.user.profile as any)?.firstName || 'Instructor'},</p>
+                <p>You’ve been assigned to teach the following class:</p>
+                <ul>
+                    <li><strong>Class:</strong> ${clsTitle}</li>
+                    <li><strong>Date:</strong> ${startsAt.toLocaleDateString()}</li>
+                    <li><strong>Time:</strong> ${startsAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</li>
+                    <li><strong>Duration:</strong> ${durationLabel}</li>
+                </ul>
+                <p style="margin-top: 12px;">You can view your upcoming classes from your teaching schedule in the studio portal.</p>
+            `;
+        await emailService.sendGenericEmail(
+            instructor.user.email,
+            `New class assigned: ${clsTitle}`,
+            html,
+            true
+        );
+    } catch (err) {
+        console.error('[Classes] Failed to send instructor assignment email', err);
+    }
+}
+
 // Schemas
 const ClassSchema = z.object({
     id: z.string(),
@@ -542,50 +595,7 @@ app.openapi(createRoute({
             }).run();
         }
 
-        // Notify primary instructor of new assignment (single class).
-        if (instructorId) {
-            try {
-                const tenantSettings = tenant.settings as any;
-                const notify = tenantSettings?.notificationSettings?.instructorClassAssignedEmail !== false;
-                if (notify) {
-                    const instructor = await db.query.tenantMembers.findFirst({
-                        where: and(eq(tenantMembers.id, instructorId), eq(tenantMembers.tenantId, tenant.id)),
-                        with: { user: true }
-                    });
-                    if (instructor?.user?.email) {
-                        const usageService = new UsageService(db, tenant.id);
-                        const emailService = new EmailService(
-                            c.env.RESEND_API_KEY || '',
-                            { branding: tenant.branding as any, settings: tenant.settings as any },
-                            { slug: tenant.slug },
-                            usageService
-                        );
-                        const startsAt = start instanceof Date ? start : new Date(start);
-                        const durationLabel = `${dur} min`;
-                        const html = `
-                            <h1 style="margin-bottom: 12px;">New Class Assigned</h1>
-                            <p>Hi ${(instructor.user.profile as any)?.firstName || 'Instructor'},</p>
-                            <p>You’ve been assigned to teach the following class:</p>
-                            <ul>
-                                <li><strong>Class:</strong> ${title}</li>
-                                <li><strong>Date:</strong> ${startsAt.toLocaleDateString()}</li>
-                                <li><strong>Time:</strong> ${startsAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</li>
-                                <li><strong>Duration:</strong> ${durationLabel}</li>
-                            </ul>
-                            <p style="margin-top: 12px;">You can view your upcoming classes from your teaching schedule in the studio portal.</p>
-                        `;
-                        await emailService.sendGenericEmail(
-                            instructor.user.email,
-                            `New class assigned: ${title}`,
-                            html,
-                            true
-                        );
-                    }
-                }
-            } catch (err) {
-                console.error('[Classes] Failed to send instructor assignment email', err);
-            }
-        }
+        await sendInstructorAssignmentEmail(db, c.env, tenant, instructorId || null, title, start, dur);
 
         return c.json({ ...nc, startTime: nc.startTime.toISOString() }, 201);
     }
@@ -610,7 +620,8 @@ app.openapi(createRoute({
 }), async (c: any) => {
     if (!c.get('can')('manage_classes')) return c.json({ error: 'Unauthorized' }, 403);
     const db = createDb(c.env.DB);
-    const tid = c.get('tenant').id;
+    const tenant = c.get('tenant');
+    const tid = tenant.id;
     const { id } = c.req.valid('param');
     const body = c.req.valid('json');
     const scope = c.req.query('scope') || 'single';
@@ -643,6 +654,8 @@ app.openapi(createRoute({
 
     // For single scope or non-series classes, check conflicts and update just this one
     if (scope === 'single' || !ex.seriesId) {
+        const originalInstructorId = ex.instructorId;
+
         if (up.startTime || up.durationMinutes || up.instructorId || up.locationId) {
             const cs = new ConflictService(db);
             if ((up.instructorId || ex.instructorId) && (await cs.checkInstructorConflict(up.instructorId || ex.instructorId!, up.startTime || ex.startTime, up.durationMinutes || ex.durationMinutes, id)).length) return c.json({ error: "Conflict" }, 409);
@@ -655,6 +668,14 @@ app.openapi(createRoute({
             for (const iid of newInstructorIds) {
                 await db.insert(classInstructors).values({ classId: id, instructorId: iid }).run();
             }
+        }
+
+        const newPrimaryInstructorId = ('instructorId' in up ? up.instructorId : ex.instructorId) || null;
+        const instructorChanged = newPrimaryInstructorId && newPrimaryInstructorId !== originalInstructorId;
+        if (instructorChanged) {
+            const startsAt = (up.startTime as Date | undefined) || ex.startTime;
+            const duration = (up.durationMinutes as number | undefined) || ex.durationMinutes;
+            await sendInstructorAssignmentEmail(db, c.env, tenant, newPrimaryInstructorId, ex.title, startsAt instanceof Date ? startsAt : new Date(startsAt), duration);
         }
 
         return c.json({ success: true, updated: 1 });

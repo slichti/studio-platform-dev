@@ -515,6 +515,38 @@ export default function SettingsIndexComponent({ locations }: { locations: any[]
 
                         <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded border border-zinc-200 dark:border-zinc-700 h-fit">
                             <div>
+                                <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Instructor Class Assignment Emails</span>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400">Email instructors when they are assigned to teach a class.</p>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    className="sr-only peer"
+                                    checked={tenant.settings?.notificationSettings?.instructorClassAssignedEmail !== false}
+                                    onChange={async (e) => {
+                                        const checked = e.target.checked;
+                                        setTenant((prev: any) => ({
+                                            ...prev,
+                                            settings: {
+                                                ...prev.settings,
+                                                notificationSettings: { ...prev.settings?.notificationSettings, instructorClassAssignedEmail: checked }
+                                            }
+                                        }));
+                                        const token = await (window as any).Clerk?.session?.getToken();
+                                        await apiRequest(`/tenant/settings`, token, {
+                                            method: "PATCH",
+                                            headers: { 'X-Tenant-Slug': tenant.slug },
+                                            body: JSON.stringify({ settings: { notificationSettings: { ...tenant.settings?.notificationSettings, instructorClassAssignedEmail: checked } } })
+                                        });
+                                        toast.success("Saved");
+                                    }}
+                                />
+                                <div className="w-9 h-5 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                            </label>
+                        </div>
+
+                        <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded border border-zinc-200 dark:border-zinc-700 h-fit">
+                            <div>
                                 <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">BCC on User Emails</span>
                                 <p className="text-xs text-zinc-500 dark:text-zinc-400">Copy of booking emails.</p>
                             </div>

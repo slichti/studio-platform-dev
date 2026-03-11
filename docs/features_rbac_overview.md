@@ -137,9 +137,18 @@ This section summarizes **what the app actually does** per domain and how permis
   - Class series and drop-in scheduling; waitlists; room and instructor conflict detection; bulk move/cancel/update.
   - Appointments with services (duration, price), availability, and booking management.
   - Kiosk mode and check-in workflows; guest booking flows.
+  - Instructor tools: personal **My Teaching Schedule** calendar, optional ability to view rosters, register students into classes, and check-in attendees (scoped by studio settings).
 - **Key Permissions**
   - `manage_classes`, `view_classes`, `check_in_students`.
   - Bulk operations on `/classes/bulk-*` require `manage_classes`.
+
+Additional **per-tenant settings** further constrain instructor capabilities:
+
+- `tenant.settings.classSettings.instructorCanViewRosters` – When enabled, instructors can view the roster for classes they teach (API-level checks also verify instructor/class relationship).
+- `tenant.settings.classSettings.instructorCanManageEnrollments` – When enabled, instructors can add/remove students and check them in for **their own** classes. Booking and roster routes enforce this alongside `manage_classes`.
+- `tenant.settings.classSettings.instructorCanCheckInAnyClass` – When enabled, instructors can check in students for **any** class at the studio, not just their own.
+
+These switches are exposed in the Studio Settings UI under **Class Management → Instructor Permissions** and are respected by both web and API layers.
 
 ### 4.4 Commerce, POS, Inventory
 

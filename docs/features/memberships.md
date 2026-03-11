@@ -134,6 +134,34 @@ Plans with `trial_days > 0` pass `subscription_data: { trial_period_days: plan.t
 
 ---
 
+## Notifications & Automations
+
+### Member-Facing Emails
+
+When commerce events occur around memberships and packs, the platform sends **transactional emails** (via `EmailService`) summarizing what the member received:
+
+- **Class Packs**: On purchase or admin-assignment, the member receives an email with pack name, starting credits, remaining balance, and expiry (if any), with a note indicating whether it was bought or assigned.
+- **Memberships**: On membership start or admin-assignment, the member receives an email with plan name, billing cadence, and next renewal date, again indicating whether it was bought or assigned.
+
+These emails respect tenant-level notification settings and branding.
+
+### Automation Triggers
+
+Two automation triggers are available for lifecycle marketing and retention flows:
+
+- **`pack_purchased`**
+  - Fired from fulfillment whenever a class pack is purchased or admin-assigned.
+  - Payload fields (available to automations and templates) include:
+    - `packId`, `packName`, `credits`, `expiresAt`, `amount`, `source`, `purchasedPackId`.
+- **`membership_started`**
+  - Fired when a membership becomes active for a member (whether via web checkout, mobile checkout, or admin assignment).
+  - Now includes a `source` field so studios can branch flows based on where the membership originated:
+    - `web_checkout`, `mobile_checkout`, or `admin_assignment`.
+
+These triggers are exposed in the Marketing Automations UI and appear with recommended fields for personalization.
+
+---
+
 ## Frontend (Admin)
 
 ### Plan List — `/studio/:slug/memberships`
