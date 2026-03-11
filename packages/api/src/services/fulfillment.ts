@@ -6,6 +6,7 @@ import { AutomationsService } from './automations';
 import { SmsService } from './sms';
 import { PushService } from './push';
 import { UsageService } from './pricing';
+import { getFirstName } from '../utils/profile';
 
 export class FulfillmentService {
     private env?: any;
@@ -102,7 +103,7 @@ export class FulfillmentService {
                             usageService
                         );
 
-                        const firstName = (user.profile as any)?.firstName || 'Friend';
+                        const firstName = getFirstName(user.profile, 'Friend');
                         const isManual = metadata.source === 'admin_assignment';
                         const subject = isManual
                             ? `You've been granted a new class pack at ${tenant.name}`
@@ -475,7 +476,7 @@ export class FulfillmentService {
                     }
 
                     if (user) {
-                        const firstName = (user.profile as any)?.firstName || 'Friend';
+                        const firstName = getFirstName(user.profile, 'Friend');
                         const isManual = metadata.source === 'admin_assignment';
                         const subject = isManual
                             ? `You've been granted a membership at ${tenant.name}`
