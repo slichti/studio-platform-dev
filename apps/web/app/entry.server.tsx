@@ -1,7 +1,7 @@
 
 import type { AppLoadContext, EntryContext } from "react-router";
 
-import { ServerRouter } from "react-router-dom";
+import { ServerRouter } from "react-router";
 import { isbot } from "isbot";
 import { renderToReadableStream } from "react-dom/server";
 
