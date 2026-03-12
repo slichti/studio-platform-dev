@@ -3,6 +3,12 @@ compatibility_date = "2024-12-30"
 compatibility_flags = ["nodejs_compat"]
 main = "src/index.ts"
 
+routes = [
+  # Bind the production API hostname to this Worker.
+  # This ensures `https://api.slichti.org/*` is served by `studio-platform-api`.
+  { pattern = "api.slichti.org/*", zone_name = "slichti.org" }
+]
+
 [triggers]
 crons = [
   "*/15 * * * *",  # Every 15 minutes (existing tasks)
