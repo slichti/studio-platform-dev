@@ -71,6 +71,19 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
         }
     }, [isOpen, initialStartTime]);
 
+    // Class types that allow multiple instructors; regular class and private appointment are single-instructor only.
+    const allowMultipleInstructors = ['event', 'workshop', 'course'].includes(formData.type);
+
+    const handleTypeChange = (newType: string) => {
+        const allowMulti = ['event', 'workshop', 'course'].includes(newType);
+        setFormData(prev => ({
+            ...prev,
+            type: newType,
+            // When switching to single-instructor type, keep only the first selected instructor.
+            instructorIds: allowMulti ? prev.instructorIds : prev.instructorIds.slice(0, 1),
+        }));
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -141,10 +154,11 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                     recordingPrice: (formData.isCourse || formData.courseId) && formData.recordingPrice ? Number(formData.recordingPrice) : null,
                     contentCollectionId: (formData.isCourse || formData.courseId) && formData.contentCollectionId ? formData.contentCollectionId : null,
                     thumbnailUrl,
-                    gradientPreset: formData.gradient?.preset,
-                    gradientColor1: formData.gradient?.color1,
-                    gradientColor2: formData.gradient?.color2,
-                    gradientDirection: formData.gradient?.direction,
+                    // Avoid sending nulls; API schema expects strings/numbers when present.
+                    gradientPreset: formData.gradient?.preset ?? undefined,
+                    gradientColor1: formData.gradient?.color1 ?? undefined,
+                    gradientColor2: formData.gradient?.color2 ?? undefined,
+                    gradientDirection: formData.gradient?.direction ?? undefined,
                 })
             });
 
@@ -217,29 +231,44 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-zinc-700 mb-1">Instructors</label>
-                        <div className="max-h-32 overflow-y-auto border border-zinc-300 rounded-md bg-white p-2 space-y-1">
-                            {instructors.length === 0 ? (
-                                <span className="text-sm text-zinc-500 italic">No instructors available</span>
-                            ) : (
-                                instructors.map((inst: any) => (
-                                    <label key={inst.id} className="flex items-center gap-2 text-sm text-zinc-700 cursor-pointer hover:bg-zinc-50 p-1 rounded">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.instructorIds.includes(inst.id)}
-                                            onChange={(e) => {
-                                                const newIds = e.target.checked
-                                                    ? [...formData.instructorIds, inst.id]
-                                                    : formData.instructorIds.filter(id => id !== inst.id);
-                                                setFormData({ ...formData, instructorIds: newIds });
-                                            }}
-                                            className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
-                                        />
-                                        <span>{inst.user?.profile?.firstName} {inst.user?.profile?.lastName}</span>
-                                    </label>
-                                ))
-                            )}
-                        </div>
+                        <label className="block text-sm font-medium text-zinc-700 mb-1">{allowMultipleInstructors ? "Instructors" : "Instructor"}</label>
+                        {allowMultipleInstructors ? (
+                            <div className="max-h-32 overflow-y-auto border border-zinc-300 rounded-md bg-white p-2 space-y-1">
+                                {instructors.length === 0 ? (
+                                    <span className="text-sm text-zinc-500 italic">No instructors available</span>
+                                ) : (
+                                    instructors.map((inst: any) => (
+                                        <label key={inst.id} className="flex items-center gap-2 text-sm text-zinc-700 cursor-pointer hover:bg-zinc-50 p-1 rounded">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.instructorIds.includes(inst.id)}
+                                                onChange={(e) => {
+                                                    const newIds = e.target.checked
+                                                        ? [...formData.instructorIds, inst.id]
+                                                        : formData.instructorIds.filter(id => id !== inst.id);
+                                                    setFormData({ ...formData, instructorIds: newIds });
+                                                }}
+                                                className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                                            />
+                                            <span>{inst.user?.profile?.firstName} {inst.user?.profile?.lastName}</span>
+                                        </label>
+                                    ))
+                                )}
+                            </div>
+                        ) : (
+                            <select
+                                className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                                value={formData.instructorIds[0] ?? ""}
+                                onChange={(e) => setFormData({ ...formData, instructorIds: e.target.value ? [e.target.value] : [] })}
+                            >
+                                <option value="">No instructor</option>
+                                {instructors.map((inst: any) => (
+                                    <option key={inst.id} value={inst.id}>
+                                        {inst.user?.profile?.firstName} {inst.user?.profile?.lastName}
+                                    </option>
+                                ))}
+                            </select>
+                        )}
                     </div>
                 </div>
                 <div>
@@ -247,7 +276,7 @@ export function CreateClassModal({ isOpen, onClose, onSuccess, locations = [], i
                     <select
                         className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                         value={formData.type}
-                        onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                        onChange={(e) => handleTypeChange(e.target.value)}
                     >
                         <option value="class">Regular Class</option>
                         <option value="workshop">Workshop</option>
