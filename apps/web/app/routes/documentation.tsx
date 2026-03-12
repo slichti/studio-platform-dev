@@ -3,15 +3,15 @@ import { Outlet, NavLink, Link, useLoaderData, type LoaderFunctionArgs, redirect
 import { getAuth } from "@clerk/react-router/server";
 import { useUser } from "@clerk/react-router";
 import { Book, Menu, X, Search, GraduationCap, Smartphone, Settings, Shield, Server, Users, FileText, ShoppingCart, Globe, MessageSquare, BarChart3, Layout, Database, Key } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { apiRequest } from "../utils/api";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { LogoutButton } from "../components/LogoutButton";
 
 
 import Fuse from "fuse.js";
-import { docsIndex } from "../utils/docsIndex";
-import { useNavigate } from "react-router";
+import { docsIndex, getDocVisibility, isDocVisibleTo } from "../utils/docsIndex";
+import { useNavigate, useLocation } from "react-router";
 
 export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken, userId } = await getAuth(args);
@@ -46,10 +46,18 @@ export default function HelpLayout() {
     const [searchResults, setSearchResults] = useState<typeof docsIndex>([]);
     const [showResults, setShowResults] = useState(false);
     const navigate = useNavigate();
+    const location = useLocation();
 
-    const isPlatformAdmin = dbUser?.isPlatformAdmin || dbUser?.role === 'owner' || dbUser?.role === 'admin';
+    const visibility = getDocVisibility(dbUser ?? {});
+    const isPlatformAdmin = visibility.hasPlatformAdmin;
 
-    const filteredDocsIndex = isPlatformAdmin ? docsIndex : docsIndex.filter((doc: any) => !doc.adminOnly);
+    const filteredDocsIndex = docsIndex.filter((doc) => isDocVisibleTo(doc, visibility));
+
+    useEffect(() => {
+        if (location.pathname.startsWith("/documentation/platform") && !isPlatformAdmin) {
+            navigate("/documentation", { replace: true });
+        }
+    }, [location.pathname, isPlatformAdmin, navigate]);
 
     const fuse = new Fuse(filteredDocsIndex, {
         keys: ["title", "content", "category"],
@@ -68,9 +76,9 @@ export default function HelpLayout() {
         }
     };
 
-    // Navigation Data
+    // Navigation Data — filter each item by doc visibility
+    const hrefVisible = (href: string) => filteredDocsIndex.some((d) => d.href === href);
     const navigation = [
-        // PLATFORM ADMIN SECTION
         ...(isPlatformAdmin ? [{
             category: "Platform Administration",
             items: [
@@ -81,66 +89,59 @@ export default function HelpLayout() {
                 { name: "Clerk Configuration", href: "/documentation/platform/clerk", icon: Key },
             ].sort((a, b) => a.name.localeCompare(b.name))
         }] : []),
-
-        // STUDIO MANAGEMENT SECTION (Visible to everyone)
         {
             category: "Getting Started",
             items: [
-                { name: "For Studio Owners", href: "/documentation/studio/overview", icon: Users },
-                { name: "Migration & Import", href: "/documentation/migration", icon: Database },
-                { name: "Setting up your Studio", href: "/documentation/setup", icon: Settings },
                 { name: "Welcome to Studio Platform", href: "/documentation", icon: GraduationCap },
-                { name: "Changelog", href: "/documentation/changelog", icon: FileText },
+                ...(hrefVisible("/documentation/studio/overview") ? [{ name: "For Studio Owners", href: "/documentation/studio/overview", icon: Users }] : []),
+                ...(hrefVisible("/documentation/instructors") ? [{ name: "For Instructors", href: "/documentation/instructors", icon: GraduationCap }] : []),
+                ...(hrefVisible("/documentation/migration") ? [{ name: "Migration & Import", href: "/documentation/migration", icon: Database }] : []),
+                ...(hrefVisible("/documentation/setup") ? [{ name: "Setting up your Studio", href: "/documentation/setup", icon: Settings }] : []),
+                ...(hrefVisible("/documentation/changelog") ? [{ name: "Changelog", href: "/documentation/changelog", icon: FileText }] : []),
             ]
         },
-
         {
             category: "Classes & Schedule",
             items: [
-                { name: "Courses & Monetization", href: "/documentation/courses", icon: GraduationCap },
-                { name: "Creating Classes", href: "/documentation/classes", icon: Book },
+                ...(hrefVisible("/documentation/courses") ? [{ name: "Courses & Monetization", href: "/documentation/courses", icon: GraduationCap }] : []),
+                ...(hrefVisible("/documentation/classes") ? [{ name: "Creating Classes", href: "/documentation/classes", icon: Book }] : []),
             ]
         },
         {
             category: "Commerce & Finance",
-            items: [
-                { name: "Memberships & POS", href: "/documentation/commerce", icon: ShoppingCart },
-            ]
+            items: hrefVisible("/documentation/commerce") ? [{ name: "Memberships & POS", href: "/documentation/commerce", icon: ShoppingCart }] : [],
         },
         {
             category: "Online Presence",
             items: [
-                { name: "Website Builder", href: "/documentation/website", icon: Globe },
-                { name: "Mobile App", href: "/documentation/mobile-builder", icon: Smartphone },
+                ...(hrefVisible("/documentation/website") ? [{ name: "Website Builder", href: "/documentation/website", icon: Globe }] : []),
+                ...(hrefVisible("/documentation/mobile-builder") ? [{ name: "Mobile App", href: "/documentation/mobile-builder", icon: Smartphone }] : []),
             ]
         },
         {
             category: "Growth & CRM",
-            items: [
-                { name: "Marketing & Leads", href: "/documentation/crm", icon: MessageSquare },
-            ]
+            items: hrefVisible("/documentation/crm") ? [{ name: "Marketing & Leads", href: "/documentation/crm", icon: MessageSquare }] : [],
         },
         {
-            category: "Team Management",
+            category: "Team & Reports",
             items: [
-                { name: "Staff & Payroll", href: "/documentation/team", icon: Users },
-                { name: "Advanced Analytics", href: "/documentation/studio/analytics", icon: BarChart3 }, // Updated
+                ...(hrefVisible("/documentation/team") ? [{ name: "Staff & Payroll", href: "/documentation/team", icon: Users }] : []),
+                ...(hrefVisible("/documentation/studio/analytics") ? [{ name: "Advanced Analytics", href: "/documentation/studio/analytics", icon: BarChart3 }] : []),
+                ...(hrefVisible("/documentation/reports") ? [{ name: "Reports & Analytics", href: "/documentation/reports", icon: BarChart3 }] : []),
             ]
         },
         {
             category: "Student Experience",
-            items: [
-                { name: "Student Portal", href: "/documentation/studio/portal", icon: Layout },
-            ]
+            items: hrefVisible("/documentation/studio/portal") ? [{ name: "Student Portal", href: "/documentation/studio/portal", icon: Layout }] : [],
         },
         {
             category: "How-to Guides",
             items: [
-                { name: "Create a Waiver", href: "/documentation/guides/waiver", icon: FileText },
-                { name: "Setup Class Packs", href: "/documentation/guides/class-packs", icon: ShoppingCart },
+                ...(hrefVisible("/documentation/guides/waiver") ? [{ name: "Create a Waiver", href: "/documentation/guides/waiver", icon: FileText }] : []),
+                ...(hrefVisible("/documentation/guides/class-packs") ? [{ name: "Setup Class Packs", href: "/documentation/guides/class-packs", icon: ShoppingCart }] : []),
             ]
         }
-    ];
+    ].filter((group) => group.items.length > 0) as { category: string; items: { name: string; href: string; icon: any }[] }[];
 
     const displayName = dbUser?.firstName || clerkUser?.fullName || "User";
     const displayImage = dbUser?.portraitUrl || clerkUser?.imageUrl;
