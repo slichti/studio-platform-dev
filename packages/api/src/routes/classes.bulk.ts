@@ -2,7 +2,7 @@ import { createRoute, z } from '@hono/zod-openapi';
 import { createOpenAPIApp } from '../lib/openapi';
 import { StudioVariables } from '../types';
 import { createDb } from '../db';
-import { classes, bookings, tenantMembers, users } from '@studio/db/src/schema';
+import { classes, bookings, tenantMembers, users, classInstructors } from '@studio/db/src/schema';
 import { eq, and, inArray, gte, lte } from 'drizzle-orm';
 import { ConflictService } from '../services/conflicts';
 import { ErrorResponseSchema, SuccessResponseSchema } from '../lib/openapi';
@@ -43,10 +43,13 @@ const BulkMoveSchema = z.object({
     message: 'Provide either classIds or a from/to date range'
 });
 
-const BulkCreateSchema = z.object({
+export const BulkCreateSchema = z.object({
     title: z.string(),
     description: z.string().optional(),
+    /** Primary instructor (legacy) */
     instructorId: z.string().optional(),
+    /** Optional list of instructors (first is primary) */
+    instructorIds: z.array(z.string()).optional(),
     locationId: z.string().optional(),
     capacity: z.coerce.number().optional(),
     price: z.coerce.number().optional(),
@@ -74,6 +77,18 @@ const BulkCreateSchema = z.object({
     recordingPrice: z.coerce.number().optional().nullable(),
     contentCollectionId: z.string().optional().nullable(),
     courseId: z.string().optional().nullable(),
+}).superRefine((val, ctx) => {
+    const ids = (val.instructorIds && val.instructorIds.length > 0)
+        ? val.instructorIds
+        : (val.instructorId ? [val.instructorId] : []);
+
+    if (['class', 'appointment'].includes(val.type) && ids.length > 1) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['instructorIds'],
+            message: 'Regular classes and private appointments can only have one instructor.',
+        });
+    }
 });
 
 // --- Routes ---
@@ -421,6 +436,10 @@ app.openapi(bulkCreateRoute, async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant')!;
     const body = c.req.valid('json');
+    const instructorIds = (body.instructorIds && body.instructorIds.length > 0)
+        ? body.instructorIds
+        : (body.instructorId ? [body.instructorId] : []);
+    const primaryInstructorId = instructorIds[0] || null;
 
     const start = new Date(body.startDate + "T00:00:00");
     const end = new Date(body.endDate + "T23:59:59");
@@ -450,15 +469,15 @@ app.openapi(bulkCreateRoute, async (c) => {
         id: `temp-${idx}`,
         startTime: occ,
         durationMinutes: body.durationMinutes,
-        instructorId: body.instructorId || null,
+        instructorId: primaryInstructorId,
         locationId: body.locationId || null,
         title: body.title
     }));
 
     const conflictService = new ConflictService(db);
 
-    if (body.instructorId) {
-        const conflicts = await conflictService.checkInstructorConflictBatch(body.instructorId, proposedClasses as any);
+    for (const iid of instructorIds) {
+        const conflicts = await conflictService.checkInstructorConflictBatch(iid, proposedClasses as any);
         if (conflicts.length > 0) {
             return c.json({ error: `Instructor conflict at ${conflicts[0].proposedClass.startTime.toISOString()}` }, 400);
         }
@@ -499,7 +518,7 @@ app.openapi(bulkCreateRoute, async (c) => {
         return {
             id: crypto.randomUUID(),
             tenantId: tenant.id,
-            instructorId: body.instructorId || null,
+            instructorId: primaryInstructorId,
             locationId: body.locationId || null,
             title: body.title,
             description: body.description || null,
@@ -529,8 +548,12 @@ app.openapi(bulkCreateRoute, async (c) => {
         };
     });
 
-    if (classData.length > 0) {
-        await db.insert(classes).values(classData).run();
+    // Insert one row at a time so we can also populate classInstructors consistently (and avoid D1 bind limits).
+    for (const cls of classData) {
+        await db.insert(classes).values(cls).run();
+        for (const iid of instructorIds) {
+            await db.insert(classInstructors).values({ classId: cls.id, instructorId: iid }).run();
+        }
     }
 
     return c.json({ success: true, created: classData.length }, 201);

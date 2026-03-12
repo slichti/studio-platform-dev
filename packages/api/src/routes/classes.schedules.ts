@@ -113,7 +113,7 @@ function scheduleInstructorEmail(c: any, promise: Promise<void>) {
 }
 
 // Schemas
-const ClassSchema = z.object({
+export const ClassSchema = z.object({
     id: z.string(),
     title: z.string(),
     description: z.string().nullable().optional(),
@@ -164,7 +164,7 @@ const ClassSchema = z.object({
     }).optional().nullable()
 }).openapi('Class');
 
-const CreateClassSchema = z.object({
+const BaseCreateClassSchema = z.object({
     title: z.string(),
     description: z.string().optional(),
     startTime: z.string(), // ISO string from frontend
@@ -193,17 +193,44 @@ const CreateClassSchema = z.object({
     courseId: z.string().optional().nullable(),
     thumbnailUrl: z.string().optional().nullable(),
     // Gradient Styling (Phase 9)
-    gradientPreset: z.string().optional(),
-    gradientColor1: z.string().optional(),
-    gradientColor2: z.string().optional(),
-    gradientDirection: z.coerce.number().optional(),
+    gradientPreset: z.string().nullable().optional(),
+    gradientColor1: z.string().nullable().optional(),
+    gradientColor2: z.string().nullable().optional(),
+    gradientDirection: z.coerce.number().nullable().optional(),
     // Recurrence
     isRecurring: z.boolean().optional(),
     recurrenceRule: z.string().optional(),
     recurrenceEnd: z.string().optional()
+});
+
+export const CreateClassSchema = BaseCreateClassSchema.superRefine((val, ctx) => {
+    const ids = (val.instructorIds && val.instructorIds.length > 0)
+        ? val.instructorIds
+        : (val.instructorId ? [val.instructorId] : []);
+
+    if (['class', 'appointment'].includes(val.type) && ids.length > 1) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['instructorIds'],
+            message: 'Regular classes and private appointments can only have one instructor.',
+        });
+    }
 }).openapi('CreateClass');
 
-const UpdateClassSchema = CreateClassSchema.partial().openapi('UpdateClass');
+export const UpdateClassSchema = BaseCreateClassSchema.partial().superRefine((val, ctx) => {
+    // Only validate instructor cardinality if type is provided on update.
+    if (!val.type) return;
+    const ids = (val.instructorIds && val.instructorIds.length > 0)
+        ? val.instructorIds
+        : (val.instructorId ? [val.instructorId] : []);
+    if (['class', 'appointment'].includes(val.type) && ids.length > 1) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['instructorIds'],
+            message: 'Regular classes and private appointments can only have one instructor.',
+        });
+    }
+}).openapi('UpdateClass');
 
 // Routes
 
@@ -424,13 +451,18 @@ app.openapi(createRoute({
 
     // Use instructorId if instructorsIds is empty
     let newInstructorIds = body.instructorIds && body.instructorIds.length > 0 ? body.instructorIds : (instructorId ? [instructorId] : []);
+    const primaryInstructorId = newInstructorIds[0] || null;
 
 
     const cs = new ConflictService(db);
     const start = new Date(startTime);
     const dur = durationMinutes;
 
-    if (instructorId && (await cs.checkInstructorConflict(instructorId, start, dur)).length) return c.json({ error: "Instructor conflict" }, 409);
+    for (const iid of newInstructorIds) {
+        if ((await cs.checkInstructorConflict(iid, start, dur)).length) {
+            return c.json({ error: "Instructor conflict" }, 409);
+        }
+    }
     if (locationId && (await cs.checkRoomConflict(locationId, start, dur)).length) return c.json({ error: "Location conflict" }, 409);
 
     let zm = { id: null, url: null, pwd: null };
@@ -454,7 +486,7 @@ app.openapi(createRoute({
         await db.insert(classSeries).values({
             id: seriesId,
             tenantId: tenant.id,
-            instructorId: instructorId || null,
+            instructorId: primaryInstructorId,
             locationId: locationId || null,
             title,
             description: body.description,
@@ -509,7 +541,7 @@ app.openapi(createRoute({
             classData.push({
                 id: crypto.randomUUID(),
                 tenantId: tenant.id,
-                instructorId: instructorId || null,
+                instructorId: primaryInstructorId,
                 locationId: locationId || null,
                 seriesId,
                 title,
@@ -564,7 +596,7 @@ app.openapi(createRoute({
         const [nc] = await db.insert(classes).values({
             id,
             tenantId: tenant.id,
-            instructorId: instructorId || null,
+            instructorId: primaryInstructorId,
             locationId: locationId || null,
             title,
             description: body.description,
@@ -605,7 +637,7 @@ app.openapi(createRoute({
             }).run();
         }
 
-        scheduleInstructorEmail(c, sendInstructorAssignmentEmail(db, c.env, tenant, instructorId || null, title, start, dur));
+        scheduleInstructorEmail(c, sendInstructorAssignmentEmail(db, c.env, tenant, primaryInstructorId, title, start, dur));
 
         return c.json({ ...nc, startTime: nc.startTime.toISOString() }, 201);
     }

@@ -41,6 +41,7 @@ export function ChatWidget({ roomId, tenantId, tenantSlug, userId, userName, api
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [inputValue, setInputValue] = useState("");
     const [connected, setConnected] = useState(false);
+    const [connectionState, setConnectionState] = useState<'connecting' | 'connected' | 'reconnecting' | 'offline'>('connecting');
     const [users, setUsers] = useState<{ userId: string; userName: string }[]>([]);
     const wsRef = useRef<WebSocket | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -48,6 +49,7 @@ export function ChatWidget({ roomId, tenantId, tenantSlug, userId, userName, api
     const reconnectAttemptsRef = useRef(0);
     const reconnectTimeoutRef = useRef<number | null>(null);
     const isUnmountedRef = useRef(false);
+    const isDev = typeof import.meta !== 'undefined' ? (import.meta as any).env?.DEV === true : false;
 
     useEffect(() => {
         isOpenRef.current = isOpen;
@@ -56,6 +58,28 @@ export function ChatWidget({ roomId, tenantId, tenantSlug, userId, userName, api
 
     const effectiveUserId = userId || guestId;
     const effectiveUserName = userName || "Guest";
+
+    useEffect(() => {
+        const update = () => {
+            if (!navigator.onLine) {
+                setConnectionState('offline');
+                setConnected(false);
+            } else if (!connected) {
+                setConnectionState((prev) => (prev === 'offline' ? 'connecting' : prev));
+            }
+        };
+        if (typeof window !== 'undefined') {
+            window.addEventListener('online', update);
+            window.addEventListener('offline', update);
+        }
+        update();
+        return () => {
+            if (typeof window !== 'undefined') {
+                window.removeEventListener('online', update);
+                window.removeEventListener('offline', update);
+            }
+        };
+    }, [connected]);
 
     const scrollToBottom = useCallback(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -87,9 +111,15 @@ export function ChatWidget({ roomId, tenantId, tenantSlug, userId, userName, api
 
         const connect = () => {
             if (isUnmountedRef.current) return;
+            if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+                setConnectionState('offline');
+                setConnected(false);
+                return;
+            }
 
             const ws = new WebSocket(wsUrl);
             wsRef.current = ws;
+            setConnectionState(reconnectAttemptsRef.current > 0 ? 'reconnecting' : 'connecting');
 
             ws.onopen = () => {
                 if (isUnmountedRef.current) {
@@ -98,7 +128,8 @@ export function ChatWidget({ roomId, tenantId, tenantSlug, userId, userName, api
                 }
                 reconnectAttemptsRef.current = 0;
                 setConnected(true);
-                console.log("[Chat] Connected");
+                setConnectionState('connected');
+                if (isDev) console.log("[Chat] Connected");
             };
 
             ws.onmessage = (event) => {
@@ -138,7 +169,14 @@ export function ChatWidget({ roomId, tenantId, tenantSlug, userId, userName, api
 
                 const isNormalClosure = event.code === 1000 || event.code === 1001;
                 if (isNormalClosure) {
-                    console.log("[Chat] Disconnected");
+                    setConnectionState('connecting');
+                    if (isDev) console.log("[Chat] Disconnected");
+                    return;
+                }
+
+                // If offline, wait for browser online event to reconnect.
+                if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+                    setConnectionState('offline');
                     return;
                 }
 
@@ -146,7 +184,8 @@ export function ChatWidget({ roomId, tenantId, tenantSlug, userId, userName, api
                 reconnectAttemptsRef.current = attempt;
                 const delay = getReconnectDelay(attempt);
 
-                console.warn(`[Chat] Disconnected (code ${event.code}). Retrying in ${Math.round(delay / 1000)}s (attempt ${attempt})`);
+                setConnectionState('reconnecting');
+                if (isDev) console.warn(`[Chat] Disconnected (code ${event.code}). Retrying in ${Math.round(delay / 1000)}s (attempt ${attempt})`);
 
                 if (typeof window !== 'undefined') {
                     if (reconnectTimeoutRef.current !== null) {
@@ -158,7 +197,7 @@ export function ChatWidget({ roomId, tenantId, tenantSlug, userId, userName, api
 
             ws.onerror = (e) => {
                 if (isUnmountedRef.current) return;
-                console.warn("[Chat] Error:", e);
+                if (isDev) console.warn("[Chat] Error:", e);
             };
         };
 
@@ -260,11 +299,11 @@ export function ChatWidget({ roomId, tenantId, tenantSlug, userId, userName, api
                                 {messages.map((msg) => (
                                     <div
                                         key={msg.id}
-                                        className={`flex ${msg.userId === userId ? 'justify-end' : 'justify-start'}`}
+                                        className={`flex ${msg.userId === effectiveUserId ? 'justify-end' : 'justify-start'}`}
                                     >
                                         <div
-                                            style={msg.userId === userId ? { backgroundColor: brandColor } : undefined}
-                                            className={`max-w-[85%] p-3 rounded-2xl text-sm ${msg.userId === userId
+                                            style={msg.userId === effectiveUserId ? { backgroundColor: brandColor } : undefined}
+                                            className={`max-w-[85%] p-3 rounded-2xl text-sm ${msg.userId === effectiveUserId
                                                 ? 'text-white rounded-br-sm'
                                                 : 'bg-gray-100 text-zinc-900 rounded-bl-sm'
                                                 }`}
@@ -317,7 +356,13 @@ export function ChatWidget({ roomId, tenantId, tenantSlug, userId, userName, api
                             </div>
                             {!connected && (
                                 <div className="text-center mt-2">
-                                    <span className="text-[10px] text-zinc-400">Connecting to support...</span>
+                                    <span className="text-[10px] text-zinc-400">
+                                        {connectionState === 'offline'
+                                            ? 'Offline — reconnecting when you’re back online'
+                                            : connectionState === 'reconnecting'
+                                                ? `Reconnecting… (attempt ${reconnectAttemptsRef.current})`
+                                                : 'Connecting to support…'}
+                                    </span>
                                 </div>
                             )}
                         </div>
