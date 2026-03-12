@@ -22,7 +22,7 @@ This document outlines the procedures for backing up and restoring the Studio Pl
 - Check cron execution logs: `npx wrangler tail` during scheduled time
 - **Alerts:** Backup failures trigger:
   - **MonitoringService**: Email to `PLATFORM_ADMIN_EMAIL` and, if set, Slack via `SLACK_WEBHOOK_URL`
-  - **Optional:** Set `BACKUP_ALERT_WEBHOOK_URL` (e.g. PagerDuty inbound URL or a dedicated Slack webhook) to POST a JSON payload `{ event: 'backup.failed', message, timestamp, source }` on system or tenant backup failure
+  - **Optional:** Set `BACKUP_ALERT_WEBHOOK_URL` (e.g. Slack incoming webhook or PagerDuty) in Worker secrets. On system or D1 backup failure, the script POSTs a JSON payload: `{ text, backup_event: 'failure', message, error, ts }`. Configure in Cloudflare Dashboard or `wrangler secret put BACKUP_ALERT_WEBHOOK_URL`.
 
 ---
 
@@ -271,5 +271,6 @@ After any data recovery incident, complete a post-mortem document including:
 
 | Date | Change | Author |
 |------|--------|--------|
+| 2026-03-11 | Clarified BACKUP_ALERT_WEBHOOK_URL payload and wrangler secret setup | — |
 | 2026-02-06 | Initial DR procedures document | Antigravity |
 | 2026-02-22 | Added Related section (deploy checklist, rate-limit note) | — |
