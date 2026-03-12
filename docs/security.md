@@ -59,6 +59,7 @@ Following a comprehensive audit of 92+ API routes, all critical IDOR and privile
 ### IDOR Prevention
 Explicit ownership checks are placed **before** any DB read to prevent Insecure Direct Object Reference attacks:
 
+- **Booking on behalf**: Creating a booking for another member (any `memberId` other than the caller’s own) is allowed only when the caller has `manage_classes`, or when the tenant has **instructorCanManageEnrollments** enabled and the caller is an instructor (for that class, where applicable). Both entrypoints enforce this: `POST /bookings` and `POST /classes/:id/book`. All on-behalf creations are audited with action `booking.create_on_behalf` (actor, target member, classId, `via`: `manage_classes` or `instructor_enrollments`). Family/household booking can be added later via explicit family relations if needed.
 - **Bookings (reads)**: `GET /bookings/:id` verifies `booking.memberId === currentMember.id` OR `can('manage_classes')`.
 - **Bookings (mutations)**: `PATCH /bookings/:id` and `DELETE /bookings/:id` also assert that the booking's member belongs to the active tenant before allowing staff-level overrides.
 - **Tags**: `GET /tags/assignments/:targetId` verifies `can('manage_members')` — prevents students from discovering tag assignments on arbitrary member IDs.

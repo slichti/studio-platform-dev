@@ -4,8 +4,12 @@ import { classes, bookings, tenantMembers, users, progressMetricDefinitions, ten
 import { eq, and, inArray } from 'drizzle-orm';
 import { HonoContext } from '../types';
 import { BookingService } from '../services/bookings';
+import { AuditService } from '../services/audit';
 
 const app = new Hono<HonoContext>();
+
+// Booking-on-behalf policy (aligned with POST /bookings): allowed only for self, or when caller has
+// manage_classes, or when tenant enables instructorCanManageEnrollments and caller is an instructor.
 
 // POST /:id/book
 app.post('/:id/book', async (c) => {
@@ -13,7 +17,8 @@ app.post('/:id/book', async (c) => {
     const cid = c.req.param('id');
     const auth = c.get('auth');
     if (!auth?.userId) return c.json({ error: 'Auth required' }, 401);
-    const tid = c.get('tenant')!.id;
+    const tenant = c.get('tenant')!;
+    const tid = tenant.id;
     const body = await c.req.json().catch(() => ({}));
     const { attendanceType = 'in_person', memberId: targetId } = body;
 
@@ -23,8 +28,37 @@ app.post('/:id/book', async (c) => {
         await db.insert(tenantMembers).values({ id: mid, tenantId: tid, userId: auth.userId });
         mem = { id: mid } as any;
     }
-    const mid = targetId || mem?.id;
+    let mid = targetId || mem?.id;
     if (!mid) return c.json({ error: 'Member required' }, 400);
+
+    // If booking for another member, enforce on-behalf policy and audit
+    if (targetId) {
+        const tm = await db.select().from(tenantMembers).where(and(eq(tenantMembers.id, targetId), eq(tenantMembers.tenantId, tid))).get();
+        if (!tm) return c.json({ error: 'Target member not found' }, 404);
+        if (tm.userId !== auth.userId) {
+            const canManageClasses = c.get('can')('manage_classes');
+            const allowInstructorEnrollments = (tenant.settings as any)?.classSettings?.instructorCanManageEnrollments === true;
+            let isInstructor = false;
+            if (allowInstructorEnrollments && mem) {
+                const roleRow = await db.select().from(tenantRoles).where(and(eq(tenantRoles.memberId, mem.id), eq(tenantRoles.role, 'instructor'))).get();
+                isInstructor = !!roleRow;
+            }
+            if (!canManageClasses && !(allowInstructorEnrollments && isInstructor)) {
+                return c.json({ error: 'Forbidden' }, 403);
+            }
+            const audit = new AuditService(db);
+            await audit.log({
+                actorId: auth.userId,
+                tenantId: tid,
+                action: 'booking.create_on_behalf',
+                targetId: tm.id,
+                targetType: 'tenant_member',
+                details: { classId: cid, targetMemberId: tm.id, attendanceType: attendanceType || 'in_person', via: canManageClasses ? 'manage_classes' : 'instructor_enrollments' },
+                ipAddress: c.req.header('CF-Connecting-IP') || undefined
+            });
+        }
+        mid = tm.id;
+    }
 
     const service = new BookingService(db, c.env);
     try {
