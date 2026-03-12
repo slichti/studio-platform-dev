@@ -49,7 +49,8 @@ export async function loader(args: LoaderFunctionArgs) {
                 env: {
                     VITE_API_URL: process.env.VITE_API_URL,
                     VITE_CLERK_PUBLISHABLE_KEY: process.env.VITE_CLERK_PUBLISHABLE_KEY,
-                    VITE_GA_ID: process.env.VITE_GA_ID
+                    VITE_GA_ID: process.env.VITE_GA_ID,
+                    VITE_PLATFORM_DOMAIN: process.env.VITE_PLATFORM_DOMAIN,
                 }
             };
         });
