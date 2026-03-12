@@ -6,7 +6,9 @@ main = "src/index.ts"
 routes = [
   # Bind the production API hostname to this Worker.
   # This ensures `https://api.slichti.org/*` is served by `studio-platform-api`.
-  { pattern = "api.slichti.org/*", zone_name = "slichti.org" }
+  { pattern = "api.slichti.org/*", zone_name = "slichti.org" },
+  # Legacy/alternate API hostname.
+  { pattern = "studio-platform-api.slichti.org/*", zone_name = "slichti.org" }
 ]
 
 [triggers]
