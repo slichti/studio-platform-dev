@@ -1,5 +1,18 @@
 # Observability & Golden Signals
 
+## Target SLOs (Service Level Objectives)
+
+Minimal targets for key API behavior; use these for alerts and load-test thresholds.
+
+| Signal | Target | Scope |
+|--------|--------|--------|
+| **Latency (read)** | p95 &lt; 500 ms | GET /classes, GET /bookings, public schedule |
+| **Latency (write)** | p95 &lt; 1 s | POST /bookings, POST /classes/:id/book |
+| **Error rate** | &lt; 1% | All non-5xx; 4xx allowed for validation/auth |
+| **Availability** | 99%+ | Health/diagnostics endpoints |
+
+Load tests (k6) in `packages/api/k6/` enforce these locally or against a staging URL when `BASE_URL` is set. CI can run them on a schedule or when `LOAD_TEST_BASE_URL` is configured.
+
 ## Structured Logging
 
 All API requests emit structured JSON logs with:

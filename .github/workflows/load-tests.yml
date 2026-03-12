@@ -1,0 +1,37 @@
+# Run k6 load tests (optional)
+# Triggered on schedule or push to main; runs only when LOAD_TEST_BASE_URL secret is set.
+name: Load tests
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'  # Mondays 06:00 UTC
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  load-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+      - run: corepack enable && corepack prepare npm@11.7.0 --activate
+      - run: npm ci
+      - name: Install k6 (Linux)
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update && sudo apt-get install -y k6
+      - name: Run k6 browse (schedule / read load)
+        env:
+          BASE_URL: ${{ secrets.LOAD_TEST_BASE_URL }}
+          TENANT_SLUG: ${{ secrets.LOAD_TEST_TENANT_SLUG || 'test-studio' }}
+        run: |
+          if [ -z "${BASE_URL}" ]; then
+            echo "LOAD_TEST_BASE_URL not set; skipping. Set it in repo secrets to run k6 against staging."
+            exit 0
+          fi
+          cd packages/api && k6 run k6/browse.js -e BASE_URL="${BASE_URL}" -e TENANT_SLUG="${TENANT_SLUG}"
