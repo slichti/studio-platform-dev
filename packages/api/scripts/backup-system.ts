@@ -6,6 +6,7 @@
  */
 
 import { createDb } from '../src/db';
+import { sendBackupAlert } from './backup-alert';
 import {
     tenants, users, tenantMembers, classes, bookings, posOrders,
     locations, membershipPlans, classPackDefinitions, purchasedPacks,
@@ -150,31 +151,39 @@ export async function createSystemBackup(env: any): Promise<{ key: string; size:
 
     console.log(`📦 Creating system backup: ${key}`);
 
-    // Export database
-    const data = await exportFullDatabase(env);
-    const jsonContent = JSON.stringify(data, null, 2);
-    const sizeBytes = new TextEncoder().encode(jsonContent).length;
+    try {
+        // Export database
+        const data = await exportFullDatabase(env);
+        const jsonContent = JSON.stringify(data, null, 2);
+        const sizeBytes = new TextEncoder().encode(jsonContent).length;
 
-    // Upload to R2
-    await env.R2.put(key, jsonContent, {
-        customMetadata: {
-            createdAt: new Date().toISOString(),
-            recordCount: String(data.metadata.totalRecords),
-            tableCount: String(data.metadata.tableCount),
-            sizeBytes: String(sizeBytes)
-        }
-    });
+        // Upload to R2
+        await env.R2.put(key, jsonContent, {
+            customMetadata: {
+                createdAt: new Date().toISOString(),
+                recordCount: String(data.metadata.totalRecords),
+                tableCount: String(data.metadata.tableCount),
+                sizeBytes: String(sizeBytes)
+            }
+        });
 
-    console.log(`   ✓ Uploaded to R2: ${key} (${(sizeBytes / 1024 / 1024).toFixed(2)} MB)`);
+        console.log(`   ✓ Uploaded to R2: ${key} (${(sizeBytes / 1024 / 1024).toFixed(2)} MB)`);
 
-    // Clean up old backups (keep 90 days)
-    await cleanupOldSystemBackups(env);
+        // Clean up old backups (keep 90 days)
+        await cleanupOldSystemBackups(env);
 
-    return {
-        key,
-        size: sizeBytes,
-        recordCount: data.metadata.totalRecords
-    };
+        return {
+            key,
+            size: sizeBytes,
+            recordCount: data.metadata.totalRecords
+        };
+    } catch (error: any) {
+        await sendBackupAlert(env, 'failure', `🚨 System backup failed: ${error?.message ?? error}`, {
+            error: error?.message ?? String(error),
+            key,
+        });
+        throw error;
+    }
 }
 
 /**

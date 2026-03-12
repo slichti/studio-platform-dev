@@ -1,12 +1,15 @@
 import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import { sendBackupAlert } from './backup-alert';
 
 const DB_NAME = 'studio-platform-db';
 const BACKUP_RETENTION_DAYS = 90;
 
 interface Env {
     R2: any; // R2Bucket type from @cloudflare/workers-types
+    /** Optional: Slack incoming webhook or PagerDuty etc. POST URL; on backup failure we send a JSON payload. */
+    BACKUP_ALERT_WEBHOOK_URL?: string;
 }
 
 /**
@@ -81,20 +84,15 @@ export async function backupDatabase(env: Env, isLocal: boolean = false): Promis
         }
 
         console.log(`✅ Backup completed successfully: ${filename}`);
-
-        // Optional: Send success notification (uncomment when Slack is configured)
-        // await sendSlackNotification(`✅ Daily database backup completed: ${filename} (${(sizeBytes / 1024 / 1024).toFixed(2)} MB)`);
-
     } catch (error: any) {
         console.error('❌ Backup failed:', error.message);
         if (error.stdout) console.error('stdout:', error.stdout.toString());
         if (error.stderr) console.error('stderr:', error.stderr.toString());
 
-        // CRITICAL: Alert on failure
-        // TODO: Send alert to Slack/PagerDuty
-        // await sendSlackNotification(`🚨 DATABASE BACKUP FAILED: ${error.message}`);
-        // await sendPagerDutyAlert('Database backup failed', error);
-
+        await sendBackupAlert(env, 'failure', `🚨 Database backup failed: ${error.message}`, {
+            error: error.message,
+            databaseName: DB_NAME,
+        });
         throw error;
     }
 }
