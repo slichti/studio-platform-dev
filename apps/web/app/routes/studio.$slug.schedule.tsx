@@ -46,6 +46,11 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
     const {
         data: infiniteData,
         isLoading: isLoadingClasses,
+        isError: isClassesError,
+        error: classesError,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage,
     } = useInfiniteClasses(slug!, {
         status: includeArchived ? 'all' : 'active',
         // Calendar view needs a full-year window of classes; use a higher limit to avoid
@@ -100,6 +105,16 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
             }
         }
     }, [classesData]);
+
+    // Calendar view expects a dense year-long window. useInfiniteClasses only loads the first page by default,
+    // so we auto-fetch additional pages until exhausted (capped to avoid runaway requests).
+    useEffect(() => {
+        const MAX_PAGES = 5; // 5 * 1000 = 5000 classes max on initial load
+        const pagesLoaded = infiniteData?.pages?.length ?? 0;
+        if (!isLoadingClasses && !isClassesError && hasNextPage && !isFetchingNextPage && pagesLoaded > 0 && pagesLoaded < MAX_PAGES) {
+            fetchNextPage();
+        }
+    }, [infiniteData?.pages?.length, isLoadingClasses, isClassesError, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
     // Handlers
     const handleCreateSuccess = () => {
@@ -285,6 +300,13 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
                     {isLoadingClasses ? (
                         <div className="p-8 h-full">
                             <SkeletonLoader type="card" count={1} className="h-full" />
+                        </div>
+                    ) : isClassesError ? (
+                        <div className="p-6">
+                            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-200">
+                                Failed to load classes for this calendar.{" "}
+                                <span className="font-mono text-xs">{(classesError as any)?.message || 'Unknown error'}</span>
+                            </div>
                         </div>
                     ) : (
                         <WeeklyCalendar
