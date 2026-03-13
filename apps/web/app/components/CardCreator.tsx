@@ -60,6 +60,7 @@ const FONT_SIZE_OPTIONS = [
     { label: 'L', titlePx: 42, subtitlePx: 18, lineHeight: 48 },
     { label: 'XL', titlePx: 52, subtitlePx: 22, lineHeight: 56 },
     { label: '2XL', titlePx: 64, subtitlePx: 26, lineHeight: 70 },
+    { label: '3XL', titlePx: 78, subtitlePx: 30, lineHeight: 84 },
 ];
 
 // --- Canvas rendering ---

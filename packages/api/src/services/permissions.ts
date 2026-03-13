@@ -26,7 +26,8 @@ export type Permission =
     | 'view_pos'
     | 'view_progress'
     | 'manage_progress'
-    |     'manage_payroll';
+    | 'manage_payroll'
+    | 'manage_courses';
 
 /** All known permissions (for "view my permissions" and policy layer). */
 export const ALL_PERMISSIONS: Permission[] = [
@@ -36,7 +37,7 @@ export const ALL_PERMISSIONS: Permission[] = [
     'check_in_students', 'manage_pos', 'view_pos', 'manage_inventory',
     'manage_marketing', 'view_settings', 'manage_settings', 'manage_content',
     'manage_leads', 'manage_community', 'view_commerce', 'manage_commerce',
-    'view_progress', 'manage_progress', 'manage_payroll'
+    'view_progress', 'manage_progress', 'manage_payroll', 'manage_courses'
 ];
 
 export const RolePermissions: Record<string, Permission[]> = {
@@ -51,7 +52,7 @@ export const RolePermissions: Record<string, Permission[]> = {
         'manage_pos', 'view_pos', 'manage_inventory',
         'manage_marketing',
         'view_settings', 'manage_settings',
-        'manage_content',
+        'manage_content', 'manage_courses',
         'manage_leads',
         'manage_community',
         'view_commerce', 'manage_commerce',
@@ -68,7 +69,7 @@ export const RolePermissions: Record<string, Permission[]> = {
         'manage_pos', 'view_pos', 'manage_inventory',
         'manage_marketing',
         'view_settings', 'manage_settings',
-        'manage_content',
+        'manage_content', 'manage_courses',
         'manage_leads',
         'manage_community',
         'view_commerce', 'manage_commerce',
