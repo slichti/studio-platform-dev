@@ -41,6 +41,9 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: 'packages/api'
           command: d1 migrations apply DB --remote
+      # Requires CLOUDFLARE_API_TOKEN with Workers Scripts:Edit + Zone Workers Routes:Edit
+      # for slichti.org (wrangler.toml routes). See docs/deploy-cloudflare.md if deploy fails
+      # after "Uploaded studio-platform-api" with authentication error 10000.
       - name: Deploy API
         uses: cloudflare/wrangler-action@v3
         with:
