@@ -30,6 +30,11 @@ export default function LocationsSettings() {
     const [isCreating, setIsCreating] = useState(false);
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [deleteErrorInfo, setDeleteErrorInfo] = useState<{
+        message: string;
+        classes: { id: string; title: string; startTime: string }[];
+        totalClasses: number;
+    } | null>(null);
 
     // Handlers
     const refresh = () => queryClient.invalidateQueries({ queryKey: ['locations', slug] });
@@ -45,7 +50,21 @@ export default function LocationsSettings() {
             toast.success("Location deleted");
             refresh();
         } catch (e: any) {
-            toast.error(e.message || "Failed to delete location");
+            const total = e?.data?.details?.totalClasses;
+            const list = e?.data?.details?.classes;
+            if (total && Array.isArray(list) && list.length > 0) {
+                setDeleteErrorInfo({
+                    message: e.message || "Unable to delete this location because it still has active classes.",
+                    classes: list.map((c: any) => ({
+                        id: c.id,
+                        title: c.title,
+                        startTime: typeof c.startTime === 'string' ? c.startTime : new Date(c.startTime).toISOString()
+                    })),
+                    totalClasses: total
+                });
+            } else {
+                toast.error(e.message || "Failed to delete location");
+            }
         } finally {
             setConfirmDeleteId(null);
         }
@@ -222,6 +241,43 @@ export default function LocationsSettings() {
                 confirmText="Delete"
                 isDestructive
             />
+
+            {/* Delete blocked error modal */}
+            {deleteErrorInfo && (
+                <Dialog open={!!deleteErrorInfo} onOpenChange={(open) => !open && setDeleteErrorInfo(null)}>
+                    <DialogContent className="sm:max-w-lg">
+                        <DialogHeader>
+                            <DialogTitle>Unable to delete location</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-3 text-sm text-zinc-700 dark:text-zinc-200">
+                            <p>{deleteErrorInfo.message}</p>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                                The following classes are still scheduled at this location:
+                            </p>
+                            <ul className="max-h-48 overflow-y-auto space-y-1 text-xs border border-zinc-200 dark:border-zinc-700 rounded-md p-2 bg-zinc-50 dark:bg-zinc-900/40">
+                                {deleteErrorInfo.classes.map(cls => (
+                                    <li key={cls.id} className="flex items-center justify-between gap-2">
+                                        <span className="font-medium truncate">{cls.title}</span>
+                                        <span className="text-[11px] text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
+                                            {new Date(cls.startTime).toLocaleString()}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                            {deleteErrorInfo.totalClasses > deleteErrorInfo.classes.length && (
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                                    …and {deleteErrorInfo.totalClasses - deleteErrorInfo.classes.length} more.
+                                </p>
+                            )}
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setDeleteErrorInfo(null)}>
+                                Close
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            )}
         </div>
     );
 }

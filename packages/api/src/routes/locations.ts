@@ -80,7 +80,26 @@ app.delete('/:id', async (c) => {
         .get();
 
     if (classCount && classCount.count > 0) {
-        return c.json({ error: "Cannot delete location with active classes. Please reassign or delete classes first." }, 409);
+        // Provide a small sample of blocking classes so the UI can explain why deletion failed.
+        const blockingClasses = await db.select({
+            id: classes.id,
+            title: classes.title,
+            startTime: classes.startTime
+        })
+            .from(classes)
+            .where(and(eq(classes.locationId, id), eq(classes.tenantId, tenant.id)))
+            .orderBy(sql`CASE WHEN ${classes.startTime} >= CURRENT_TIMESTAMP THEN 0 ELSE 1 END`, classes.startTime)
+            .limit(10)
+            .all();
+
+        return c.json({
+            error: "Cannot delete location with active classes. Please reassign or delete classes first.",
+            code: "LOCATION_HAS_CLASSES",
+            details: {
+                totalClasses: classCount.count,
+                classes: blockingClasses
+            }
+        }, 409);
     }
 
     await db.delete(locations).where(and(eq(locations.id, id), eq(locations.tenantId, tenant.id)));

@@ -256,23 +256,36 @@ export function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDat
                                             </span>
                                         </div>
                                         <div className="space-y-0.5">
-                                            {dayEvents.map(event => (
-                                                <div
-                                                    key={event.id}
-                                                    className="text-[11px] px-1 py-0.5 rounded bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-100 cursor-pointer leading-tight"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        onSelectEvent({ resource: event.resource });
-                                                    }}
-                                                >
-                                                    <span className="font-medium mr-1 whitespace-nowrap">
-                                                        {format(event.start, 'p')}
-                                                    </span>
-                                                    <span className="inline-block align-middle whitespace-normal break-words">
-                                                        {event.title}
-                                                    </span>
-                                                </div>
-                                            ))}
+                                            {dayEvents.map(event => {
+                                                const gradient = event.resource?.gradientColor1 && event.resource?.gradientColor2
+                                                    ? `linear-gradient(${event.resource.gradientDirection || 135}deg, ${event.resource.gradientColor1}, ${event.resource.gradientColor2})`
+                                                    : event.resource?.gradientColor1 || 'var(--calendar-event-bg, #eff6ff)';
+                                                const useLightText = !!event.resource?.gradientColor1;
+                                                return (
+                                                    <button
+                                                        key={event.id}
+                                                        type="button"
+                                                        className="w-full text-left text-[11px] px-1 py-0.5 rounded cursor-pointer leading-tight shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                        style={{
+                                                            background: gradient,
+                                                            border: event.resource?.gradientColor1 ? 'none' : '1px solid var(--calendar-event-border, #bfdbfe)',
+                                                            color: useLightText ? '#ffffff' : 'var(--calendar-event-text, #1e40af)',
+                                                            textShadow: useLightText ? '0 1px 2px rgba(0,0,0,0.35)' : 'none'
+                                                        }}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            onSelectEvent({ resource: event.resource });
+                                                        }}
+                                                    >
+                                                        <span className="font-semibold mr-1 whitespace-nowrap">
+                                                            {format(event.start, 'p')}
+                                                        </span>
+                                                        <span className="inline-block align-middle whitespace-normal break-words">
+                                                            {event.title}
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
                                     </button>
                                 );
