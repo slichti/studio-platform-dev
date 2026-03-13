@@ -300,62 +300,68 @@ app.openapi(createRoute({
 
     const classIds = results.map(r => r.id);
 
-    // Optimized combined count query
-    // SQLite has a limit on the number of bound parameters (999). When there are many
-    // classes in the window, we need to batch the IN (...) queries to avoid hitting it.
-    type BookingCountRow = { classId: string; status: string | null; count: number };
-    const counts: BookingCountRow[] = [];
-    const STATUS_FILTER = ['confirmed', 'waitlisted'] as const;
-    const CLASS_ID_BATCH_SIZE = 300; // 300 ids * 1 + 2 statuses <= 302 params per query
-
-    for (let i = 0; i < classIds.length; i += CLASS_ID_BATCH_SIZE) {
-        const batchIds = classIds.slice(i, i + CLASS_ID_BATCH_SIZE);
-        if (batchIds.length === 0) continue;
-
-        const batchCounts = await db.select({
-            classId: bookings.classId,
-            status: bookings.status,
-            count: sql<number>`count(*)`
-        })
-            .from(bookings)
-            .where(and(inArray(bookings.classId, batchIds), inArray(bookings.status, STATUS_FILTER)))
-            .groupBy(bookings.classId, bookings.status)
-            .all();
-
-        counts.push(...batchCounts);
-    }
-
     const bm = new Map();
     const wm = new Map();
-    counts.forEach((row: any) => {
-        if (row.status === 'confirmed') bm.set(row.classId, row.count);
-        if (row.status === 'waitlisted') wm.set(row.classId, row.count);
-    });
-
-    // Fetch My Bookings efficiently
     let myBookingsMap = new Map();
-    if (auth?.userId) {
-        const member = c.get('member');
-        if (member) {
-            const myBookings: any[] = [];
-            const MY_BOOKINGS_BATCH_SIZE = 300;
 
-            for (let i = 0; i < classIds.length; i += MY_BOOKINGS_BATCH_SIZE) {
-                const batchIds = classIds.slice(i, i + MY_BOOKINGS_BATCH_SIZE);
-                if (batchIds.length === 0) continue;
+    // Optimized combined count query. If anything fails (e.g. edge-case DB error),
+    // we log and continue returning classes without counts so the calendar still works.
+    try {
+        // SQLite has a limit on the number of bound parameters (999). When there are many
+        // classes in the window, we need to batch the IN (...) queries to avoid hitting it.
+        type BookingCountRow = { classId: string; status: string | null; count: number };
+        const counts: BookingCountRow[] = [];
+        const STATUS_FILTER = ['confirmed', 'waitlisted'] as const;
+        const CLASS_ID_BATCH_SIZE = 300; // 300 ids * 1 + 2 statuses <= 302 params per query
 
-                const batch = await db.query.bookings.findMany({
-                    where: and(
-                        inArray(bookings.classId, batchIds),
-                        eq(bookings.memberId, member.id),
-                        inArray(bookings.status, STATUS_FILTER)
-                    )
-                });
-                myBookings.push(...batch);
-            }
+        for (let i = 0; i < classIds.length; i += CLASS_ID_BATCH_SIZE) {
+            const batchIds = classIds.slice(i, i + CLASS_ID_BATCH_SIZE);
+            if (batchIds.length === 0) continue;
 
-            myBookings.forEach((b: any) => myBookingsMap.set(b.classId, b));
+            const batchCounts = await db.select({
+                classId: bookings.classId,
+                status: bookings.status,
+                count: sql<number>`count(*)`
+            })
+                .from(bookings)
+                .where(and(inArray(bookings.classId, batchIds), inArray(bookings.status, STATUS_FILTER)))
+                .groupBy(bookings.classId, bookings.status)
+                .all();
+
+            counts.push(...batchCounts);
         }
+
+        counts.forEach((row: any) => {
+            if (row.status === 'confirmed') bm.set(row.classId, row.count);
+            if (row.status === 'waitlisted') wm.set(row.classId, row.count);
+        });
+
+        // Fetch My Bookings efficiently
+        if (auth?.userId) {
+            const member = c.get('member');
+            if (member) {
+                const myBookings: any[] = [];
+                const MY_BOOKINGS_BATCH_SIZE = 300;
+
+                for (let i = 0; i < classIds.length; i += MY_BOOKINGS_BATCH_SIZE) {
+                    const batchIds = classIds.slice(i, i + MY_BOOKINGS_BATCH_SIZE);
+                    if (batchIds.length === 0) continue;
+
+                    const batch = await db.query.bookings.findMany({
+                        where: and(
+                            inArray(bookings.classId, batchIds),
+                            eq(bookings.memberId, member.id),
+                            inArray(bookings.status, STATUS_FILTER)
+                        )
+                    });
+                    myBookings.push(...batch);
+                }
+
+                myBookings.forEach((b: any) => myBookingsMap.set(b.classId, b));
+            }
+        }
+    } catch (err) {
+        console.error('[CLASSES] Failed to compute booking counts/myBookings for classes list', err);
     }
 
     return c.json(results.map(r => {
