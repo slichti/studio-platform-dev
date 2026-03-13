@@ -8,6 +8,8 @@ export interface Bindings {
     DB: D1Database;
     JWT_SECRET?: string;
     ENCRYPTION_SECRET?: string;
+    /** Optional pepper for API key HMAC; falls back to ENCRYPTION_SECRET when hashing keys at rest. */
+    API_KEY_PEPPER?: string;
     RESEND_API_KEY?: string;
     TWILIO_ACCOUNT_SID?: string;
     CLOUDFLARE_ACCOUNT_ID?: string;

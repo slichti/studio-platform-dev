@@ -2655,7 +2655,8 @@ export const apiKeys = sqliteTable('api_keys', {
     id: text('id').primaryKey(),
     tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
     name: text('name').notNull(), // e.g. "Zapier Integration"
-    keyHash: text('key_hash').notNull().unique(), // SHA-256 hash
+    // HMAC-SHA256(pepper, rawKey) hex when pepper set; else legacy SHA-256(rawKey) hex
+    keyHash: text('key_hash').notNull().unique(),
     prefix: text('prefix').notNull(), // First 7 chars + sp_
     lastUsedAt: integer('last_used_at', { mode: 'timestamp' }),
     expiresAt: integer('expires_at', { mode: 'timestamp' }),

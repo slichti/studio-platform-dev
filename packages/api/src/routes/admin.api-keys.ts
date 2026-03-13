@@ -68,7 +68,11 @@ app.openapi(createRoute({
     const db = createDb(c.env.DB);
     const { name, expiresAt } = c.req.valid('json');
     const service = new ApiKeyService(db, tenant.id);
-    const result = await service.createKey(name, expiresAt ? new Date(expiresAt) : undefined);
+    const result = await service.createKey(
+        name,
+        expiresAt ? new Date(expiresAt) : undefined,
+        c.env
+    );
     return c.json(result, 201);
 });
 

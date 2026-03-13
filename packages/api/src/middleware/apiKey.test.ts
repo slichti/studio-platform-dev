@@ -39,7 +39,11 @@ describe('apiKeyMiddleware', () => {
         mockVerifyKey.mockResolvedValueOnce({ id: 'key_1', tenantId: 'tenant_1', name: 'Test Key' });
         const { c, next, setFn } = createMockContext('Bearer sp_abcdef1234567890');
         await apiKeyMiddleware(c, next);
-        expect(mockVerifyKey).toHaveBeenCalledWith(expect.anything(), 'sp_abcdef1234567890');
+        expect(mockVerifyKey).toHaveBeenCalledWith(
+            expect.anything(),
+            'sp_abcdef1234567890',
+            expect.objectContaining({ DB: {} })
+        );
         expect(setFn).toHaveBeenCalledWith('tenant', { id: 'tenant_1', slug: 'test', name: 'Test' });
         expect(setFn).toHaveBeenCalledWith('auth', expect.objectContaining({
             userId: 'system_key',

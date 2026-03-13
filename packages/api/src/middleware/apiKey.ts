@@ -14,7 +14,7 @@ export const apiKeyMiddleware = createMiddleware<{ Variables: Variables, Binding
         const db = createDb(c.env.DB);
 
         try {
-            const keyRecord = await ApiKeyService.verifyKey(db, token);
+            const keyRecord = await ApiKeyService.verifyKey(db, token, c.env);
             if (keyRecord) {
                 // Resolve tenant immediately
                 const tenant = await db.query.tenants.findFirst({

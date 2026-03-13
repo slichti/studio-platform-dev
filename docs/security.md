@@ -96,6 +96,13 @@ External webhook payloads (Gympass, ClassPass) validate IDs against strict forma
 /^[a-zA-Z0-9_-]{1,64}$/.test(tenantId)
 ```
 
+## API Keys (Developer Platform)
+
+- **Storage**: New keys are hashed with **HMAC-SHA256(pepper, rawKey)** when `ENCRYPTION_SECRET` (≥32 chars) or `API_KEY_PEPPER` is set, so a DB leak alone does not allow offline brute force. Optional `API_KEY_PEPPER` overrides for key hashing only.
+- **Legacy**: Existing rows keyed by **SHA-256(rawKey)** remain verifiable; `verifyKey` tries peppered hash first, then legacy.
+- **Format**: Raw keys must match `sp_` + 32 hex chars; malformed Bearer tokens are rejected without DB lookup.
+- **Verification**: `ApiKeyService.verifyKey(db, rawKey, env)` resolves tenant from the key record only; middleware sets `tenant` from `keyRecord.tenantId` after DB load.
+
 ## Safe Database Operations
 
 All array-based `WHERE ... IN (...)` operations use Drizzle's `inArray()` helper to ensure parameterized, type-safe queries. Raw SQL template literals with array interpolation have been removed.
