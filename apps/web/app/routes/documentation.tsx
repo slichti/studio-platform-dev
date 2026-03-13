@@ -2,7 +2,7 @@
 import { Outlet, NavLink, Link, useLoaderData, type LoaderFunctionArgs, redirect } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { useUser } from "@clerk/react-router";
-import { Book, Menu, X, Search, GraduationCap, Smartphone, Settings, Shield, Server, Users, FileText, ShoppingCart, Globe, MessageSquare, BarChart3, Layout, Database, Key } from "lucide-react";
+import { Book, Menu, X, Search, GraduationCap, Smartphone, Settings, Shield, Server, Users, FileText, ShoppingCart, Globe, MessageSquare, BarChart3, Layout, Database, Key, Calendar } from "lucide-react";
 import { useState, useEffect } from "react";
 import { apiRequest } from "../utils/api";
 import { ThemeToggle } from "../components/ThemeToggle";
