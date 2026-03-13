@@ -5,7 +5,12 @@ import { type LoaderFunctionArgs, redirect } from "react-router";
  * Enhanced getAuth that supports E2E bypass cookies in non-production environments.
  */
 export async function getAuth(args: any) {
-    const isDev = process.env.NODE_ENV === 'development' || process.env.ENVIRONMENT === 'test';
+    // Never allow E2E bypass in production — even if ENVIRONMENT is mis-set
+    const isProd =
+        process.env.NODE_ENV === 'production' || process.env.ENVIRONMENT === 'production';
+    const isDev =
+        !isProd &&
+        (process.env.NODE_ENV === 'development' || process.env.ENVIRONMENT === 'test');
 
     if (isDev) {
         const cookieHeader = args.request.headers.get("Cookie") || "";
@@ -30,7 +35,11 @@ export async function getAuth(args: any) {
  * Enhanced rootAuthLoader that supports E2E bypass.
  */
 export async function rootAuthLoader(args: LoaderFunctionArgs, callback: (args: any) => any) {
-    const isDev = process.env.NODE_ENV === 'development' || process.env.ENVIRONMENT === 'test';
+    const isProd =
+        process.env.NODE_ENV === 'production' || process.env.ENVIRONMENT === 'production';
+    const isDev =
+        !isProd &&
+        (process.env.NODE_ENV === 'development' || process.env.ENVIRONMENT === 'test');
 
     if (isDev) {
         const cookieHeader = args.request.headers.get("Cookie") || "";
