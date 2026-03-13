@@ -45,6 +45,8 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
         });
 
         // [NEW] Virtual Platform Tenant Fallback for Headers
+        // SECURITY: Synthetic tenant is for platform-admin-only routes; handlers must still
+        // enforce isPlatformAdmin (or equivalent) — never treat as a normal studio tenant for IDOR-sensitive reads.
         if (!tenant && headerTenantSlug === 'platform') {
             console.log('[TenantMiddleware] Synthesizing virtual Platform tenant from Header');
             tenant = {

@@ -1,5 +1,10 @@
 import Stripe from 'stripe';
 
+/** Sanitize user-controlled fragments for Stripe Search (Lucene-like) query strings. */
+function sanitizeStripeSearchFragment(value: string, maxLen = 200): string {
+    return value.replace(/["\\]/g, '').trim().slice(0, maxLen);
+}
+
 export class StripeService {
     private stripe: Stripe;
 
@@ -469,14 +474,13 @@ export class StripeService {
 
     async searchCustomers(query: string, tenantId?: string, connectedAccountId?: string | null) {
         const { client, options } = this.getClient(connectedAccountId);
-        // Sanitize query to prevent injection into Stripe search syntax.
-        // Stripe search uses Lucene-like operators; strip quotes and backslashes.
-        const safe = query.replace(/["\\]/g, '').trim().slice(0, 200);
+        // Centralized sanitization — Stripe search uses Lucene-like operators
+        const safe = sanitizeStripeSearchFragment(query);
         if (!safe) return { data: [] };
 
         let searchQuery = `(name~"${safe}" OR email~"${safe}")`;
         if (tenantId) {
-            const safeTenantId = tenantId.replace(/["\\]/g, '').trim();
+            const safeTenantId = sanitizeStripeSearchFragment(tenantId, 128);
             searchQuery += ` AND metadata['tenantId']:'${safeTenantId}'`;
         }
 
@@ -488,7 +492,7 @@ export class StripeService {
 
     async searchProductsByTenant(tenantId: string, connectedAccountId?: string | null) {
         const { client, options } = this.getClient(connectedAccountId);
-        const safe = tenantId.replace(/["\\]/g, '').trim();
+        const safe = sanitizeStripeSearchFragment(tenantId, 128);
         return client.products.search({
             query: `active:'true' AND metadata['tenantId']:'${safe}'`,
             limit: 100
