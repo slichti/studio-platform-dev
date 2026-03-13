@@ -139,6 +139,7 @@ export default function HelpLayout() {
             items: [
                 ...(hrefVisible("/documentation/guides/waiver") ? [{ name: "Create a Waiver", href: "/documentation/guides/waiver", icon: FileText }] : []),
                 ...(hrefVisible("/documentation/guides/class-packs") ? [{ name: "Setup Class Packs", href: "/documentation/guides/class-packs", icon: ShoppingCart }] : []),
+                ...(hrefVisible("/documentation/guides/private-sessions") ? [{ name: "Offer Private Sessions", href: "/documentation/guides/private-sessions", icon: Calendar }] : []),
             ]
         }
     ].filter((group) => group.items.length > 0) as { category: string; items: { name: string; href: string; icon: any }[] }[];
