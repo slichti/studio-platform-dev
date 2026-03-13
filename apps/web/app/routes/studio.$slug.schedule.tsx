@@ -43,6 +43,16 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
         return d;
     }, []);
 
+    const classesFilters = useMemo(
+        () => ({
+            status: includeArchived ? 'all' : 'active',
+            // Calendar view needs a full-year window of classes.
+            limit: 1000,
+            dateRange: { start: startDate, end: new Date(startDate.getTime() + 1000 * 60 * 60 * 24 * 365) }
+        }),
+        [includeArchived, startDate]
+    );
+
     const {
         data: infiniteData,
         isLoading: isLoadingClasses,
@@ -51,13 +61,7 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
         fetchNextPage,
         hasNextPage,
         isFetchingNextPage,
-    } = useInfiniteClasses(slug!, {
-        status: includeArchived ? 'all' : 'active',
-        // Calendar view needs a full-year window of classes; use a higher limit to avoid
-        // dropping future events when tenants have many sessions scheduled.
-        limit: 1000,
-        dateRange: { start: startDate, end: new Date(startDate.getTime() + 1000 * 60 * 60 * 24 * 365) } // Fetch 1 year window
-    }, token);
+    } = useInfiniteClasses(slug!, classesFilters, token);
 
     const classesData = infiniteData?.pages.flat() || [];
     const { data: studioData } = useStudioData(slug!);
@@ -117,7 +121,36 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
     }, [infiniteData?.pages?.length, isLoadingClasses, isClassesError, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
     // Handlers
-    const handleCreateSuccess = () => {
+    const handleCreateSuccess = (created: any) => {
+        // Immediate UI update: optimistically merge the new class into the current cache
+        // so it appears on the calendar without needing a full reload.
+        const queryKey = ['classes-infinite', slug, classesFilters, token] as const;
+        queryClient.setQueryData<any>(queryKey, (prev: any) => {
+            if (!prev || !prev.pages) return prev;
+            const newEvent = created?.class || created;
+            if (!newEvent?.id) return prev;
+
+            // Only add if the new class falls within our current window.
+            const start = new Date(newEvent.startTime || newEvent.start_time || '');
+            if (isNaN(start.getTime())) return prev;
+            if (start < classesFilters.dateRange.start || start > classesFilters.dateRange.end) return prev;
+
+            // Avoid duplicates if the refetch has already pulled it in.
+            const alreadyExists = prev.pages.some((page: any[]) => page.some(c => c.id === newEvent.id));
+            if (alreadyExists) return prev;
+
+            const firstPage = Array.isArray(prev.pages[0]) ? prev.pages[0] : [];
+            return {
+                ...prev,
+                pages: [
+                    [newEvent, ...firstPage].sort(
+                        (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+                    ),
+                    ...prev.pages.slice(1),
+                ],
+            };
+        });
+
         refreshClasses();
         setIsCreateOpen(false);
     };
