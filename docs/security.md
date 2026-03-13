@@ -138,7 +138,7 @@ All webhooks use idempotency via `processedWebhooks` table to prevent duplicate 
 
 ## Data Minimization & Compliance
 
-- **Encryption at rest**: Sensitive integration credentials (Zoom, Resend) encrypted with AES-GCM-256.
+- **Encryption at rest**: Sensitive integration credentials (Zoom client secret, Resend, etc.) encrypted with AES-GCM-256. Zoom credentials set via `PUT /credentials/zoom` and studio integrations patch both persist encrypted secrets.
 - **No sensitive PII stored**: No SSN, driver's license, or financial account numbers.
 - **Audit logging**: All administrative actions logged to `auditLogs` (365-day retention).
 - **CAN-SPAM**: Physical address and unsubscribe link in all marketing emails.
@@ -151,6 +151,17 @@ All webhooks use idempotency via `processedWebhooks` table to prevent duplicate 
 { "status": "OK" }
 ```
 No environment variable names, secret presence, or infrastructure details are disclosed.
+
+## Remediations (March 2026)
+
+| Area | Change |
+|------|--------|
+| **Zoom credentials at rest** | `PUT /credentials/zoom` now encrypts `clientSecret` with `EncryptionUtils` (AES-GCM) before persisting, consistent with `studios` route. `ZoomService.getForTenant` decrypts; legacy plaintext values are supported until re-saved. |
+| **Public uploads default-deny** | Unauthenticated GET on `/uploads` no longer treats `/members/` paths as public. Only `/branding/` and tenant-scoped `/images/` (excluding `/members/`) remain publicly readable via middleware; waivers stay restricted in the uploads handler. |
+| **Invite acceptance brute-force** | `POST /members/accept-invite` is wrapped with a dedicated rate limit (30/min per IP/token bucket via `keyPrefix: 'accept-invite'`). |
+| **E2E bypass in production** | `auth-wrapper.server.ts` explicitly blocks the Clerk bypass cookie when `NODE_ENV === 'production'` or `ENVIRONMENT === 'production'`, even if misconfigured. |
+| **Stripe Search injection** | Stripe Search query fragments use a single `sanitizeStripeSearchFragment()` helper so all interpolations stay consistent. |
+| **Platform virtual tenant** | Middleware comment documents that synthetic `slug === 'platform'` must only back platform-admin-scoped routes with explicit `isPlatformAdmin` checks. |
 
 ## Known Residual Risks
 
