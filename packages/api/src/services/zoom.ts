@@ -112,7 +112,19 @@ export class ZoomService {
             const creds = tenant.zoomCredentials as any;
             if (!creds.accountId || !creds.clientId || !creds.clientSecret) return null;
 
-            const decryptedSecret = await encryption.decrypt(creds.clientSecret);
+            // Encrypted at rest (salt:iv:ciphertext or legacy iv:ciphertext). If decrypt fails,
+            // treat as legacy plaintext only when value clearly isn't our encrypted format (no colons / not hex).
+            let decryptedSecret: string;
+            try {
+                decryptedSecret = await encryption.decrypt(creds.clientSecret);
+            } catch {
+                const raw = String(creds.clientSecret);
+                const parts = raw.split(':');
+                const looksEncrypted = parts.length >= 2 && /^[0-9a-f]+$/i.test(parts[0] || '');
+                if (looksEncrypted) throw new Error('Zoom clientSecret decrypt failed');
+                console.warn('[ZoomService] Using legacy plaintext zoomCredentials; re-save credentials to encrypt at rest.');
+                decryptedSecret = raw;
+            }
 
             return new ZoomService(
                 creds.accountId,

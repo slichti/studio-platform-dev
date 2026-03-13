@@ -441,11 +441,12 @@ authenticatedPaths.forEach(path => {
   // Granular authentication for uploads to allow public GET for assets while requiring auth for POST/Private
   if (path === '/uploads' || path === '/uploads/*') {
     app.use(path, async (c, next) => {
-      const isPublicAsset = c.req.method === 'GET' && (
+      // Default-deny: only allow unauthenticated GET for known-safe paths.
+      // Do NOT allow /members/ (portraits and member-scoped uploads live there — ID-guessable URLs).
+      const isPublicAsset = c.req.method === 'GET' && !c.req.path.includes('/waivers/') && (
         c.req.path.includes('/branding/') ||
-        c.req.path.includes('/images/') ||
-        c.req.path.includes('/members/')
-      ) && !c.req.path.includes('/waivers/');
+        (c.req.path.includes('/images/') && !c.req.path.includes('/members/'))
+      );
 
       if (isPublicAsset) {
         return optionalAuthMiddleware(c, next);
@@ -503,6 +504,9 @@ expensivePaths.forEach(path => {
   // These cost 10x a normal request
   app.use(path, rateLimitMiddleware({ limit: 600, window: 60, cost: 10 }));
 });
+
+// [SECURITY] Invite acceptance: token in body + auth; limit brute-force per IP/token bucket
+app.use('/members/accept-invite', rateLimitMiddleware({ limit: 30, window: 60, keyPrefix: 'accept-invite' }));
 
 // 4. Infrastructure/Common Studio Logic
 // 4. Infrastructure/Common Studio Logic
@@ -653,9 +657,19 @@ studioApp.get('/settings/export', async (c) => {
 studioApp.put('/credentials/zoom', async (c) => {
   const tenant = c.get('tenant');
   const db = createDb(c.env.DB);
+  const encryptionSecret = c.env.ENCRYPTION_SECRET as string;
+  if (!encryptionSecret) return c.json({ error: 'Server configuration error' }, 500);
+  const encryption = new EncryptionUtils(encryptionSecret);
   const { accountId, clientId, clientSecret } = await c.req.json();
   if (!accountId || !clientId || !clientSecret) return c.json({ error: 'Missing credentials' }, 400);
-  await db.update(tenants).set({ zoomCredentials: { accountId, clientId, clientSecret } }).where(eq(tenants.id, tenant.id)).run();
+  // At rest: encrypt client secret (aligns with studios route and other integrations)
+  await db.update(tenants).set({
+    zoomCredentials: {
+      accountId,
+      clientId,
+      clientSecret: await encryption.encrypt(clientSecret)
+    }
+  }).where(eq(tenants.id, tenant.id)).run();
   return c.json({ success: true });
 });
 
