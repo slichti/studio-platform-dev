@@ -16,6 +16,9 @@ import { getFirstName } from '../utils/profile';
 
 const app = createOpenAPIApp<StudioVariables>();
 
+// Allow recurring classes to generate up to ~3 years of daily occurrences.
+const MAX_RECURRENCE_OCCURRENCES = 3 * 365;
+
 /**
  * Adjust RRule-generated UTC dates to preserve the original local time of day.
  * RRule generates dates aligned to the UTC time of dtstart, which causes local
@@ -514,8 +517,6 @@ app.openapi(createRoute({
         }
         return { id: null, url: null, pwd: null };
     };
-
-    const MAX_RECURRENCE_OCCURRENCES = 3 * 365; // allow up to ~3 years of daily events
 
     if (isRecurring && recurrenceRule) {
         const seriesId = crypto.randomUUID();
