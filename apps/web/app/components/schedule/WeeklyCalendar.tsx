@@ -259,16 +259,16 @@ export function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDat
                                             {dayEvents.map(event => (
                                                 <div
                                                     key={event.id}
-                                                    className="text-[11px] px-1 py-0.5 rounded bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-100 truncate cursor-pointer"
+                                                    className="text-[11px] px-1 py-0.5 rounded bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-100 cursor-pointer leading-tight"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         onSelectEvent({ resource: event.resource });
                                                     }}
                                                 >
-                                                    <span className="font-medium mr-1">
+                                                    <span className="font-medium mr-1 whitespace-nowrap">
                                                         {format(event.start, 'p')}
                                                     </span>
-                                                    <span className="truncate inline-block align-middle">
+                                                    <span className="inline-block align-middle whitespace-normal break-words">
                                                         {event.title}
                                                     </span>
                                                 </div>
