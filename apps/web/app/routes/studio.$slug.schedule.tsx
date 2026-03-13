@@ -48,7 +48,9 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
         isLoading: isLoadingClasses,
     } = useInfiniteClasses(slug!, {
         status: includeArchived ? 'all' : 'active',
-        limit: 200,
+        // Calendar view needs a full-year window of classes; use a higher limit to avoid
+        // dropping future events when tenants have many sessions scheduled.
+        limit: 1000,
         dateRange: { start: startDate, end: new Date(startDate.getTime() + 1000 * 60 * 60 * 24 * 365) } // Fetch 1 year window
     }, token);
 
