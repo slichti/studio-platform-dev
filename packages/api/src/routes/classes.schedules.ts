@@ -303,7 +303,8 @@ app.openapi(createRoute({
     // Optimized combined count query
     // SQLite has a limit on the number of bound parameters (999). When there are many
     // classes in the window, we need to batch the IN (...) queries to avoid hitting it.
-    const counts: { classId: string; status: string; count: number }[] = [];
+    type BookingCountRow = { classId: string; status: string | null; count: number };
+    const counts: BookingCountRow[] = [];
     const STATUS_FILTER = ['confirmed', 'waitlisted'] as const;
     const CLASS_ID_BATCH_SIZE = 300; // 300 ids * 1 + 2 statuses <= 302 params per query
 
