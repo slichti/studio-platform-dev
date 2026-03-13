@@ -1,6 +1,6 @@
 import { createDb } from '../db';
-import { classes, appointments } from '@studio/db/src/schema';
-import { and, eq, sql, ne, lt, gt } from 'drizzle-orm';
+import { classes, appointments, tenantMembers } from '@studio/db/src/schema';
+import { and, eq, sql, ne, lt, gt, inArray } from 'drizzle-orm';
 
 export class ConflictService {
     constructor(private db: ReturnType<typeof createDb>) { }
@@ -9,25 +9,59 @@ export class ConflictService {
      * Checks if an instructor has overlapping commitments.
      */
     async checkInstructorConflict(instructorId: string, startTime: Date, durationMinutes: number, excludeEventId?: string) {
+        // Normalize to all tenant memberships for this underlying user so we can
+        // prevent cross-tenant double-bookings (e.g. instructor teaches at multiple studios).
+        const primaryMembership = await this.db.query.tenantMembers.findFirst({
+            where: eq(tenantMembers.id, instructorId),
+        });
+        if (!primaryMembership) {
+            return [];
+        }
+
+        const allMemberships = await this.db
+            .select({ id: tenantMembers.id })
+            .from(tenantMembers)
+            .where(eq(tenantMembers.userId, primaryMembership.userId))
+            .all();
+
+        const instructorIds = allMemberships.map((m) => m.id);
+        if (instructorIds.length === 0) {
+            return [];
+        }
+
         const endTime = new Date(startTime.getTime() + durationMinutes * 60 * 1000);
         const earliestStart = new Date(startTime.getTime() - 24 * 60 * 60 * 1000); // 24h look-back for safety
 
-        const actualConflicts = await this.db.select().from(classes).where(and(
-            eq(classes.instructorId, instructorId),
-            excludeEventId ? ne(classes.id, excludeEventId) : undefined,
-            eq(classes.status, 'active'),
-            lt(classes.startTime, endTime),
-            // Optimized overlap: (startTime + duration) > inputStartTime
-            sql`(${classes.startTime} / 1000 + ${classes.durationMinutes} * 60) > ${startTime.getTime() / 1000}`
-        )).all();
+        const actualConflicts = await this.db
+            .select()
+            .from(classes)
+            .where(
+                and(
+                    inArray(classes.instructorId, instructorIds),
+                    excludeEventId ? ne(classes.id, excludeEventId) : undefined,
+                    eq(classes.status, 'active'),
+                    lt(classes.startTime, endTime),
+                    // Optimized overlap: (startTime + duration) > inputStartTime
+                    sql`(${classes.startTime} / 1000 + ${classes.durationMinutes} * 60) > ${
+                        startTime.getTime() / 1000
+                    }`,
+                ),
+            )
+            .all();
 
-        const actualAppConflicts = await this.db.select().from(appointments).where(and(
-            eq(appointments.instructorId, instructorId),
-            excludeEventId ? ne(appointments.id, excludeEventId) : undefined,
-            eq(appointments.status, 'confirmed'),
-            lt(appointments.startTime, endTime),
-            gt(appointments.endTime, startTime)
-        )).all();
+        const actualAppConflicts = await this.db
+            .select()
+            .from(appointments)
+            .where(
+                and(
+                    inArray(appointments.instructorId, instructorIds),
+                    excludeEventId ? ne(appointments.id, excludeEventId) : undefined,
+                    eq(appointments.status, 'confirmed'),
+                    lt(appointments.startTime, endTime),
+                    gt(appointments.endTime, startTime),
+                ),
+            )
+            .all();
 
         return [
             ...actualConflicts.map((c: any) => ({ conflictEntity: 'class' as const, ...c })),
@@ -74,25 +108,63 @@ export class ConflictService {
     async checkInstructorConflictBatch(instructorId: string, proposedClasses: { id?: string, startTime: Date, durationMinutes: number }[]) {
         if (proposedClasses.length === 0) return [];
 
+        const primaryMembership = await this.db.query.tenantMembers.findFirst({
+            where: eq(tenantMembers.id, instructorId),
+        });
+        if (!primaryMembership) return [];
+
+        const allMemberships = await this.db
+            .select({ id: tenantMembers.id })
+            .from(tenantMembers)
+            .where(eq(tenantMembers.userId, primaryMembership.userId))
+            .all();
+
+        const instructorIds = allMemberships.map((m) => m.id);
+        if (instructorIds.length === 0) return [];
+
         const minStartTime = new Date(Math.min(...proposedClasses.map(p => p.startTime.getTime())) - 24 * 60 * 60 * 1000); // 24h lookback
         const maxEndTime = new Date(Math.max(...proposedClasses.map(p => p.startTime.getTime() + p.durationMinutes * 60 * 1000)));
         const excludeIds = proposedClasses.map(p => p.id).filter(Boolean) as string[];
 
-        const existingClasses = await this.db.select().from(classes).where(and(
-            eq(classes.instructorId, instructorId),
-            excludeIds.length > 0 ? sql`${classes.id} NOT IN (${sql.join(excludeIds.map(id => sql`${id}`), sql`, `)})` : undefined,
-            eq(classes.status, 'active'),
-            lt(classes.startTime, maxEndTime),
-            sql`(${classes.startTime} / 1000 + ${classes.durationMinutes} * 60) > ${minStartTime.getTime() / 1000}`
-        )).all();
+        const existingClasses = await this.db
+            .select()
+            .from(classes)
+            .where(
+                and(
+                    inArray(classes.instructorId, instructorIds),
+                    excludeIds.length > 0
+                        ? sql`${classes.id} NOT IN (${sql.join(
+                            excludeIds.map((id) => sql`${id}`),
+                            sql`, `,
+                        )})`
+                        : undefined,
+                    eq(classes.status, 'active'),
+                    lt(classes.startTime, maxEndTime),
+                    sql`(${classes.startTime} / 1000 + ${classes.durationMinutes} * 60) > ${
+                        minStartTime.getTime() / 1000
+                    }`,
+                ),
+            )
+            .all();
 
-        const existingAppointments = await this.db.select().from(appointments).where(and(
-            eq(appointments.instructorId, instructorId),
-            excludeIds.length > 0 ? sql`${appointments.id} NOT IN (${sql.join(excludeIds.map(id => sql`${id}`), sql`, `)})` : undefined,
-            eq(appointments.status, 'confirmed'),
-            lt(appointments.startTime, maxEndTime),
-            gt(appointments.endTime, minStartTime)
-        )).all();
+        const existingAppointments = await this.db
+            .select()
+            .from(appointments)
+            .where(
+                and(
+                    inArray(appointments.instructorId, instructorIds),
+                    excludeIds.length > 0
+                        ? sql`${appointments.id} NOT IN (${sql.join(
+                            excludeIds.map((id) => sql`${id}`),
+                            sql`, `,
+                        )})`
+                        : undefined,
+                    eq(appointments.status, 'confirmed'),
+                    lt(appointments.startTime, maxEndTime),
+                    gt(appointments.endTime, minStartTime),
+                ),
+            )
+            .all();
 
         const conflicts: any[] = [];
         for (const proposed of proposedClasses) {

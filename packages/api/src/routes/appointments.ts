@@ -4,6 +4,7 @@ import { appointmentServices, availabilities, appointments, tenantMembers, users
 import { eq, and, gte, lte, lt, gt, inArray, sql } from 'drizzle-orm';
 import { HonoContext } from '../types';
 import { getFirstName } from '../utils/profile';
+import { ConflictService } from '../services/conflicts';
 
 const app = new Hono<HonoContext>();
 
@@ -224,8 +225,11 @@ app.post('/', async (c) => {
     const start = new Date(startTime);
     const end = new Date(start.getTime() + service.durationMinutes * 60 * 1000);
 
-    const conflict = await db.select().from(appointments).where(and(eq(appointments.instructorId, instructorId), eq(appointments.status, 'confirmed'), lt(appointments.startTime, end), gt(appointments.endTime, start))).get();
-    if (conflict) return c.json({ error: "Slot taken" }, 409);
+    const conflictService = new ConflictService(db);
+    const conflicts = await conflictService.checkInstructorConflict(instructorId, start, service.durationMinutes);
+    if (conflicts.length > 0) {
+        return c.json({ error: "Slot taken", code: "INSTRUCTOR_CONFLICT", details: { conflicts } }, 409);
+    }
 
     const id = crypto.randomUUID();
     await db.insert(appointments).values({ id, tenantId: tenant!.id, serviceId, instructorId, memberId: targetMemberId, startTime: start, endTime: end, notes, status: 'confirmed' }).run();
