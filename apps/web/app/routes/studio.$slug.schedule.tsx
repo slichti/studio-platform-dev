@@ -46,9 +46,12 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
     const classesFilters = useMemo(
         () => ({
             status: includeArchived ? 'all' : 'active',
-            // Calendar view needs a full-year window of classes.
+            // Calendar view needs a multi-year window of classes for long-running series.
             limit: 1000,
-            dateRange: { start: startDate, end: new Date(startDate.getTime() + 1000 * 60 * 60 * 24 * 365) }
+            dateRange: {
+                start: startDate,
+                end: new Date(startDate.getTime() + 1000 * 60 * 60 * 24 * 365 * 3) // Fetch ~3 years
+            }
         }),
         [includeArchived, startDate]
     );

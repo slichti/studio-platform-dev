@@ -515,6 +515,8 @@ app.openapi(createRoute({
         return { id: null, url: null, pwd: null };
     };
 
+    const MAX_RECURRENCE_OCCURRENCES = 3 * 365; // allow up to ~3 years of daily events
+
     if (isRecurring && recurrenceRule) {
         const seriesId = crypto.randomUUID();
         await db.insert(classSeries).values({
@@ -565,8 +567,8 @@ app.openapi(createRoute({
             return c.json({ error: 'Recurrence rule produced no dates. Check your start time and end date.' }, 400);
         }
 
-        if (occurrences.length > 365) {
-            return c.json({ error: `Too many occurrences (${occurrences.length}). Limit to 365 or set a closer end date.` }, 400);
+        if (occurrences.length > MAX_RECURRENCE_OCCURRENCES) {
+            return c.json({ error: `Too many occurrences (${occurrences.length}). Limit to ${MAX_RECURRENCE_OCCURRENCES} or set a closer end date.` }, 400);
         }
 
         const classData = [];
@@ -945,8 +947,8 @@ app.openapi(createRoute({
         if (occurrences.length === 0) {
             return c.json({ error: 'Recurrence rule produced no additional dates.' }, 400);
         }
-        if (occurrences.length > 365) {
-            return c.json({ error: `Too many occurrences (${occurrences.length + 1}). Limit to 365 or set a closer end date.` }, 400);
+        if (occurrences.length > MAX_RECURRENCE_OCCURRENCES) {
+            return c.json({ error: `Too many occurrences (${occurrences.length + 1}). Limit to ${MAX_RECURRENCE_OCCURRENCES} or set a closer end date.` }, 400);
         }
 
         // Create the series record
