@@ -148,8 +148,9 @@ app.get('/subscriptions', async (c) => {
     const canManage = c.get('can')('manage_commerce');
     const planId = c.req.query('planId');
 
-    const results = await db.select({
+    const rows = await db.select({
         id: subscriptions.id,
+        memberId: tenantMembers.id,
         status: subscriptions.status,
         currentPeriodEnd: subscriptions.currentPeriodEnd,
         createdAt: subscriptions.createdAt,
@@ -169,6 +170,16 @@ app.get('/subscriptions', async (c) => {
             planId ? eq(subscriptions.planId, planId) : undefined,
             !canManage ? eq(users.id, c.get('auth')!.userId) : undefined
         ));
+
+    type Profile = { fullName?: string; firstName?: string; lastName?: string } | null;
+    const results = rows.map((r) => {
+        const profile = r.user?.profile as Profile;
+        const displayName = profile?.fullName
+            || `${profile?.firstName ?? ''} ${profile?.lastName ?? ''}`.trim()
+            || r.user?.email
+            || '—';
+        return { ...r, user: { ...r.user, displayName } };
+    });
 
     return c.json(results);
 });

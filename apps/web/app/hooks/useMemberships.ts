@@ -24,12 +24,16 @@ export type Plan = {
 
 export type Subscription = {
     id: string;
+    memberId?: string; // tenant member id — use for link to /studio/:slug/students/:memberId
     status: string;
     currentPeriodEnd: string;
     user: {
         email: string;
+        displayName?: string; // API-computed: fullName or firstName + lastName or email
         profile: {
             fullName?: string;
+            firstName?: string;
+            lastName?: string;
         };
     };
     planName: string;

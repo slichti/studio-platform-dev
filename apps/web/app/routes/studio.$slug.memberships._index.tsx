@@ -178,11 +178,24 @@ export default function StudioMemberships() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                                        {subscriptions.map((sub) => (
+                                        {subscriptions.map((sub) => {
+                                            const displayName = sub.user?.displayName
+                                                || sub.user?.profile?.fullName
+                                                || `${sub.user?.profile?.firstName ?? ''} ${sub.user?.profile?.lastName ?? ''}`.trim()
+                                                || sub.user?.email
+                                                || '—';
+                                            const showEmail = displayName !== sub.user?.email && sub.user?.email;
+                                            return (
                                             <tr key={sub.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/20">
                                                 <td className="px-6 py-4">
-                                                    <div className="font-medium text-zinc-900 dark:text-zinc-100">{sub.user.profile?.fullName || sub.user.email}</div>
-                                                    <div className="text-xs text-zinc-500 dark:text-zinc-400">{sub.user.email}</div>
+                                                    {sub.memberId ? (
+                                                        <Link to={`/studio/${slug}/students/${sub.memberId}`} className="font-medium text-zinc-900 dark:text-zinc-100 hover:underline text-indigo-600 dark:text-indigo-400">
+                                                            {displayName}
+                                                        </Link>
+                                                    ) : (
+                                                        <div className="font-medium text-zinc-900 dark:text-zinc-100">{displayName}</div>
+                                                    )}
+                                                    {showEmail && <div className="text-xs text-zinc-500 dark:text-zinc-400">{sub.user.email}</div>}
                                                 </td>
                                                 <td className="px-6 py-4 text-sm text-zinc-600 dark:text-zinc-300">{sub.planName}</td>
                                                 <td className="px-6 py-4">
@@ -194,7 +207,7 @@ export default function StudioMemberships() {
                                                     {sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd).toLocaleDateString() : 'N/A'}
                                                 </td>
                                             </tr>
-                                        ))}
+                                        );})}
                                     </tbody>
                                 </table>
                             </div>
