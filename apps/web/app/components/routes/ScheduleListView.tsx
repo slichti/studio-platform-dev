@@ -64,16 +64,18 @@ export default function ScheduleListView() {
 
         return keys.map((key) => {
             const d = byDate[key].date;
+
+            const formattedDate = d.toLocaleDateString(undefined, {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+            });
+
             let label: string;
-            if (isSameDay(d, today)) label = "Today";
-            else if (isSameDay(d, tomorrow)) label = "Tomorrow";
-            else {
-                label = d.toLocaleDateString(undefined, {
-                    weekday: "long",
-                    month: "long",
-                    day: "numeric",
-                });
-            }
+            if (isSameDay(d, today)) label = `Today • ${formattedDate}`;
+            else if (isSameDay(d, tomorrow)) label = `Tomorrow • ${formattedDate}`;
+            else label = formattedDate;
+
             return { key, label, items: byDate[key].items };
         });
     }, [classes, today]);
