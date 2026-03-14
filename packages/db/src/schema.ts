@@ -1607,27 +1607,47 @@ export const referrals = sqliteTable('referrals', {
 }));
 
 // --- Tagging System (Phase 9) ---
+// Member tags: per-tenant catalog with optional discount and class-eligibility (e.g. Silver Sneakers, Senior).
 export const tags = sqliteTable('tags', {
     id: text('id').primaryKey(),
     tenantId: text('tenant_id').notNull().references(() => tenants.id),
     name: text('name').notNull(),
+    slug: text('slug').notNull(), // Stable key per tenant (e.g. 'senior', 'silver-sneakers')
     color: text('color').default('#6366f1'),
     description: text('description'),
+    category: text('category'), // e.g. 'pricing', 'access', 'marketing'
+    discountType: text('discount_type', { enum: ['percent', 'fixed', 'none'] }).default('none').notNull(),
+    discountValue: integer('discount_value'), // percent: 1-100; fixed: cents
+    appliesToProducts: text('applies_to_products', { mode: 'json' }), // ['drop_ins','packs','memberships'] or 'all'
+    visibility: text('visibility', { enum: ['internal_only', 'visible_to_member'] }).default('internal_only').notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     tenantIdx: index('tag_tenant_idx').on(table.tenantId),
     uniqueName: uniqueIndex('tag_unique_name_idx').on(table.tenantId, table.name),
+    uniqueSlug: uniqueIndex('tag_unique_slug_idx').on(table.tenantId, table.slug),
 }));
 
 export const tagAssignments = sqliteTable('tag_assignments', {
     id: text('id').primaryKey(),
-    tagId: text('tag_id').notNull().references(() => tags.id),
-    targetId: text('target_id').notNull(), // polymorphic target
+    tagId: text('tag_id').notNull().references(() => tags.id, { onDelete: 'cascade' }),
+    targetId: text('target_id').notNull(), // tenantMembers.id when targetType='member'
     targetType: text('target_type').default('member').notNull(), // 'member', 'lead'
+    source: text('source', { enum: ['manual', 'rule', 'import'] }).default('manual').notNull(),
+    createdBy: text('created_by'), // User ID who assigned (optional)
     assignedAt: integer('assigned_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
     targetIdx: index('tag_assign_target_idx').on(table.targetId, table.targetType),
     tagIdx: index('tag_assign_tag_idx').on(table.tagId),
+    uniqueMemberTag: uniqueIndex('tag_assign_member_tag_idx').on(table.tagId, table.targetId),
+}));
+
+// Classes that only members with specific tags can register for (e.g. Silver Sneakers, 65+).
+export const classRequiredTags = sqliteTable('class_required_tags', {
+    classId: text('class_id').notNull().references(() => classes.id, { onDelete: 'cascade' }),
+    tagId: text('tag_id').notNull().references(() => tags.id, { onDelete: 'cascade' }),
+}, (table) => ({
+    pk: primaryKey({ columns: [table.classId, table.tagId] }),
 }));
 
 // --- Custom Fields (Phase 9) ---
@@ -1934,6 +1954,7 @@ export const classesRelations = relations(classes, ({ one, many }) => ({
         fields: [classes.seriesId],
         references: [classSeries.id],
     }),
+    requiredTags: many(classRequiredTags),
 }));
 
 export const classInstructorsRelations = relations(classInstructors, ({ one }) => ({
@@ -2585,11 +2606,23 @@ export const tagsRelations = relations(tags, ({ one, many }) => ({
         references: [tenants.id],
     }),
     assignments: many(tagAssignments),
+    classRequiredTags: many(classRequiredTags),
 }));
 
 export const tagAssignmentsRelations = relations(tagAssignments, ({ one }) => ({
     tag: one(tags, {
         fields: [tagAssignments.tagId],
+        references: [tags.id],
+    }),
+}));
+
+export const classRequiredTagsRelations = relations(classRequiredTags, ({ one }) => ({
+    class: one(classes, {
+        fields: [classRequiredTags.classId],
+        references: [classes.id],
+    }),
+    tag: one(tags, {
+        fields: [classRequiredTags.tagId],
         references: [tags.id],
     }),
 }));
