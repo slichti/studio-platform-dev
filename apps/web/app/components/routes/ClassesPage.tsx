@@ -15,6 +15,7 @@ import { ComponentErrorBoundary } from "~/components/ErrorBoundary";
 import { CreateClassModal } from "../CreateClassModal";
 import { CreateBulkClassModal } from "../CreateBulkClassModal";
 import { BookingModal } from "../BookingModal";
+import { BulkOperationsModal } from "../BulkOperationsModal";
 
 import { useClasses, useInfiniteClasses } from "~/hooks/useClasses";
 import { useUser } from "~/hooks/useUser";
@@ -82,9 +83,14 @@ export default function ClassesPage() {
 
     // Permissions
     const isAdmin = roles?.includes('owner') || roles?.includes('instructor');
-    const includeArchived = searchParams.get("includeArchived") === "true";
+    const showPrevious = searchParams.get("showPrevious") === "true" || searchParams.get("includeArchived") === "true";
     const typeFilter = searchParams.get("type");
     const isCourseOnly = typeFilter === "course";
+
+    const rangeStart = useMemo(
+        () => (showPrevious ? new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000) : today),
+        [showPrevious, today]
+    );
 
     // Hooks - Use Infinite Query
     const {
@@ -95,14 +101,14 @@ export default function ClassesPage() {
         fetchNextPage,
         error
     } = useInfiniteClasses(slug!, {
-        status: includeArchived ? 'all' : 'active',
+        status: showPrevious ? 'all' : 'active',
         isCourse: isCourseOnly ? true : undefined,
         limit: 20,
-        dateRange: { start: today, end: new Date(today.getTime() + 1000 * 60 * 60 * 24 * 365) } // 1 year range
+        dateRange: { start: rangeStart, end: new Date(today.getTime() + 1000 * 60 * 60 * 24 * 365) }
     }, contextToken);
 
     let classes = infiniteData?.pages.flat() || [];
-    if (!includeArchived) {
+    if (!showPrevious) {
         classes = classes.filter(cls => cls.status !== 'cancelled' && cls.status !== 'archived');
     }
 
@@ -142,17 +148,7 @@ export default function ClassesPage() {
     const [isCreateBulkOpen, setIsCreateBulkOpen] = useState(false);
     const [confirmArchiveData, setConfirmArchiveData] = useState<{ id: string, archive: boolean } | null>(null);
     const [confirmCancelData, setConfirmCancelData] = useState<{ bookingId: string, classId: string } | null>(null);
-    const [bulkCancelOpen, setBulkCancelOpen] = useState(false);
-    const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
-    const [bulkMoveFrom, setBulkMoveFrom] = useState("");
-    const [bulkMoveTo, setBulkMoveTo] = useState("");
-    const [bulkShiftMinutes, setBulkShiftMinutes] = useState(60);
-    const [bulkMoveLoading, setBulkMoveLoading] = useState(false);
-    const [bulkFrom, setBulkFrom] = useState("");
-    const [bulkTo, setBulkTo] = useState("");
-    const [bulkNotify, setBulkNotify] = useState(true);
-    const [bulkReason, setBulkReason] = useState("");
-    const [bulkLoading, setBulkLoading] = useState(false);
+    const [bulkOpsOpen, setBulkOpsOpen] = useState(false);
 
     // Group Classes
     const grouped = classes.reduce((acc: Record<string, ClassEvent[]>, cls: ClassEvent) => {
@@ -310,6 +306,18 @@ export default function ClassesPage() {
                             size="sm"
                             className="h-7 px-3 text-xs bg-white dark:bg-zinc-900 shadow-sm text-zinc-900 dark:text-zinc-100"
                         >
+                            <ListIcon className="h-3.5 w-3.5 mr-1.5" /> Tile
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-3 text-xs text-zinc-500 hover:text-zinc-900"
+                            onClick={() => {
+                                const p = new URLSearchParams(searchParams);
+                                p.set('view', 'listview');
+                                setSearchParams(p);
+                            }}
+                        >
                             <ListIcon className="h-3.5 w-3.5 mr-1.5" /> List
                         </Button>
                     </div>
@@ -320,24 +328,18 @@ export default function ClassesPage() {
                                 <input
                                     type="checkbox"
                                     className="rounded border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800"
-                                    checked={includeArchived}
+                                    checked={showPrevious}
                                     onChange={(e) => {
                                         const newParams = new URLSearchParams(searchParams);
-                                        if (e.target.checked) newParams.set("includeArchived", "true");
-                                        else newParams.delete("includeArchived");
+                                        if (e.target.checked) newParams.set("showPrevious", "true");
+                                        else newParams.delete("showPrevious");
                                         setSearchParams(newParams);
                                     }}
                                 />
-                                <span className="text-zinc-600 dark:text-zinc-400">Show Archived</span>
+                                <span className="text-zinc-600 dark:text-zinc-400">Show previous</span>
                             </label>
-                            <Button variant="outline" onClick={() => setBulkMoveOpen(true)} className="text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-800 dark:hover:bg-blue-900/20">
-                                <CalendarClock className="h-4 w-4 mr-2" /> Bulk Reschedule
-                            </Button>
-                            <Button variant="outline" onClick={() => setBulkCancelOpen(true)} className="text-red-600 border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20">
-                                <Trash2 className="h-4 w-4 mr-2" /> Bulk Cancel
-                            </Button>
-                            <Button onClick={() => setIsCreateBulkOpen(true)} variant="secondary" className="mr-2">
-                                <Plus className="h-4 w-4 mr-2" /> Bulk Schedule
+                            <Button variant="outline" onClick={() => setBulkOpsOpen(true)}>
+                                <CalendarClock className="h-4 w-4 mr-2" /> Bulk Operations
                             </Button>
                             <Button onClick={() => setIsCreateOpen(true)}>
                                 <Plus className="h-4 w-4 mr-2" /> Create Class
@@ -602,130 +604,15 @@ export default function ClassesPage() {
                 isDestructive
             />
 
-            {/* Bulk Cancel Dialog */}
-            <Dialog open={bulkCancelOpen} onOpenChange={setBulkCancelOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-red-600"><Trash2 size={18} /> Bulk Cancel Classes</DialogTitle>
-                        <DialogDescription>Cancel all classes in a date range. Affected bookings will also be cancelled.</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 py-2">
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-zinc-700 dark:text-zinc-300">From</label>
-                                <input type="date" value={bulkFrom} onChange={e => setBulkFrom(e.target.value)} className="w-full border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-red-400" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-zinc-700 dark:text-zinc-300">To</label>
-                                <input type="date" value={bulkTo} onChange={e => setBulkTo(e.target.value)} className="w-full border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-red-400" />
-                            </div>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1 text-zinc-700 dark:text-zinc-300">Cancellation Reason (optional)</label>
-                            <input type="text" value={bulkReason} onChange={e => setBulkReason(e.target.value)} placeholder="e.g. Instructor unavailable" className="w-full border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-red-400" />
-                        </div>
-                        <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-                            <input type="checkbox" checked={bulkNotify} onChange={e => setBulkNotify(e.target.checked)} className="rounded border-zinc-300 dark:border-zinc-700" />
-                            <span className="text-zinc-700 dark:text-zinc-300">Email affected students</span>
-                        </label>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setBulkCancelOpen(false)} disabled={bulkLoading}>Cancel</Button>
-                        <Button
-                            className="bg-red-600 hover:bg-red-700 text-white"
-                            disabled={!bulkFrom || !bulkTo || bulkLoading}
-                            onClick={async () => {
-                                if (!bulkFrom || !bulkTo) return;
-                                setBulkLoading(true);
-                                try {
-                                    const token = await (window as any).Clerk?.session?.getToken();
-                                    const res: any = await apiRequest('/classes/bulk-cancel', token, {
-                                        method: 'POST',
-                                        headers: { 'X-Tenant-Slug': slug!, 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ from: new Date(bulkFrom).toISOString(), to: new Date(bulkTo + 'T23:59:59').toISOString(), notifyStudents: bulkNotify, cancellationReason: bulkReason || undefined }),
-                                    });
-                                    if (res.success) {
-                                        toast.success(`${res.affected} class${res.affected !== 1 ? 'es' : ''} cancelled${res.notified > 0 ? `, ${res.notified} student${res.notified !== 1 ? 's' : ''} notified` : ''}.`);
-                                        setBulkCancelOpen(false);
-                                        queryClient.invalidateQueries({ queryKey: ['classes-infinite', slug] });
-                                    } else {
-                                        toast.error(res.error || 'Failed to cancel classes');
-                                    }
-                                } catch (e: any) {
-                                    toast.error(e.message || 'An error occurred');
-                                } finally {
-                                    setBulkLoading(false);
-                                }
-                            }}
-                        >
-                            {bulkLoading ? 'Cancelling…' : 'Confirm Bulk Cancel'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* Bulk Reschedule (Move) Dialog */}
-            <Dialog open={bulkMoveOpen} onOpenChange={setBulkMoveOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-blue-600"><CalendarClock size={18} /> Bulk Reschedule</DialogTitle>
-                        <DialogDescription>Shift all classes in a date range by a number of minutes. Use positive to move later, negative to move earlier.</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 py-2">
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-zinc-700 dark:text-zinc-300">From</label>
-                                <input type="date" value={bulkMoveFrom} onChange={e => setBulkMoveFrom(e.target.value)} className="w-full border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-zinc-700 dark:text-zinc-300">To</label>
-                                <input type="date" value={bulkMoveTo} onChange={e => setBulkMoveTo(e.target.value)} className="w-full border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                            </div>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1 text-zinc-700 dark:text-zinc-300">Shift (minutes)</label>
-                            <input type="number" value={bulkShiftMinutes} onChange={e => setBulkShiftMinutes(parseInt(e.target.value, 10) || 0)} placeholder="e.g. 60 or -30" className="w-full border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                            <p className="text-xs text-zinc-500 mt-1">Positive = later, negative = earlier (e.g. 60 = 1 hour later)</p>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setBulkMoveOpen(false)} disabled={bulkMoveLoading}>Cancel</Button>
-                        <Button
-                            className="bg-blue-600 hover:bg-blue-700 text-white"
-                            disabled={!bulkMoveFrom || !bulkMoveTo || bulkMoveLoading}
-                            onClick={async () => {
-                                if (!bulkMoveFrom || !bulkMoveTo) return;
-                                setBulkMoveLoading(true);
-                                try {
-                                    const token = await getToken();
-                                    const res: any = await apiRequest('/classes/bulk-move', token, {
-                                        method: 'POST',
-                                        headers: { 'X-Tenant-Slug': slug!, 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({
-                                            from: new Date(bulkMoveFrom).toISOString(),
-                                            to: new Date(bulkMoveTo + 'T23:59:59').toISOString(),
-                                            shiftMinutes: bulkShiftMinutes,
-                                        }),
-                                    });
-                                    if (res.success) {
-                                        toast.success(`${res.affected} class${res.affected !== 1 ? 'es' : ''} rescheduled.`);
-                                        setBulkMoveOpen(false);
-                                        queryClient.invalidateQueries({ queryKey: ['classes-infinite', slug] });
-                                    } else {
-                                        toast.error(res.error || 'Failed to reschedule');
-                                    }
-                                } catch (e: any) {
-                                    toast.error(e.message || 'An error occurred');
-                                } finally {
-                                    setBulkMoveLoading(false);
-                                }
-                            }}
-                        >
-                            {bulkMoveLoading ? 'Rescheduling…' : 'Confirm Reschedule'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <BulkOperationsModal
+                isOpen={bulkOpsOpen}
+                onClose={() => setBulkOpsOpen(false)}
+                onOpenBulkSchedule={() => {
+                    setBulkOpsOpen(false);
+                    setIsCreateBulkOpen(true);
+                }}
+                onSuccess={() => queryClient.invalidateQueries({ queryKey: ['classes-infinite', slug] })}
+            />
         </div>
     );
 }

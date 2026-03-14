@@ -5,9 +5,11 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { WeeklyCalendar } from "../components/schedule/WeeklyCalendar";
 import { CreateClassModal } from "../components/CreateClassModal";
+import { CreateBulkClassModal } from "../components/CreateBulkClassModal";
 import { EditClassModal } from "../components/EditClassModal";
 import { ClassDetailModal } from "../components/ClassDetailModal";
 import { BookingModal } from "../components/BookingModal";
+import { BulkOperationsModal } from "../components/BulkOperationsModal";
 import { ComponentErrorBoundary } from "~/components/ErrorBoundary";
 import { Button } from "~/components/ui/button";
 import { ListIcon, Calendar as CalendarIcon } from "lucide-react";
@@ -25,13 +27,15 @@ import { useSearchParams } from "react-router";
 import { SkeletonLoader } from "~/components/ui/SkeletonLoader";
 
 const ClassesPage = lazy(() => import("~/components/routes/ClassesPage"));
+const ScheduleListView = lazy(() => import("~/components/routes/ScheduleListView"));
 
 
 function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tenant, coursesData, me, token }: any) {
     const queryClient = useQueryClient();
     const canSchedule = !isStudentView && (roles?.includes('owner') || roles?.includes('instructor'));
     const [searchParams, setSearchParams] = useSearchParams();
-    const includeArchived = searchParams.get("includeArchived") === "true";
+    const showPrevious = searchParams.get("showPrevious") === "true" || searchParams.get("includeArchived") === "true"; // includeArchived for backward compat
+    const useEventColors = searchParams.get("eventColors") !== "false"; // default true
 
     // Data Fetching (mirror list view: useInfiniteClasses)
     // Fetch from the start of the previous month to ensure current and recent upcoming classes are seen
@@ -45,7 +49,7 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
 
     const classesFilters = useMemo(
         () => ({
-            status: includeArchived ? 'all' : 'active',
+            status: showPrevious ? 'all' : 'active',
             // Calendar view needs a multi-year window of classes for long-running series.
             limit: 1000,
             dateRange: {
@@ -53,7 +57,7 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
                 end: new Date(startDate.getTime() + 1000 * 60 * 60 * 24 * 365 * 3) // Fetch ~3 years
             }
         }),
-        [includeArchived, startDate]
+        [showPrevious, startDate]
     );
 
     const {
@@ -164,6 +168,7 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
     };
 
     const [slotStartTime, setSlotStartTime] = useState<Date | null>(null);
+    const [isBulkScheduleOpen, setIsBulkScheduleOpen] = useState(false);
 
     const handleSelectSlot = useCallback(
         ({ start }: { start: Date }) => {
@@ -219,11 +224,7 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
 
     const hourLabel = (h: number) => h === 0 ? '12 AM' : h === 12 ? '12 PM' : h === 24 ? '12 AM' : h > 12 ? `${h - 12} PM` : `${h} AM`;
 
-    const gotoListView = () => {
-        const p = new URLSearchParams(searchParams);
-        p.set('view', 'list');
-        setSearchParams(p);
-    };
+    const [bulkOpsOpen, setBulkOpsOpen] = useState(false);
 
     return (
         <div className="p-6 h-screen flex flex-col space-y-4">
@@ -249,7 +250,19 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
                             className="h-7 px-3 text-xs text-zinc-500 hover:text-zinc-900"
                             onClick={() => {
                                 const p = new URLSearchParams(searchParams);
-                                p.set('view', 'list');
+                                p.set('view', 'tile');
+                                setSearchParams(p);
+                            }}
+                        >
+                            <ListIcon className="h-3.5 w-3.5 mr-1.5" /> Tile
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-3 text-xs text-zinc-500 hover:text-zinc-900"
+                            onClick={() => {
+                                const p = new URLSearchParams(searchParams);
+                                p.set('view', 'listview');
                                 setSearchParams(p);
                             }}
                         >
@@ -262,39 +275,39 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
                             <input
                                 type="checkbox"
                                 className="rounded border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800"
-                                checked={includeArchived}
+                                checked={useEventColors}
                                 onChange={(e) => {
                                     const newParams = new URLSearchParams(searchParams);
-                                    if (e.target.checked) newParams.set("includeArchived", "true");
-                                    else newParams.delete("includeArchived");
+                                    if (e.target.checked) newParams.delete("eventColors");
+                                    else newParams.set("eventColors", "false");
                                     setSearchParams(newParams);
                                 }}
                             />
-                            <span className="text-zinc-600 dark:text-zinc-400">Show Archived</span>
+                            <span className="text-zinc-600 dark:text-zinc-400">Event colors</span>
+                        </label>
+                    )}
+
+                    {!isStudentView && (
+                        <label className="flex items-center gap-1.5 text-sm cursor-pointer mr-2 select-none">
+                            <input
+                                type="checkbox"
+                                className="rounded border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800"
+                                checked={showPrevious}
+                                onChange={(e) => {
+                                    const newParams = new URLSearchParams(searchParams);
+                                    if (e.target.checked) newParams.set("showPrevious", "true");
+                                    else newParams.delete("showPrevious");
+                                    setSearchParams(newParams);
+                                }}
+                            />
+                            <span className="text-zinc-600 dark:text-zinc-400">Show previous</span>
                         </label>
                     )}
 
                     {canSchedule && (
                         <>
-                            <Button
-                                variant="outline"
-                                className="text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-800 dark:hover:bg-blue-900/20"
-                                onClick={gotoListView}
-                            >
-                                <CalendarClock className="h-4 w-4 mr-2" /> Bulk Reschedule
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="text-red-600 border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20"
-                                onClick={gotoListView}
-                            >
-                                <Trash2 className="h-4 w-4 mr-2" /> Bulk Cancel
-                            </Button>
-                            <Button
-                                variant="outline"
-                                onClick={gotoListView}
-                            >
-                                <Plus className="h-4 w-4 mr-2" /> Bulk Schedule
+                            <Button variant="outline" onClick={() => setBulkOpsOpen(true)}>
+                                <CalendarClock className="h-4 w-4 mr-2" /> Bulk Operations
                             </Button>
                             <Button onClick={() => setIsCreateOpen(true)}>
                                 <Plus className="mr-2 h-4 w-4" />
@@ -352,6 +365,7 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
                             defaultDate={new Date()}
                             startHour={calStart}
                             endHour={calEnd}
+                            useEventColors={useEventColors}
                         />
                     )}
                 </div>
@@ -417,6 +431,24 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
                     queryClient.invalidateQueries({ queryKey: ['user'] });
                 }}
             />
+
+            <BulkOperationsModal
+                isOpen={bulkOpsOpen}
+                onClose={() => setBulkOpsOpen(false)}
+                onOpenBulkSchedule={() => setIsBulkScheduleOpen(true)}
+                onSuccess={refreshClasses}
+            />
+
+            <CreateBulkClassModal
+                isOpen={isBulkScheduleOpen}
+                onClose={() => setIsBulkScheduleOpen(false)}
+                onSuccess={(count) => { refreshClasses(); setIsBulkScheduleOpen(false); }}
+                tenantId={tenant?.id}
+                locations={locations}
+                instructors={instructors}
+                plans={plansData}
+                courses={coursesData}
+            />
         </div>
     );
 }
@@ -425,18 +457,33 @@ export default function StudioSchedule() {
     const { slug } = useParams();
     const [searchParams] = useSearchParams();
     const viewMode = searchParams.get('view') || 'calendar';
+    // 'list' kept for backward compat → tile
+    const isTileView = viewMode === 'tile' || viewMode === 'list';
+    const isListView = viewMode === 'listview';
 
     // Context & Hooks
     const { tenant, me, features, roles, isStudentView, token } = useOutletContext<any>() || {};
 
     const { data: coursesData = [] } = useCourses(slug!, { status: 'active' });
 
-    if (viewMode === 'list') {
+    if (isTileView) {
         return (
             <ClientOnly fallback={<div className="p-8">Loading Schedule...</div>}>
                 <Suspense fallback={<div className="p-8">Loading Schedule...</div>}>
                     <div className="max-w-[1400px] w-full mx-auto p-4 sm:p-6 lg:p-8">
                         <ClassesPage />
+                    </div>
+                </Suspense>
+            </ClientOnly>
+        );
+    }
+
+    if (isListView) {
+        return (
+            <ClientOnly fallback={<div className="p-8">Loading Schedule...</div>}>
+                <Suspense fallback={<div className="p-8">Loading Schedule...</div>}>
+                    <div className="max-w-[1400px] w-full mx-auto p-4 sm:p-6 lg:p-8">
+                        <ScheduleListView />
                     </div>
                 </Suspense>
             </ClientOnly>

@@ -63,9 +63,11 @@ interface WeeklyCalendarProps {
     defaultDate?: Date;
     startHour?: number; // 0-23, default 5 (5 AM)
     endHour?: number;   // 1-24, default 24 (midnight)
+    /** When false, event blocks use a neutral gray background instead of class colors */
+    useEventColors?: boolean;
 }
 
-export function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDate = new Date(), startHour = 5, endHour = 24 }: WeeklyCalendarProps) {
+export function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDate = new Date(), startHour = 5, endHour = 24, useEventColors = true }: WeeklyCalendarProps) {
     const [currentDate, setCurrentDate] = useState(defaultDate);
     const [view, setView] = useState<'day' | 'workweek' | 'week' | 'month'>('week');
 
@@ -257,10 +259,15 @@ export function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDat
                                         </div>
                                         <div className="space-y-0.5">
                                             {dayEvents.map(event => {
-                                                const gradient = event.resource?.gradientColor1 && event.resource?.gradientColor2
+                                                const useColors = useEventColors;
+                                                const gradient = useColors && (event.resource?.gradientColor1 && event.resource?.gradientColor2)
                                                     ? `linear-gradient(${event.resource.gradientDirection || 135}deg, ${event.resource.gradientColor1}, ${event.resource.gradientColor2})`
-                                                    : event.resource?.gradientColor1 || 'var(--calendar-event-bg, #eff6ff)';
-                                                const useLightText = !!event.resource?.gradientColor1;
+                                                    : useColors && event.resource?.gradientColor1
+                                                        ? event.resource.gradientColor1
+                                                        : 'var(--calendar-event-bg, #f4f4f5)';
+                                                const useLightText = useColors && !!event.resource?.gradientColor1;
+                                                const borderStyle = useColors && !event.resource?.gradientColor1 ? '1px solid var(--calendar-event-border, #e4e4e7)' : (event.resource?.gradientColor1 ? 'none' : '1px solid var(--calendar-event-border, #e4e4e7)');
+                                                const textColor = useLightText ? '#ffffff' : (useColors ? 'var(--calendar-event-text, #1e40af)' : 'var(--calendar-event-text, #3f3f46)');
                                                 return (
                                                     <button
                                                         key={event.id}
@@ -268,8 +275,8 @@ export function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDat
                                                         className="w-full text-left text-[11px] px-1 py-0.5 rounded cursor-pointer leading-tight shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                                                         style={{
                                                             background: gradient,
-                                                            border: event.resource?.gradientColor1 ? 'none' : '1px solid var(--calendar-event-border, #bfdbfe)',
-                                                            color: useLightText ? '#ffffff' : 'var(--calendar-event-text, #1e40af)',
+                                                            border: borderStyle,
+                                                            color: textColor,
                                                             textShadow: useLightText ? '0 1px 2px rgba(0,0,0,0.35)' : 'none'
                                                         }}
                                                         onClick={(e) => {
@@ -382,9 +389,15 @@ export function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDat
 
                                                     if (evStartHour < startHour) return null; // Skip events before calendar start
 
-                                                    const gradient = event.resource?.gradientColor1 && event.resource?.gradientColor2
+                                                    const useColors = useEventColors;
+                                                    const gradient = useColors && (event.resource?.gradientColor1 && event.resource?.gradientColor2)
                                                         ? `linear-gradient(${event.resource.gradientDirection || 135}deg, ${event.resource.gradientColor1}, ${event.resource.gradientColor2})`
-                                                        : event.resource?.gradientColor1 || 'var(--calendar-event-bg, #eff6ff)';
+                                                        : useColors && event.resource?.gradientColor1
+                                                            ? event.resource.gradientColor1
+                                                            : 'var(--calendar-event-bg, #f4f4f5)';
+                                                    const evBorder = useColors && event.resource?.gradientColor1 ? 'none' : '1px solid var(--calendar-event-border, #e4e4e7)';
+                                                    const evColor = useColors && event.resource?.gradientColor1 ? '#ffffff' : (useColors ? 'var(--calendar-event-text, #1e40af)' : 'var(--calendar-event-text, #3f3f46)');
+                                                    const evShadow = useColors && event.resource?.gradientColor1 ? '0 1px 2px rgba(0,0,0,0.3)' : 'none';
 
                                                     return (
                                                         <button
@@ -400,9 +413,9 @@ export function WeeklyCalendar({ events, onSelectEvent, onSelectSlot, defaultDat
                                                                 left: `${layout.left * 100}%`,
                                                                 width: `${layout.width * 98}%`, // Slightly less than 100% to show gap
                                                                 background: gradient,
-                                                                border: event.resource?.gradientColor1 ? 'none' : '1px solid var(--calendar-event-border, #bfdbfe)',
-                                                                color: event.resource?.gradientColor1 ? '#ffffff' : 'var(--calendar-event-text, #1e40af)',
-                                                                textShadow: event.resource?.gradientColor1 ? '0 1px 2px rgba(0,0,0,0.3)' : 'none'
+                                                                border: evBorder,
+                                                                color: evColor,
+                                                                textShadow: evShadow
                                                             }}
                                                             aria-label={`${event.title}, ${format(event.start, 'h:mm a')} to ${format(event.end, 'h:mm a')}`}
                                                         >
