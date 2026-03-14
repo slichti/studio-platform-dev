@@ -1,7 +1,7 @@
 
 import { useParams, useOutletContext, useSearchParams, useNavigate } from "react-router";
 import { useState, useRef, useLayoutEffect, useMemo } from "react";
-import { Plus, Archive, ArchiveRestore, Calendar as CalendarIcon, Clock, Users, Video, List as ListIcon, Trash2, CalendarClock } from "lucide-react";
+import { Plus, Archive, ArchiveRestore, Calendar as CalendarIcon, Clock, Users, Video, List as ListIcon, Trash2, CalendarClock, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/react-router";
@@ -65,6 +65,9 @@ type ClassEvent = {
             }
         }
     }[];
+    location?: {
+        name?: string | null;
+    } | null;
 };
 
 export default function ClassesPage() {
@@ -395,8 +398,8 @@ export default function ClassesPage() {
                                                             )}
                                                         </div>
 
-                                                        {/* Metadata */}
-                                                        <div className="space-y-1 text-xs text-zinc-500 dark:text-zinc-400">
+                                        {/* Metadata */}
+                                        <div className="space-y-1 text-xs text-zinc-500 dark:text-zinc-400">
                                                             <div className="flex items-center gap-1.5">
                                                                 <Clock className="h-3 w-3 shrink-0" />
                                                                 <span>
@@ -439,10 +442,25 @@ export default function ClassesPage() {
                                                                     <span className="truncate">w/ {cls.instructor.user.profile.firstName}</span>
                                                                 </div>
                                                             )}
-                                                            {cls.zoomEnabled && (
-                                                                <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
-                                                                    <Video className="h-3 w-3 shrink-0" />
-                                                                    <span>Virtual Option</span>
+                                                            {/* Location & Modality */}
+                                                            {(cls.location?.name || cls.zoomEnabled) && (
+                                                                <div className="flex flex-wrap items-center gap-2">
+                                                                    {cls.location?.name && (
+                                                                        <span className="flex items-center gap-1.5">
+                                                                            <MapPin className="h-3 w-3 shrink-0" />
+                                                                            <span>{cls.location.name}</span>
+                                                                        </span>
+                                                                    )}
+                                                                    {cls.zoomEnabled && (
+                                                                        <span className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
+                                                                            <Video className="h-3 w-3 shrink-0" />
+                                                                            <span>
+                                                                                {cls.location?.name
+                                                                                    ? "In-person or virtual (Zoom)"
+                                                                                    : "Virtual only (Zoom)"}
+                                                                            </span>
+                                                                        </span>
+                                                                    )}
                                                                 </div>
                                                             )}
                                                         </div>
