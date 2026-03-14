@@ -2,9 +2,22 @@ import { type LoaderFunctionArgs, type MetaFunction, useLoaderData, redirect } f
 import { getStudioPage, getSubdomain } from "~/utils/subdomain.server";
 import { lazy, Suspense } from "react";
 const PublicPageRenderer = lazy(() => import("~/components/website/PublicPageRenderer.client").then(m => ({ default: m.PublicPageRenderer })));
+const PublicScheduleView = lazy(() => import("~/components/PublicScheduleView").then(m => ({ default: m.PublicScheduleView })));
 import { ClientOnly } from "~/components/ClientOnly";
 
+function getApiUrl(): string {
+    const env = (import.meta as any).env;
+    if (env?.VITE_API_URL && typeof env.VITE_API_URL === "string") return env.VITE_API_URL;
+    return env?.PROD ? "https://api.slichti.org" : "http://localhost:8787";
+}
+
 export const meta: MetaFunction = ({ data }: any) => {
+    if (data?.isPublicSchedule && data?.tenant) {
+        return [
+            { title: `${data.tenant.name} – Class Schedule` },
+            { name: "description", content: `View and book classes at ${data.tenant.name}.` },
+        ];
+    }
     if (!data?.page) {
         return [{ title: "Page Not Found" }];
     }
@@ -35,9 +48,23 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         throw new Response("Not Found", { status: 404 });
     }
 
-    // Special-case app routes that should live under /studio or /portal but are linked from emails
+    // Public schedule: no login required, uses guest API
     if (pageSlug === "schedule") {
-        return redirect(`/studio/${subdomain}/classes`);
+        const apiUrl = getApiUrl();
+        try {
+            const res = await fetch(`${apiUrl}/guest/schedule/${subdomain}`);
+            if (!res.ok) throw new Response("Studio not found", { status: 404 });
+            const data = await res.json() as { tenant: { name: string; id: string; currency?: string }; classes: any[] };
+            return {
+                isPublicSchedule: true,
+                tenant: data.tenant,
+                classes: data.classes || [],
+                tenantSlug: subdomain,
+            };
+        } catch (e) {
+            if (e instanceof Response) throw e;
+            throw new Response("Page Not Found", { status: 404 });
+        }
     }
     if (pageSlug === "portal") {
         return redirect(`/portal/${subdomain}`);
@@ -57,8 +84,27 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 }
 
 export default function DynamicPage() {
-    const { page, tenantSlug } = useLoaderData<typeof loader>();
+    const data = useLoaderData<typeof loader>();
 
+    if (data.isPublicSchedule && data.tenant && data.tenantSlug) {
+        return (
+            <ClientOnly>
+                <Suspense fallback={
+                    <div className="flex h-screen items-center justify-center">
+                        <div className="h-8 w-8 animate-spin rounded-full border-t-2 border-black border-r-2" />
+                    </div>
+                }>
+                    <PublicScheduleView
+                        tenant={data.tenant}
+                        classes={data.classes}
+                        tenantSlug={data.tenantSlug}
+                    />
+                </Suspense>
+            </ClientOnly>
+        );
+    }
+
+    const { page, tenantSlug } = data as { page: any; tenantSlug: string };
     return (
         <ClientOnly>
             <Suspense fallback={
