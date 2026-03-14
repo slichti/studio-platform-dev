@@ -10,7 +10,7 @@ import { ExportService } from './services/export';
 import { LoggerService } from './services/logger';
 import { authMiddleware } from './middleware/auth';
 import { optionalAuthMiddleware } from './middleware/optionalAuth';
-import { tenantMiddleware } from './middleware/tenant';
+import { tenantMiddleware, requireFeature } from './middleware/tenant';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { rateLimitMiddleware } from './middleware/rate-limit'; // [NEW]
@@ -957,7 +957,8 @@ app.route('/reviews', reviews);
 
 
 
-// Feature Routes
+// Feature Routes (tags require tenant feature 'tags' and platform feature_tags)
+studioApp.use('/tags', requireFeature('tags'));
 studioApp.route('/tags', tagsRoutes);
 studioApp.route('/custom-fields', customFieldRoutes);
 studioApp.route('/audit-logs', auditLogRoutes);
