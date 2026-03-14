@@ -80,6 +80,7 @@ app.get('/tenants', async (c) => {
             slug: true,
             isPublic: true,
             seoConfig: true,
+            settings: true,
             gbpToken: true,
             createdAt: true
         },
