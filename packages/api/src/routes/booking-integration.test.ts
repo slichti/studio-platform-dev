@@ -150,6 +150,21 @@ describe('Booking Lifecycle Integration', () => {
             key TEXT PRIMARY KEY, value TEXT, enabled INTEGER, description TEXT, updated_at INTEGER
         )`);
 
+        // 15. Tags / tag_assignments / class_required_tags (required for BookingService.createBooking tag check)
+        sqlite.exec(`CREATE TABLE tags (
+            id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL, slug TEXT NOT NULL,
+            color TEXT DEFAULT '#6366f1', description TEXT, category TEXT, discount_type TEXT DEFAULT 'none',
+            discount_value INTEGER, applies_to_products TEXT, visibility TEXT DEFAULT 'internal_only',
+            created_at INTEGER, updated_at INTEGER
+        )`);
+        sqlite.exec(`CREATE TABLE tag_assignments (
+            id TEXT PRIMARY KEY, tag_id TEXT NOT NULL, target_id TEXT NOT NULL, target_type TEXT DEFAULT 'member',
+            source TEXT DEFAULT 'manual', created_by TEXT, assigned_at INTEGER
+        )`);
+        sqlite.exec(`CREATE TABLE class_required_tags (
+            class_id TEXT NOT NULL, tag_id TEXT NOT NULL, PRIMARY KEY (class_id, tag_id)
+        )`);
+
         // Setup mock environment
         env = {
             RESEND_API_KEY: 'mock_resend_key'
