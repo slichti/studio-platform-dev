@@ -15,6 +15,7 @@ export default function SettingsSEO() {
     const [seoDefaultTitle, setSeoDefaultTitle] = useState("");
     const [seoDefaultDescription, setSeoDefaultDescription] = useState("");
     const [seoLocation, setSeoLocation] = useState("");
+    const [googleReviewLink, setGoogleReviewLink] = useState("");
     const [robotsDisallowText, setRobotsDisallowText] = useState("");
     const [initialized, setInitialized] = useState(false);
     const [syncingGbp, setSyncingGbp] = useState(false);
@@ -37,6 +38,7 @@ export default function SettingsSEO() {
         setSeoDefaultTitle(s.defaultTitle || "");
         setSeoDefaultDescription(s.defaultDescription || "");
         setSeoLocation(s.location || "");
+        setGoogleReviewLink(s.googleReviewLink || "");
         const disallow = s.robotsDisallow;
         setRobotsDisallowText(Array.isArray(disallow) ? disallow.join("\n") : "");
         setInitialized(true);
@@ -63,6 +65,7 @@ export default function SettingsSEO() {
                             defaultTitle: seoDefaultTitle || undefined,
                             defaultDescription: seoDefaultDescription || undefined,
                             location: seoLocation || undefined,
+                            googleReviewLink: googleReviewLink.trim() || undefined,
                             robotsDisallow: robotsDisallowText
                                 .split("\n")
                                 .map((p) => p.trim())
@@ -195,6 +198,22 @@ export default function SettingsSEO() {
                     />
                     <p className="text-xs text-zinc-500 mt-2 leading-relaxed">
                         Critical for <strong>Google Maps</strong> and local search relevance. Ensure this matches your physical location for best performance.
+                    </p>
+                </div>
+
+                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
+                    <label className="block text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-2 flex items-center gap-2">
+                        <Globe className="text-amber-500" size={18} /> Google Review Link
+                    </label>
+                    <input
+                        type="url"
+                        value={googleReviewLink}
+                        onChange={(e) => setGoogleReviewLink(e.target.value)}
+                        placeholder="https://g.page/your-studio/review or Google Maps review URL"
+                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white dark:bg-zinc-950"
+                    />
+                    <p className="text-xs text-zinc-500 mt-2 leading-relaxed">
+                        Used when requesting reviews (email/SMS) and after class check-in. Get the link from your Google Business Profile → Share review form.
                     </p>
                 </div>
 

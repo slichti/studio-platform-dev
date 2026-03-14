@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-import { tenants, platformConfig, auditLogs, platformSeoTopics, tenantSeoContentSettings } from '@studio/db/src/schema';
-import { count, eq, and, sql, desc, like, or } from 'drizzle-orm';
+import { tenants, platformConfig, auditLogs, platformSeoTopics, tenantSeoContentSettings, reviews, tenantMembers, users } from '@studio/db/src/schema';
+import { count, eq, and, sql, desc, like, or, inArray } from 'drizzle-orm';
 import type { HonoContext } from '../types';
 import { SitemapService } from '../services/sitemap';
 
@@ -92,7 +92,8 @@ app.get('/tenants', async (c) => {
 
     return c.json(list.map(t => ({
         ...t,
-        hasGbp: !!t.gbpToken
+        hasGbp: !!t.gbpToken,
+        reviewLink: (t.seoConfig as any)?.googleReviewLink ?? (t.settings as any)?.seo?.googleReviewLink ?? null
     })));
 });
 
@@ -232,6 +233,129 @@ app.patch('/topics/:id', async (c) => {
     const body = await c.req.json();
     await db.update(platformSeoTopics).set(body).where(eq(platformSeoTopics.id, id)).run();
     return c.json({ success: true });
+});
+
+// GET /tenants/:id/reviews - List reviews for a tenant (platform admin)
+app.get('/tenants/:id/reviews', async (c) => {
+    const auth = c.get('auth');
+    if (!auth?.userId) return c.json({ error: 'Unauthorized' }, 401);
+    if ((auth.claims as any)?.isPlatformAdmin !== true) return c.json({ error: 'Forbidden' }, 403);
+    const db = createDb(c.env.DB);
+    const tenantId = c.req.param('id');
+    const tenant = await db.select().from(tenants).where(eq(tenants.id, tenantId)).get();
+    if (!tenant) return c.json({ error: 'Tenant not found' }, 404);
+    const list = await db.select({
+        id: reviews.id, rating: reviews.rating, content: reviews.content, isApproved: reviews.isApproved,
+        isTestimonial: reviews.isTestimonial, replyDraft: reviews.replyDraft, createdAt: reviews.createdAt,
+        profile: users.profile,
+    })
+        .from(reviews)
+        .innerJoin(tenantMembers, eq(reviews.memberId, tenantMembers.id))
+        .innerJoin(users, eq(tenantMembers.userId, users.id))
+        .where(eq(reviews.tenantId, tenantId))
+        .orderBy(desc(reviews.createdAt))
+        .limit(100)
+        .all();
+    return c.json(list.map(r => ({ ...r, member: { user: { profile: r.profile } } })));
+});
+
+// GET /tenants/:id/review-members - Members for review request (platform admin)
+app.get('/tenants/:id/review-members', async (c) => {
+    const auth = c.get('auth');
+    if (!auth?.userId) return c.json({ error: 'Unauthorized' }, 401);
+    if ((auth.claims as any)?.isPlatformAdmin !== true) return c.json({ error: 'Forbidden' }, 403);
+    const db = createDb(c.env.DB);
+    const tenantId = c.req.param('id');
+    const tenant = await db.select().from(tenants).where(eq(tenants.id, tenantId)).get();
+    if (!tenant) return c.json({ error: 'Tenant not found' }, 404);
+    const list = await db.select({
+        id: tenantMembers.id,
+        email: users.email,
+        phone: users.phone,
+        profile: users.profile,
+    })
+        .from(tenantMembers)
+        .innerJoin(users, eq(tenantMembers.userId, users.id))
+        .where(and(eq(tenantMembers.tenantId, tenantId), eq(tenantMembers.status, 'active')))
+        .limit(500)
+        .all();
+    const profile = (p: any) => p?.firstName || p?.lastName ? `${p.firstName || ''} ${p.lastName || ''}`.trim() : null;
+    return c.json(list.map(m => ({ id: m.id, email: m.email, phone: m.phone, displayName: profile(m.profile) || m.email || 'Member' })));
+});
+
+// POST /tenants/:id/send-review-request - Send review request for a tenant (platform admin)
+app.post('/tenants/:id/send-review-request', async (c) => {
+    const auth = c.get('auth');
+    if (!auth?.userId) return c.json({ error: 'Unauthorized' }, 401);
+    if ((auth.claims as any)?.isPlatformAdmin !== true) return c.json({ error: 'Forbidden' }, 403);
+    const db = createDb(c.env.DB);
+    const tenantId = c.req.param('id');
+    const tenant = await db.select().from(tenants).where(eq(tenants.id, tenantId)).get();
+    if (!tenant) return c.json({ error: 'Tenant not found' }, 404);
+    const seoConfig = (tenant.seoConfig || {}) as any;
+    const settings = (tenant.settings || {}) as any;
+    const reviewLink = seoConfig?.googleReviewLink ?? settings?.seo?.googleReviewLink;
+    if (!reviewLink || typeof reviewLink !== 'string' || !reviewLink.trim()) {
+        return c.json({ error: 'Google Review link not set for this tenant.' }, 400);
+    }
+    const body = await c.req.json().catch(() => ({})) as { memberIds?: string[]; channel?: 'email' | 'sms' | 'both' };
+    const memberIds = Array.isArray(body.memberIds) ? body.memberIds.filter((id: any): id is string => typeof id === 'string') : [];
+    const channel = body.channel === 'sms' ? 'sms' : body.channel === 'both' ? 'both' : 'email';
+    if (memberIds.length === 0) return c.json({ error: 'memberIds array required' }, 400);
+
+    const members = await db.select({
+        id: tenantMembers.id,
+        userId: tenantMembers.userId,
+        email: users.email,
+        phone: users.phone,
+    })
+        .from(tenantMembers)
+        .innerJoin(users, eq(tenantMembers.userId, users.id))
+        .where(and(eq(tenantMembers.tenantId, tenantId), inArray(tenantMembers.id, memberIds)))
+        .all();
+
+    const studioName = tenant.name || 'Our studio';
+    const subject = `Leave us a review – ${studioName}`;
+    const html = `<p>Hi there,</p><p>We'd love to hear about your experience! If you have a moment, please leave us a review:</p><p><a href="${reviewLink}" style="color:#6366f1;font-weight:600;">Leave a review</a></p><p>Thank you,<br/>${studioName}</p>`;
+    const smsBody = `${studioName}: We'd love your feedback! Leave a review: ${reviewLink}`;
+
+    const { EmailService } = await import('../services/email');
+    const { UsageService } = await import('../services/pricing');
+    const usageService = new UsageService(db, tenant.id);
+    let emailApiKey = (c.env as any).RESEND_API_KEY as string;
+    if ((tenant as any).resendCredentials?.apiKey) {
+        const { EncryptionUtils } = await import('../utils/encryption');
+        const enc = new EncryptionUtils((c.env as any).ENCRYPTION_SECRET);
+        emailApiKey = await enc.decrypt((tenant as any).resendCredentials.apiKey);
+    }
+    const emailService = new EmailService(emailApiKey || '', tenant as any, { slug: tenant.slug, name: tenant.name }, usageService, !!emailApiKey, db, tenant.id);
+    const { SmsService } = await import('../services/sms');
+    const smsService = new SmsService(tenant.twilioCredentials as any, c.env, usageService, db, tenant.id);
+
+    let sentEmail = 0;
+    let sentSms = 0;
+    const errors: string[] = [];
+    for (const m of members) {
+        const email = m.email?.trim();
+        const phone = m.phone?.trim();
+        if ((channel === 'email' || channel === 'both') && email) {
+            try {
+                await emailService.sendGenericEmail(email, subject, html, false);
+                sentEmail++;
+            } catch (e: any) {
+                errors.push(`Email ${email}: ${e?.message || 'failed'}`);
+            }
+        }
+        if ((channel === 'sms' || channel === 'both') && phone) {
+            try {
+                const res = await smsService.sendSms(phone, smsBody, m.id, false);
+                if (res.success) sentSms++; else if (res.error) errors.push(`SMS ${phone}: ${res.error}`);
+            } catch (e: any) {
+                errors.push(`SMS ${phone}: ${e?.message || 'failed'}`);
+            }
+        }
+    }
+    return c.json({ success: true, sentEmail, sentSms, errors: errors.length ? errors : undefined });
 });
 
 // GET /tenants/:id/automation - Tenant Content Automation Settings

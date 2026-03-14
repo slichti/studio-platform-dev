@@ -1,11 +1,92 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { reviews, tenantMembers, users, platformConfig, aiUsageLogs } from '@studio/db/src/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, inArray } from 'drizzle-orm';
 import { HonoContext } from '../types';
 import { GeminiService } from '../services/gemini';
 
 const app = new Hono<HonoContext>();
+
+// GET /review-link — current tenant's Google Review URL for request flows
+app.get('/review-link', async (c) => {
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant missing' }, 400);
+    const seoConfig = (tenant.seoConfig || {}) as any;
+    const settings = (tenant.settings || {}) as any;
+    const reviewLink = seoConfig?.googleReviewLink ?? settings?.seo?.googleReviewLink ?? null;
+    return c.json({ reviewLink });
+});
+
+// POST /send-request — send email and/or SMS to selected members with Google Review link
+app.post('/send-request', async (c) => {
+    if (!c.get('can')('manage_marketing')) return c.json({ error: 'Access denied' }, 403);
+    const db = createDb(c.env.DB);
+    const tenant = c.get('tenant');
+    if (!tenant) return c.json({ error: 'Tenant missing' }, 400);
+
+    const seoConfig = (tenant.seoConfig || {}) as any;
+    const settings = (tenant.settings || {}) as any;
+    const reviewLink = seoConfig?.googleReviewLink ?? settings?.seo?.googleReviewLink;
+    if (!reviewLink || typeof reviewLink !== 'string' || !reviewLink.trim()) {
+        return c.json({ error: 'Google Review link not set. Add it in Settings → SEO & Discoverability.' }, 400);
+    }
+
+    const body = await c.req.json().catch(() => ({})) as { memberIds?: string[]; channel?: 'email' | 'sms' | 'both' };
+    const memberIds = Array.isArray(body.memberIds) ? body.memberIds.filter((id): id is string => typeof id === 'string') : [];
+    const channel = body.channel === 'sms' ? 'sms' : body.channel === 'both' ? 'both' : 'email';
+    if (memberIds.length === 0) return c.json({ error: 'memberIds array required' }, 400);
+
+    const members = await db.select({
+        id: tenantMembers.id,
+        userId: tenantMembers.userId,
+        email: users.email,
+        phone: users.phone,
+        profile: users.profile,
+    })
+        .from(tenantMembers)
+        .innerJoin(users, eq(tenantMembers.userId, users.id))
+        .where(and(eq(tenantMembers.tenantId, tenant.id), inArray(tenantMembers.id, memberIds)))
+        .all();
+
+    const studioName = tenant.name || 'Our studio';
+    const subject = `Leave us a review – ${studioName}`;
+    const html = `<p>Hi there,</p><p>We'd love to hear about your experience! If you have a moment, please leave us a review:</p><p><a href="${reviewLink}" style="color:#6366f1;font-weight:600;">Leave a review</a></p><p>Thank you,<br/>${studioName}</p>`;
+    const smsBody = `${studioName}: We'd love your feedback! Leave a review: ${reviewLink}`;
+
+    const emailService = c.get('email');
+    const { UsageService } = await import('../services/pricing');
+    const usageService = new UsageService(db, tenant.id);
+    const { SmsService } = await import('../services/sms');
+    const twilioCreds = tenant.twilioCredentials as any;
+    const smsService = new SmsService(twilioCreds ? { accountSid: twilioCreds.accountSid, authToken: twilioCreds.authToken, fromNumber: twilioCreds.fromNumber } : undefined, c.env, usageService, db, tenant.id);
+
+    let sentEmail = 0;
+    let sentSms = 0;
+    const errors: string[] = [];
+
+    for (const m of members) {
+        const email = m.email?.trim();
+        const phone = m.phone?.trim();
+        if ((channel === 'email' || channel === 'both') && email) {
+            try {
+                await emailService.sendGenericEmail(email, subject, html, false);
+                sentEmail++;
+            } catch (e: any) {
+                errors.push(`Email ${email}: ${e?.message || 'failed'}`);
+            }
+        }
+        if ((channel === 'sms' || channel === 'both') && phone) {
+            try {
+                const res = await smsService.sendSms(phone, smsBody, m.id, false);
+                if (res.success) sentSms++; else if (res.error) errors.push(`SMS ${phone}: ${res.error}`);
+            } catch (e: any) {
+                errors.push(`SMS ${phone}: ${e?.message || 'failed'}`);
+            }
+        }
+    }
+
+    return c.json({ success: true, sentEmail, sentSms, errors: errors.length ? errors : undefined });
+});
 
 // GET /reviews
 app.get('/', async (c) => {

@@ -2,7 +2,7 @@ import { type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, Link } from "react-router";
 import { getAuth } from "../utils/auth-wrapper.server";
 import { apiRequest } from "../utils/api";
-import { Globe, Search, ExternalLink, CheckCircle, XCircle, AlertCircle, Save, Loader2, Power, Info, Sparkles, HelpCircle, Plus, Calendar, Settings2, BarChart3, TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
+import { Globe, Search, ExternalLink, CheckCircle, XCircle, AlertCircle, Save, Loader2, Power, Info, Sparkles, HelpCircle, Plus, Calendar, Settings2, BarChart3, TrendingUp, TrendingDown, ArrowRight, Star, Mail, MessageSquare } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "@clerk/react-router";
@@ -37,6 +37,11 @@ export default function AdminSEO() {
     const [indexingUrl, setIndexingUrl] = useState('');
     const [indexingSubmitting, setIndexingSubmitting] = useState(false);
     const [indexingResult, setIndexingResult] = useState<{ ok?: boolean; error?: string } | null>(null);
+    const [reviewRequestTenant, setReviewRequestTenant] = useState<{ id: string; name: string; slug: string } | null>(null);
+    const [reviewMembers, setReviewMembers] = useState<{ id: string; email?: string; phone?: string; displayName: string }[]>([]);
+    const [reviewChannel, setReviewChannel] = useState<'email' | 'sms' | 'both'>('email');
+    const [reviewSelectedIds, setReviewSelectedIds] = useState<Set<string>>(new Set());
+    const [reviewSending, setReviewSending] = useState(false);
 
     const handleSaveConfig = async () => {
         setIsSaving(true);
@@ -111,6 +116,37 @@ export default function AdminSEO() {
             setIndexingResult({ ok: false, error: err?.message || "Request failed" });
         } finally {
             setIndexingSubmitting(false);
+        }
+    };
+
+    const openReviewRequestModal = async (tenant: { id: string; name: string; slug: string }) => {
+        setReviewRequestTenant(tenant);
+        setReviewSelectedIds(new Set());
+        setReviewChannel('email');
+        try {
+            const token = await getToken();
+            const list = await apiRequest(`/admin/seo/tenants/${tenant.id}/review-members`, token) as { id: string; email?: string; phone?: string; displayName: string }[];
+            setReviewMembers(list || []);
+        } catch {
+            setReviewMembers([]);
+        }
+    };
+
+    const sendReviewRequest = async () => {
+        if (!reviewRequestTenant || reviewSelectedIds.size === 0) return;
+        setReviewSending(true);
+        try {
+            const token = await getToken();
+            await apiRequest(`/admin/seo/tenants/${reviewRequestTenant.id}/send-review-request`, token, {
+                method: "POST",
+                body: JSON.stringify({ memberIds: Array.from(reviewSelectedIds), channel: reviewChannel })
+            });
+            setReviewRequestTenant(null);
+            navigate(".", { replace: true });
+        } catch (err: any) {
+            alert(err?.message || "Failed to send");
+        } finally {
+            setReviewSending(false);
         }
     };
 
@@ -590,6 +626,7 @@ export default function AdminSEO() {
                                 <th className="px-6 py-3 text-center">Indexing (Toggle)</th>
                                 <th className="px-6 py-3 text-center">GBP Sync</th>
                                 <th className="px-6 py-3 text-center">AI Blogging</th>
+                                <th className="px-6 py-3 text-center">Reviews</th>
                                 <th className="px-6 py-3 text-right">Actions</th>
                             </tr>
                         </thead>
@@ -652,6 +689,28 @@ export default function AdminSEO() {
                                                 >
                                                     Configure
                                                 </button>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <div className="flex items-center justify-center gap-2 flex-wrap">
+                                                <a
+                                                    href={`${typeof window !== "undefined" ? window.location.origin : ""}/studio/${tenant.slug}/reviews`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline uppercase"
+                                                >
+                                                    View
+                                                </a>
+                                                {tenant.reviewLink ? (
+                                                    <button
+                                                        onClick={() => openReviewRequestModal({ id: tenant.id, name: tenant.name, slug: tenant.slug })}
+                                                        className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 hover:underline uppercase"
+                                                    >
+                                                        Send request
+                                                    </button>
+                                                ) : (
+                                                    <span className="text-[10px] text-zinc-400">Set link in SEO</span>
+                                                )}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
@@ -752,6 +811,65 @@ export default function AdminSEO() {
                                         )}
                                     </button>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Review Request Modal (platform admin) */}
+                {reviewRequestTenant && (
+                    <div className="fixed inset-0 bg-zinc-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-2xl max-w-lg w-full max-h-[85vh] overflow-hidden flex flex-col">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                                    <Star className="text-amber-500" size={18} />
+                                    Send review request – {reviewRequestTenant.name}
+                                </h3>
+                                <button onClick={() => setReviewRequestTenant(null)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
+                                    <XCircle size={20} />
+                                </button>
+                            </div>
+                            <div className="space-y-3 mb-4">
+                                <label className="text-xs font-semibold text-zinc-500 uppercase">Channel</label>
+                                <div className="flex gap-2">
+                                    {(['email', 'sms', 'both'] as const).map((ch) => (
+                                        <button
+                                            key={ch}
+                                            onClick={() => setReviewChannel(ch)}
+                                            className={`px-3 py-1.5 text-sm rounded-lg border ${reviewChannel === ch ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700'}`}
+                                        >
+                                            {ch === 'email' && <><Mail size={14} className="inline mr-1" />Email</>}
+                                            {ch === 'sms' && <><MessageSquare size={14} className="inline mr-1" />SMS</>}
+                                            {ch === 'both' && <>Email + SMS</>}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <label className="text-xs font-semibold text-zinc-500 uppercase">Select members</label>
+                            <div className="flex-1 overflow-y-auto border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 mb-4 min-h-[120px]">
+                                {reviewMembers.length === 0 ? (
+                                    <p className="text-sm text-zinc-500 py-4 text-center">No members or loading…</p>
+                                ) : (
+                                    <div className="space-y-1">
+                                        {reviewMembers.map((m) => (
+                                            <label key={m.id} className="flex items-center gap-2 p-2 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={reviewSelectedIds.has(m.id)}
+                                                    onChange={(e) => setReviewSelectedIds(prev => { const n = new Set(prev); if (e.target.checked) n.add(m.id); else n.delete(m.id); return n; })}
+                                                />
+                                                <span className="text-sm text-zinc-900 dark:text-zinc-100 truncate">{m.displayName}</span>
+                                                {(m.email || m.phone) && <span className="text-xs text-zinc-400 truncate">({m.email || m.phone})</span>}
+                                            </label>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex gap-2">
+                                <button onClick={() => setReviewRequestTenant(null)} className="flex-1 py-2 text-sm font-medium border border-zinc-200 dark:border-zinc-700 rounded-lg">Cancel</button>
+                                <button onClick={sendReviewRequest} disabled={reviewSending || reviewSelectedIds.size === 0} className="flex-1 py-2 text-sm font-medium bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white rounded-lg flex items-center justify-center gap-2">
+                                    {reviewSending ? <Loader2 size={16} className="animate-spin" /> : <Star size={16} />} Send ({reviewSelectedIds.size})
+                                </button>
                             </div>
                         </div>
                     </div>

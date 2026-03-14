@@ -543,12 +543,13 @@ studioApp.get('/info', async (c) => {
   // [SECURITY] Filter sensitive settings
   const settings = (tenant.settings || {}) as any;
   const isOwner = roles.includes('owner') || roles.includes('admin');
+  const seoConfig = (tenant.seoConfig || {}) as any;
 
-  // Publicly safe settings
+  // Publicly safe settings (include effective Google Review Link from settings.seo or seoConfig)
   const safeSettings = {
     ...settings,
     googleTagManagerId: settings.googleTagManagerId,
-    // Add other public settings here
+    seo: settings.seo ? { ...settings.seo, googleReviewLink: settings.seo.googleReviewLink ?? seoConfig.googleReviewLink } : { googleReviewLink: seoConfig.googleReviewLink },
   };
 
   // Only expose Kiosk PIN to owners
@@ -608,6 +609,12 @@ studioApp.patch('/settings', async (c) => {
   // Settings Merge Logic
   if (body.settings) {
     updateData.settings = { ...(tenant.settings || {}), ...body.settings };
+    // Sync Google Review Link to seoConfig for bookings/automations
+    const seo = (body.settings as any)?.seo;
+    if (seo && typeof seo.googleReviewLink === 'string') {
+      const seoConfig = { ...((tenant.seoConfig as object) || {}), googleReviewLink: seo.googleReviewLink.trim() || undefined };
+      updateData.seoConfig = seoConfig;
+    }
   }
 
   // Kiosk PIN Shortcut (can also be passed inside body.settings)

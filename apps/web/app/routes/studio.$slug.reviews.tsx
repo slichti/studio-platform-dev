@@ -2,7 +2,7 @@ import { useLoaderData, useOutletContext, useRevalidator } from "react-router";
 import type { LoaderFunctionArgs } from "react-router";
 import { getAuth } from "@clerk/react-router/server";
 import { apiRequest } from "~/utils/api";
-import { Star, CheckCircle2, Trash2, BadgeCheck, MessageSquare, Sparkles, Copy, Pencil, X } from "lucide-react";
+import { Star, CheckCircle2, Trash2, BadgeCheck, MessageSquare, Sparkles, Copy, Pencil, X, Send, Mail, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
 import { cn } from "~/utils/cn";
@@ -54,8 +54,41 @@ export default function StudioReviews() {
     const [draftLoadingId, setDraftLoadingId] = useState<string | null>(null);
     const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
     const [editingDraftText, setEditingDraftText] = useState("");
+    const [requestModalOpen, setRequestModalOpen] = useState(false);
+    const [membersForRequest, setMembersForRequest] = useState<{ id: string; email?: string; phone?: string; displayName: string }[]>([]);
+    const [reviewChannel, setReviewChannel] = useState<"email" | "sms" | "both">("email");
+    const [reviewSelectedIds, setReviewSelectedIds] = useState<Set<string>>(new Set());
+    const [reviewSending, setReviewSending] = useState(false);
+    const [reviewLinkMissing, setReviewLinkMissing] = useState(false);
 
     const canManage = roles?.includes("owner") || roles?.includes("admin");
+
+    const openRequestModal = async () => {
+        setRequestModalOpen(true);
+        setReviewSelectedIds(new Set());
+        setReviewChannel("email");
+        try {
+            const token = await getToken();
+            const [linkRes, membersRes] = await Promise.all([
+                apiRequest<{ reviewLink: string | null }>("/reviews/review-link", token, { headers: { "X-Tenant-Slug": slug! } }),
+                apiRequest<{ members?: { id: string; user?: { email?: string; phone?: string; profile?: any }; profile?: any }[] }>("/members?limit=500", token, { headers: { "X-Tenant-Slug": slug! } })
+            ]);
+            if (!linkRes?.reviewLink) {
+                setReviewLinkMissing(true);
+                setMembersForRequest([]);
+                return;
+            }
+            setReviewLinkMissing(false);
+            const list = (membersRes as any)?.members ?? [];
+            setMembersForRequest(list.map((m: any) => {
+                const profile = m.user?.profile ?? m.profile ?? {};
+                const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(" ").trim() || m.user?.email || "Member";
+                return { id: m.id, email: m.user?.email, phone: m.user?.phone, displayName };
+            }));
+        } catch {
+            setMembersForRequest([]);
+        }
+    };
 
     const approve = async (id: string, isTestimonial?: boolean) => {
         try {
@@ -143,6 +176,26 @@ export default function StudioReviews() {
         toast.success("Copied to clipboard — paste into Google or your review response");
     };
 
+    const sendReviewRequest = async () => {
+        if (reviewSelectedIds.size === 0) return;
+        setReviewSending(true);
+        try {
+            const token = await getToken();
+            const res = await apiRequest<{ sentEmail?: number; sentSms?: number; errors?: string[] }>("/reviews/send-request", token, {
+                method: "POST",
+                headers: { "X-Tenant-Slug": slug!, "Content-Type": "application/json" },
+                body: JSON.stringify({ memberIds: Array.from(reviewSelectedIds), channel: reviewChannel })
+            });
+            toast.success(`Sent: ${(res.sentEmail ?? 0) + (res.sentSms ?? 0)} request(s)`);
+            if (res.errors?.length) toast.warning(res.errors.slice(0, 2).join("; "));
+            setRequestModalOpen(false);
+        } catch (e: any) {
+            toast.error(e?.message || "Failed to send");
+        } finally {
+            setReviewSending(false);
+        }
+    };
+
     const filtered = reviews.filter(r => {
         if (filter === "pending") return !r.isApproved;
         if (filter === "approved") return r.isApproved && !r.isTestimonial;
@@ -155,14 +208,24 @@ export default function StudioReviews() {
     return (
         <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-300">
             {/* Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                    <Star size={24} className="fill-amber-400 text-amber-400" />
-                    Reviews
-                </h1>
-                <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
-                    Manage student reviews and highlight testimonials on your public page.
-                </p>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                        <Star size={24} className="fill-amber-400 text-amber-400" />
+                        Reviews
+                    </h1>
+                    <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
+                        Manage student reviews and highlight testimonials on your public page.
+                    </p>
+                </div>
+                {canManage && (
+                    <button
+                        onClick={openRequestModal}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg transition-colors"
+                    >
+                        <Send size={16} /> Request reviews
+                    </button>
+                )}
             </div>
 
             {/* Stats */}
@@ -363,6 +426,74 @@ export default function StudioReviews() {
                             </div>
                         );
                     })}
+                </div>
+            )}
+
+            {/* Request reviews modal */}
+            {requestModalOpen && (
+                <div className="fixed inset-0 bg-zinc-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-2xl max-w-lg w-full max-h-[85vh] overflow-hidden flex flex-col">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                                <Send className="text-amber-500" size={18} />
+                                Request Google reviews
+                            </h3>
+                            <button onClick={() => setRequestModalOpen(false)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        {reviewLinkMissing ? (
+                            <p className="text-sm text-amber-600 dark:text-amber-400 mb-4">
+                                Add your Google Review link in <strong>Settings → SEO & Discoverability</strong> first, then try again.
+                            </p>
+                        ) : (
+                            <>
+                                <div className="space-y-3 mb-4">
+                                    <label className="text-xs font-semibold text-zinc-500 uppercase">Channel</label>
+                                    <div className="flex gap-2">
+                                        {(["email", "sms", "both"] as const).map((ch) => (
+                                            <button
+                                                key={ch}
+                                                onClick={() => setReviewChannel(ch)}
+                                                className={`px-3 py-1.5 text-sm rounded-lg border ${reviewChannel === ch ? "bg-indigo-600 text-white border-indigo-600" : "bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700"}`}
+                                            >
+                                                {ch === "email" && <><Mail size={14} className="inline mr-1" />Email</>}
+                                                {ch === "sms" && <><MessageSquare size={14} className="inline mr-1" />SMS</>}
+                                                {ch === "both" && <>Email + SMS</>}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <label className="text-xs font-semibold text-zinc-500 uppercase">Select members</label>
+                                <div className="flex-1 overflow-y-auto border border-zinc-200 dark:border-zinc-700 rounded-lg p-2 mb-4 min-h-[120px]">
+                                    {membersForRequest.length === 0 ? (
+                                        <p className="text-sm text-zinc-500 py-4 text-center">No members or loading…</p>
+                                    ) : (
+                                        <div className="space-y-1">
+                                            {membersForRequest.map((m) => (
+                                                <label key={m.id} className="flex items-center gap-2 p-2 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={reviewSelectedIds.has(m.id)}
+                                                        onChange={(e) => setReviewSelectedIds((prev) => { const n = new Set(prev); if (e.target.checked) n.add(m.id); else n.delete(m.id); return n; })}
+                                                    />
+                                                    <span className="text-sm text-zinc-900 dark:text-zinc-100 truncate">{m.displayName}</span>
+                                                    {(m.email || m.phone) && <span className="text-xs text-zinc-400 truncate">({m.email || m.phone})</span>}
+                                                </label>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex gap-2">
+                                    <button onClick={() => setRequestModalOpen(false)} className="flex-1 py-2 text-sm font-medium border border-zinc-200 dark:border-zinc-700 rounded-lg">Cancel</button>
+                                    <button onClick={sendReviewRequest} disabled={reviewSending || reviewSelectedIds.size === 0} className="flex-1 py-2 text-sm font-medium bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white rounded-lg flex items-center justify-center gap-2">
+                                        {reviewSending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />} Send ({reviewSelectedIds.size})
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                        {reviewLinkMissing && <button onClick={() => setRequestModalOpen(false)} className="mt-2 py-2 text-sm font-medium border border-zinc-200 dark:border-zinc-700 rounded-lg">Close</button>}
+                    </div>
                 </div>
             )}
         </div>
