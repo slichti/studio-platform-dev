@@ -8,6 +8,7 @@ import { StripeService } from '../services/stripe';
 import { EncryptionUtils } from '../utils/encryption';
 import { StudioVariables } from '../types';
 import { getFirstName } from '../utils/profile';
+import { ensureDefaultTagsForTenant } from '../utils/defaultTags';
 
 const app = createOpenAPIApp<StudioVariables>();
 
@@ -130,6 +131,7 @@ app.openapi(createRoute({
 
     try {
         await db.insert(tenants).values({ id, name, slug }).run();
+        await ensureDefaultTagsForTenant(db, id);
         const auth = c.get('auth');
         if (auth?.userId) {
             const memberId = crypto.randomUUID();

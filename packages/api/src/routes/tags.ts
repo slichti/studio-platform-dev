@@ -4,6 +4,7 @@ import { createDb } from '../db';
 import { tags, tagAssignments } from '@studio/db/src/schema';
 import { eq, and } from 'drizzle-orm';
 import { Bindings, Variables } from '../types';
+import { ensureDefaultTagsForTenant } from '../utils/defaultTags';
 
 const app = createOpenAPIApp();
 
@@ -65,6 +66,7 @@ app.openapi(listTagsRoute, async (c) => {
         if (!tenant) throw new Error('Tenant context missing');
 
         const db = createDb(c.env.DB);
+        await ensureDefaultTagsForTenant(db, tenant.id);
         const returnedTags = await db.select().from(tags).where(eq(tags.tenantId, tenant.id)).all();
         return c.json(returnedTags);
     } catch (e: any) {

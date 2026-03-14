@@ -5,6 +5,7 @@ import { tenants, tenantMembers, tenantRoles, subscriptions, tenantFeatures, web
 import { eq, sql, desc, count, and, inArray, or, ne } from 'drizzle-orm';
 import { AuditService } from '../services/audit';
 import { HonoContext } from '../types';
+import { ensureDefaultTagsForTenant } from '../utils/defaultTags';
 
 const app = new Hono<HonoContext>();
 
@@ -113,6 +114,7 @@ app.post('/', async (c) => {
         await db.insert(tenantMembers).values({ id: mid, tenantId: id, userId: auth.userId, status: 'active' }).run();
         await db.insert(tenantRoles).values({ id: crypto.randomUUID(), memberId: mid, role: 'owner' }).run();
         await db.insert(websitePages).values({ id: crypto.randomUUID(), tenantId: id, slug: 'home', title: 'Home', content: { root: { props: { title: "Welcome" }, children: [] } }, isPublished: true, createdAt: new Date(), updatedAt: new Date() }).run();
+        await ensureDefaultTagsForTenant(db, id);
         return c.json({ id, name, slug }, 201);
     } catch (e: any) { return c.json({ error: e.message }, 500); }
 });

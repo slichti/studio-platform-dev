@@ -7,6 +7,7 @@ import { rateLimitMiddleware } from '../middleware/rate-limit';
 import { Svix } from 'svix';
 
 import { HonoContext } from '../types';
+import { ensureDefaultTagsForTenant } from '../utils/defaultTags';
 
 const app = new Hono<HonoContext>();
 
@@ -159,6 +160,7 @@ app.post('/studio', rateLimitMiddleware({ limit: 5, window: 300, keyPrefix: 'onb
 
     try {
         await db.insert(tenants).values(newTenant).run();
+        await ensureDefaultTagsForTenant(db, tenantId);
 
         // 3b. Provision Svix Application
         if (c.env.SVIX_AUTH_TOKEN) {
