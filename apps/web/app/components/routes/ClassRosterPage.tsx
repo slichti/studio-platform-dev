@@ -172,7 +172,15 @@ export default function ClassRosterPageComponent() {
                 </div>
             )}
 
-            {addStudentOpen && <AddStudentModal classId={id!} slug={slug!} onClose={() => setAddStudentOpen(false)} revalidator={revalidator} />}
+            {addStudentOpen && (
+                <AddStudentModal
+                    classId={id!}
+                    slug={slug!}
+                    existingMemberIds={confirmedBookings.map((b: Booking) => b.memberId)}
+                    onClose={() => setAddStudentOpen(false)}
+                    revalidator={revalidator}
+                />
+            )}
             {notesOpen && selectedStudentId && <NotesModal memberId={selectedStudentId} studentName={selectedBooking?.user.profile?.fullName || selectedBooking?.user.email || 'Student'} onClose={() => setNotesOpen(false)} slug={slug!} revalidator={revalidator} />}
 
             <ConfirmDialog open={!!bookingToCancel} onOpenChange={(open) => !open && setBookingToCancel(null)} onConfirm={handleConfirmCancel} title="Cancel Booking" description="Are you sure you want to cancel this booking?" confirmText="Cancel" variant="destructive" />
@@ -180,11 +188,12 @@ export default function ClassRosterPageComponent() {
     );
 }
 
-function AddStudentModal({ classId, slug, onClose, revalidator }: { classId: string, slug: string, onClose: () => void, revalidator: any }) {
+function AddStudentModal({ classId, slug, existingMemberIds = [], onClose, revalidator }: { classId: string; slug: string; existingMemberIds?: string[]; onClose: () => void; revalidator: any }) {
     const [query, setQuery] = useState("");
     const [members, setMembers] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [addingId, setAddingId] = useState<string | null>(null);
+    const [addedInSession, setAddedInSession] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         (async () => {
@@ -197,34 +206,74 @@ function AddStudentModal({ classId, slug, onClose, revalidator }: { classId: str
         })();
     }, [slug]);
 
-    const filtered = members.filter(m => (m.user?.profile?.fullName || "").toLowerCase().includes(query.toLowerCase()) || (m.user?.email || "").toLowerCase().includes(query.toLowerCase())).slice(0, 5);
+    const alreadyInClass = new Set([...existingMemberIds, ...addedInSession]);
+    const filtered = members
+        .filter(m => !alreadyInClass.has(m.id))
+        .filter(m => (m.user?.profile?.fullName || "").toLowerCase().includes(query.toLowerCase()) || (m.user?.email || "").toLowerCase().includes(query.toLowerCase()))
+        .slice(0, 10);
 
     const handleAdd = async (memberId: string) => {
         setAddingId(memberId);
         try {
             const token = await (window as any).Clerk?.session?.getToken();
             await apiRequest(`/classes/${classId}/book`, token, { method: "POST", headers: { 'X-Tenant-Slug': slug }, body: JSON.stringify({ memberId }) });
-            onClose();
+            setAddedInSession(prev => new Set(prev).add(memberId));
             revalidator.revalidate();
-        } catch (e: any) { alert(e.message); }
-        finally { setAddingId(null); }
+        } catch (e: any) {
+            alert(e?.message || "Failed to add student");
+        } finally {
+            setAddingId(null);
+        }
     };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-4">
-                <div className="flex justify-between items-center mb-4 text-zinc-900">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-md flex flex-col max-h-[85vh] p-4">
+                <div className="flex justify-between items-center mb-4 text-zinc-900 shrink-0">
                     <h3 className="font-bold">Add Student</h3>
-                    <button onClick={onClose}><X size={20} /></button>
+                    <button type="button" onClick={onClose} className="p-1 rounded hover:bg-zinc-100 text-zinc-500 hover:text-zinc-900" aria-label="Close">
+                        <X size={20} />
+                    </button>
                 </div>
-                <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search..." className="w-full p-2 border rounded mb-4" />
-                <div className="space-y-2">
-                    {loading ? "Loading..." : filtered.map(m => (
-                        <div key={m.id} className="flex justify-between items-center p-2 border rounded">
-                            <div className="text-zinc-900 font-medium">{m.user?.profile?.fullName || m.user?.email}</div>
-                            <button onClick={() => handleAdd(m.id)} disabled={!!addingId} className="px-3 py-1 bg-zinc-900 text-white rounded text-xs">{addingId === m.id ? "..." : "Add"}</button>
+                <input
+                    value={query}
+                    onChange={e => setQuery(e.target.value)}
+                    placeholder="Search..."
+                    className="w-full p-2 border border-zinc-200 rounded mb-4 shrink-0"
+                />
+                <div className="space-y-2 overflow-y-auto min-h-0 flex-1 mb-4">
+                    {loading ? (
+                        <div className="text-zinc-500 text-sm">Loading...</div>
+                    ) : filtered.length === 0 ? (
+                        <div className="text-zinc-500 text-sm">
+                            {query.trim() ? "No matching students." : "No other students to add."}
                         </div>
-                    ))}
+                    ) : (
+                        filtered.map(m => (
+                            <div key={m.id} className="flex justify-between items-center p-2 border border-zinc-200 rounded">
+                                <div className="text-zinc-900 font-medium truncate pr-2">
+                                    {m.user?.profile?.fullName || m.user?.email}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => handleAdd(m.id)}
+                                    disabled={!!addingId}
+                                    className="px-3 py-1 bg-zinc-900 text-white rounded text-xs shrink-0 disabled:opacity-50"
+                                >
+                                    {addingId === m.id ? "..." : "Add"}
+                                </button>
+                            </div>
+                        ))
+                    )}
+                </div>
+                <div className="flex justify-end shrink-0 pt-2 border-t border-zinc-200">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="px-4 py-2 bg-zinc-900 text-white rounded text-sm font-medium hover:bg-zinc-800"
+                    >
+                        Done
+                    </button>
                 </div>
             </div>
         </div>
