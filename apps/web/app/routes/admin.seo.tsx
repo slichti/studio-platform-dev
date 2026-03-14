@@ -11,19 +11,20 @@ export const loader = async (args: LoaderFunctionArgs) => {
     const { getToken } = await getAuth(args);
     const token = await getToken();
 
-    const [stats, tenants, platformConfig, failures, topics] = await Promise.all([
+    const [stats, tenants, platformConfig, failures, topics, googleStatus] = await Promise.all([
         apiRequest("/admin/seo/stats", token),
         apiRequest("/admin/seo/tenants", token),
         apiRequest("/admin/seo/config", token),
         apiRequest("/admin/seo/failures", token),
-        apiRequest("/admin/seo/topics", token)
+        apiRequest("/admin/seo/topics", token),
+        apiRequest("/admin/seo/google-status", token).catch(() => ({ gbpConfigured: false, indexingConfigured: false }))
     ]);
 
-    return { stats, tenants, platformConfig, failures, topics };
+    return { stats, tenants, platformConfig, failures, topics, googleStatus };
 };
 
 export default function AdminSEO() {
-    const { stats, tenants, platformConfig: initialConfig, failures, topics: initialTopics } = useLoaderData<typeof loader>();
+    const { stats, tenants, platformConfig: initialConfig, failures, topics: initialTopics, googleStatus } = useLoaderData<typeof loader>();
     const navigate = useNavigate();
     const { getToken } = useAuth();
     const [isSaving, setIsSaving] = useState(false);
@@ -33,6 +34,9 @@ export default function AdminSEO() {
     const [topics, setTopics] = useState(initialTopics);
     const [newTopic, setNewTopic] = useState({ name: '', description: '' });
     const [editingTenantAutomation, setEditingTenantAutomation] = useState<string | null>(null);
+    const [indexingUrl, setIndexingUrl] = useState('');
+    const [indexingSubmitting, setIndexingSubmitting] = useState(false);
+    const [indexingResult, setIndexingResult] = useState<{ ok?: boolean; error?: string } | null>(null);
 
     const handleSaveConfig = async () => {
         setIsSaving(true);
@@ -87,6 +91,26 @@ export default function AdminSEO() {
             console.error("Health validation failed", err);
         } finally {
             setIsValidating(false);
+        }
+    };
+
+    const handleRequestIndexing = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!indexingUrl.trim()) return;
+        setIndexingSubmitting(true);
+        setIndexingResult(null);
+        try {
+            const token = await getToken();
+            await apiRequest("/admin/seo/indexing/request", token, {
+                method: "POST",
+                body: JSON.stringify({ url: indexingUrl.trim() })
+            });
+            setIndexingResult({ ok: true });
+            setIndexingUrl('');
+        } catch (err: any) {
+            setIndexingResult({ ok: false, error: err?.message || "Request failed" });
+        } finally {
+            setIndexingSubmitting(false);
         }
     };
 
@@ -366,6 +390,54 @@ export default function AdminSEO() {
                     description={healthRes ? `Based on ${healthRes.totalChecked} samples` : "Click Validate to check"}
                     color={healthRes ? (healthRes.healthScore > 90 ? "text-green-500" : "text-amber-500") : "text-zinc-400"}
                 />
+            </div>
+
+            {/* Google APIs: Business Profile & Indexing */}
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm">
+                <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-800/20">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-600 dark:text-blue-400">
+                            <Globe size={18} />
+                        </div>
+                        <div>
+                            <h2 className="font-bold text-zinc-900 dark:text-zinc-100">Google APIs</h2>
+                            <p className="text-xs text-zinc-500">Platform-level Google Business Profile (OAuth) and Indexing API (service account) status and actions.</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                        <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">API status</h3>
+                        <ul className="space-y-1.5 text-sm">
+                            <li className="flex items-center gap-2">
+                                {googleStatus?.gbpConfigured ? <CheckCircle size={16} className="text-emerald-500" /> : <XCircle size={16} className="text-zinc-400" />}
+                                <span>Google Business Profile (OAuth)</span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                                {googleStatus?.indexingConfigured ? <CheckCircle size={16} className="text-emerald-500" /> : <XCircle size={16} className="text-zinc-400" />}
+                                <span>Google Indexing API (service account)</span>
+                            </li>
+                        </ul>
+                        <p className="text-xs text-zinc-500 mt-2">Configure in Cloudflare / wrangler: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET; GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY.</p>
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-2">Request indexing for a URL</h3>
+                        <form onSubmit={handleRequestIndexing} className="flex flex-col gap-2">
+                            <input
+                                type="url"
+                                value={indexingUrl}
+                                onChange={(e) => setIndexingUrl(e.target.value)}
+                                placeholder="https://example.com/page"
+                                className="w-full px-3 py-2 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950"
+                            />
+                            <button type="submit" disabled={indexingSubmitting || !indexingUrl.trim()} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2">
+                                {indexingSubmitting ? <Loader2 size={16} className="animate-spin" /> : "Queue for Indexing"}
+                            </button>
+                            {indexingResult?.ok && <p className="text-xs text-emerald-600">URL queued successfully.</p>}
+                            {indexingResult?.error && <p className="text-xs text-red-500">{indexingResult.error}</p>}
+                        </form>
+                    </div>
+                </div>
             </div>
 
             {/* Platform Health & Failures Section */}

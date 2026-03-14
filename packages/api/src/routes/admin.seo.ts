@@ -7,6 +7,36 @@ import { SitemapService } from '../services/sitemap';
 
 const app = new Hono<HonoContext>();
 
+// GET /google-status - Whether Google Business and Indexing APIs are configured (no secrets)
+app.get('/google-status', async (c) => {
+    const env = c.env as any;
+    const gbpConfigured = !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
+    const indexingConfigured = !!(env.GOOGLE_SERVICE_ACCOUNT_EMAIL && env.GOOGLE_PRIVATE_KEY);
+    return c.json({ gbpConfigured, indexingConfigured });
+});
+
+// POST /indexing/request - Enqueue a URL for Google Indexing API (platform admin only)
+app.post('/indexing/request', async (c) => {
+    const auth = c.get('auth');
+    if (!auth?.userId) return c.json({ error: 'Unauthorized' }, 401);
+    const isPlatformAdmin = (auth.claims as any)?.isPlatformAdmin === true;
+    if (!isPlatformAdmin) return c.json({ error: 'Forbidden' }, 403);
+
+    const body = await c.req.json().catch(() => ({})) as { url?: string };
+    const url = typeof body.url === 'string' ? body.url.trim() : '';
+    if (!url) return c.json({ error: 'url is required' }, 400);
+    try {
+        new URL(url);
+    } catch {
+        return c.json({ error: 'Invalid URL' }, 400);
+    }
+
+    const queue = (c.env as any).SEO_INDEXING_QUEUE;
+    if (!queue) return c.json({ error: 'Indexing queue not configured' }, 503);
+    await queue.send({ url });
+    return c.json({ success: true, message: 'URL queued for indexing' });
+});
+
 // GET /stats - Global SEO Metrics
 app.get('/stats', async (c) => {
     const db = createDb(c.env.DB);

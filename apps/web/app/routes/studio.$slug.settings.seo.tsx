@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
-import { useOutletContext, Link, useRevalidator } from "react-router";
+import { useOutletContext, Link, useRevalidator, useParams } from "react-router";
 import { apiRequest } from "~/utils/api";
 import { useAuth } from "@clerk/react-router";
-import { Search, MapPin, Save, Shield } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Search, MapPin, Save, Shield, Globe, Loader2, CheckCircle, XCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 export default function SettingsSEO() {
     const { tenant } = useOutletContext<any>();
+    const { slug } = useParams();
     const { getToken } = useAuth();
     const revalidator = useRevalidator();
     const [loading, setLoading] = useState(false);
@@ -15,6 +17,20 @@ export default function SettingsSEO() {
     const [seoLocation, setSeoLocation] = useState("");
     const [robotsDisallowText, setRobotsDisallowText] = useState("");
     const [initialized, setInitialized] = useState(false);
+    const [syncingGbp, setSyncingGbp] = useState(false);
+    const [requestingIndex, setRequestingIndex] = useState(false);
+    const queryClient = useQueryClient();
+
+    const { data: seoStats, isLoading: seoStatsLoading } = useQuery({
+        queryKey: ["analytics", "seo", slug],
+        queryFn: async () => {
+            const token = await getToken();
+            return apiRequest<{ stats: { gbpConnected: boolean; indexingEnabled: boolean } }>(`/analytics/seo`, token, {
+                headers: { "X-Tenant-Slug": slug! }
+            });
+        },
+        enabled: !!slug
+    });
 
     useEffect(() => {
         const s = (tenant?.settings as any)?.seo || {};
@@ -196,6 +212,128 @@ export default function SettingsSEO() {
                     <p className="text-xs text-zinc-500 mt-2 leading-relaxed">
                         One path per line (e.g. <code className="bg-zinc-100 dark:bg-zinc-800 px-1 rounded">/draft</code>, <code className="bg-zinc-100 dark:bg-zinc-800 px-1 rounded">/preview</code>). These are added under <code className="bg-zinc-100 dark:bg-zinc-800 px-1 rounded">/studios/{tenant.slug}</code> in the global robots.txt so crawlers do not index them. Leave empty to allow all your studio paths.
                     </p>
+                </div>
+
+                {/* Google Business Profile */}
+                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
+                    <label className="block text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-2 flex items-center gap-2">
+                        <Globe className="text-blue-500" size={18} /> Google Business Profile
+                    </label>
+                    <p className="text-xs text-zinc-500 mb-4">Connect your Google Business Profile to sync Name, Address & Phone (NAP) and use review features.</p>
+                    {seoStatsLoading ? (
+                        <div className="flex items-center gap-2 text-zinc-500"><Loader2 size={16} className="animate-spin" /> Loading…</div>
+                    ) : seoStats?.stats?.gbpConnected ? (
+                        <div className="flex flex-wrap items-center gap-3">
+                            <span className="inline-flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400"><CheckCircle size={16} /> Connected</span>
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    setSyncingGbp(true);
+                                    try {
+                                        const token = await getToken();
+                                        await apiRequest("/studios/gbp-sync", token, { method: "POST", headers: { "X-Tenant-Slug": tenant.slug } });
+                                        toast.success("NAP sync requested");
+                                    } catch (e: any) {
+                                        toast.error(e?.message || "Sync failed");
+                                    } finally {
+                                        setSyncingGbp(false);
+                                    }
+                                }}
+                                disabled={syncingGbp}
+                                className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 disabled:opacity-50"
+                            >
+                                {syncingGbp ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Sync NAP
+                            </button>
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    if (!confirm("Disconnect Google Business Profile? You can reconnect later.")) return;
+                                    try {
+                                        const token = await getToken();
+                                        await apiRequest("/tenant/seo", token, {
+                                            method: "PATCH",
+                                            headers: { "X-Tenant-Slug": tenant.slug },
+                                            body: JSON.stringify({ gbpConnected: false })
+                                        });
+                                        toast.success("Disconnected");
+                                        queryClient.invalidateQueries({ queryKey: ["analytics", "seo", slug] });
+                                        revalidator.revalidate();
+                                    } catch (e: any) {
+                                        toast.error(e?.message || "Failed");
+                                    }
+                                }}
+                                className="text-sm text-zinc-500 hover:text-red-500"
+                            >
+                                Disconnect
+                            </button>
+                        </div>
+                    ) : (
+                        <Link
+                            to={`/studio/${slug}/settings/seo/connect-gbp`}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+                        >
+                            <Globe size={16} /> Connect Google Business Profile
+                        </Link>
+                    )}
+                </div>
+
+                {/* Google Indexing */}
+                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
+                    <label className="block text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-2 flex items-center gap-2">
+                        <Search className="text-indigo-500" size={18} /> Google Indexing
+                    </label>
+                    <p className="text-xs text-zinc-500 mb-4">Notify Google when your site or key pages change so they can be recrawled faster.</p>
+                    {seoStatsLoading ? (
+                        <div className="flex items-center gap-2 text-zinc-500"><Loader2 size={16} className="animate-spin" /> Loading…</div>
+                    ) : (
+                        <div className="space-y-4">
+                            <label className="flex items-center gap-3 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={!!seoStats?.stats?.indexingEnabled}
+                                    onChange={async (e) => {
+                                        try {
+                                            const token = await getToken();
+                                            await apiRequest("/tenant/seo", token, {
+                                                method: "PATCH",
+                                                headers: { "X-Tenant-Slug": tenant.slug },
+                                                body: JSON.stringify({ indexingEnabled: e.target.checked })
+                                            });
+                                            toast.success(e.target.checked ? "Indexing enabled" : "Indexing disabled");
+                                            queryClient.invalidateQueries({ queryKey: ["analytics", "seo", slug] });
+                                        } catch (err: any) {
+                                            toast.error(err?.message || "Failed");
+                                        }
+                                    }}
+                                    className="rounded border-zinc-300 dark:border-zinc-600"
+                                />
+                                <span className="text-sm">Notify Google when my site or pages change</span>
+                            </label>
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    setRequestingIndex(true);
+                                    try {
+                                        const token = await getToken();
+                                        await apiRequest("/tenant/seo/request-index", token, {
+                                            method: "POST",
+                                            headers: { "X-Tenant-Slug": tenant.slug },
+                                            body: JSON.stringify({})
+                                        });
+                                        toast.success("Homepage queued for indexing");
+                                    } catch (e: any) {
+                                        toast.error(e?.message || "Request failed");
+                                    } finally {
+                                        setRequestingIndex(false);
+                                    }
+                                }}
+                                disabled={requestingIndex}
+                                className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 disabled:opacity-50"
+                            >
+                                {requestingIndex ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Request index for my homepage
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex items-center gap-3">

@@ -763,6 +763,45 @@ studioApp.get('/usage', async (c) => {
   return c.json(usage);
 });
 
+// PATCH /tenant/seo - Tenant updates own SEO flags (indexing enabled, or disconnect GBP)
+studioApp.patch('/seo', async (c) => {
+  if (!c.get('can')('manage_tenant')) return c.json({ error: 'Forbidden' }, 403);
+  const tenant = c.get('tenant');
+  const body = await c.req.json().catch(() => ({})) as { indexingEnabled?: boolean; gbpConnected?: boolean };
+  const db = createDb(c.env.DB);
+  const updates: any = { updatedAt: new Date() };
+  if (typeof body.indexingEnabled === 'boolean') {
+    const seoConfig = { ...((tenant.seoConfig as object) || {}), indexingEnabled: body.indexingEnabled };
+    updates.seoConfig = seoConfig;
+  }
+  if (body.gbpConnected === false) updates.gbpToken = null;
+  if (typeof body.indexingEnabled !== 'boolean' && body.gbpConnected !== false) return c.json({ error: 'Provide indexingEnabled or gbpConnected: false' }, 400);
+  await db.update(tenants).set(updates).where(eq(tenants.id, tenant.id)).run();
+  return c.json({ success: true });
+});
+
+// POST /tenant/seo/request-index - Enqueue a URL for Google Indexing (tenant's own domain/site)
+studioApp.post('/seo/request-index', async (c) => {
+  if (!c.get('can')('manage_tenant')) return c.json({ error: 'Forbidden' }, 403);
+  const tenant = c.get('tenant');
+  const body = await c.req.json().catch(() => ({})) as { url?: string };
+  const webAppUrl = (c.env.WEB_APP_URL as string) || 'https://studio-platform-dev.slichti.org';
+  const baseSite = tenant.customDomain ? `https://${tenant.customDomain}` : `${webAppUrl}/site/${tenant.slug}`;
+  const url = typeof body.url === 'string' && body.url.trim() ? body.url.trim() : baseSite;
+  try {
+    const parsed = new URL(url);
+    if (!parsed.protocol.startsWith('http')) return c.json({ error: 'Invalid URL' }, 400);
+    if (!tenant.customDomain && !parsed.href.startsWith(webAppUrl)) return c.json({ error: 'URL must be under your studio site' }, 400);
+    if (tenant.customDomain && !parsed.hostname.endsWith(tenant.customDomain)) return c.json({ error: 'URL must be under your custom domain' }, 400);
+  } catch {
+    return c.json({ error: 'Invalid URL' }, 400);
+  }
+  const queue = (c.env as any).SEO_INDEXING_QUEUE;
+  if (!queue) return c.json({ error: 'Indexing queue not configured' }, 503);
+  await queue.send({ url });
+  return c.json({ success: true, message: 'URL queued for indexing' });
+});
+
 // GET /tenant/stats — dashboard key metrics (active students, revenue, bookings, today's classes)
 studioApp.get('/stats', async (c) => {
   const tenant = c.get('tenant');
