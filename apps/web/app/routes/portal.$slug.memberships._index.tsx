@@ -284,22 +284,6 @@ export default function PortalMembershipsPage() {
                                             alt={plan.name}
                                             className="w-full h-full object-cover"
                                         />
-                                        {(plan.overlayTitle || plan.overlaySubtitle) && (
-                                            <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center p-4">
-                                                <div className="bg-white/90 dark:bg-black/70 backdrop-blur-sm px-4 py-2 rounded-lg text-center">
-                                                    {plan.overlayTitle && (
-                                                        <p className="font-serif text-lg text-zinc-900 dark:text-white leading-tight">
-                                                            {plan.overlayTitle}
-                                                        </p>
-                                                    )}
-                                                    {plan.overlaySubtitle && (
-                                                        <p className="text-[10px] uppercase tracking-widest text-zinc-600 dark:text-zinc-300 mt-0.5">
-                                                            {plan.overlaySubtitle}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
                                     </div>
                                 ) : (
                                     <div className="aspect-[16/9] bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 flex items-center justify-center">

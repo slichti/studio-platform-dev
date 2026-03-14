@@ -133,8 +133,8 @@ export default function StudioMemberships() {
                                             No Image
                                         </div>
                                     )}
-                                    {/* Overlay */}
-                                    {(plan.overlayTitle || plan.overlaySubtitle) && (
+                                    {/* Overlay only when no image — avoid secondary text on generated/custom images */}
+                                    {!plan.imageUrl && (plan.overlayTitle || plan.overlaySubtitle) && (
                                         <div className="absolute inset-0 bg-black/20 flex flex-col items-center justify-center text-center p-4">
                                             <div className="bg-white/90 dark:bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-md max-w-[90%] shadow-sm">
                                                 {plan.overlayTitle && <h3 className="font-serif text-lg text-zinc-900 dark:text-white leading-tight">{plan.overlayTitle}</h3>}
