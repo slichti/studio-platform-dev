@@ -28,14 +28,12 @@ app.get('/schedule/:slug', async (c) => {
     const schedule = await db.query.classes.findMany({
         where: and(
             eq(classes.tenantId, tenant.id),
-            // eq(classes.status, 'published'), // Assuming status field exists, if not ignore
             gte(classes.startTime, startDate),
             lte(classes.startTime, endDate)
         ),
         with: {
-            instructor: {
-                with: { user: true }
-            },
+            instructor: { with: { user: true } },
+            location: true,
             series: true
         },
         orderBy: [asc(classes.startTime)]

@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, Video, LogIn } from "lucide-react";
+import { Calendar as CalendarIcon, Video, LogIn, MapPin } from "lucide-react";
 
 interface PublicScheduleViewProps {
     tenant: { name: string; id: string; currency?: string };
@@ -58,36 +58,58 @@ export function PublicScheduleView({ tenant, classes: rawClasses, tenantSlug }: 
                                     {dateKey}
                                 </h2>
                                 <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                                    {grouped[dateKey].map((cls: any) => (
-                                        <li
-                                            key={cls.id}
-                                            className="px-4 py-3 flex items-center justify-between gap-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors"
-                                        >
-                                            <div className="min-w-0 flex-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                                                        {cls.title}
-                                                    </span>
-                                                    {cls.zoomEnabled && (
-                                                        <Video className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                                    {grouped[dateKey].map((cls: any) => {
+                                        const locationName = cls.location?.name;
+                                        const modality =
+                                            cls.zoomEnabled && locationName
+                                                ? "In person + Virtual"
+                                                : cls.zoomEnabled
+                                                    ? "Virtual"
+                                                    : locationName
+                                                        ? "In person"
+                                                        : null;
+                                        return (
+                                            <li
+                                                key={cls.id}
+                                                className="px-4 py-3 flex items-center justify-between gap-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors"
+                                            >
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                                                            {cls.title}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+                                                        {format(new Date(cls.startTime), "h:mm a")}
+                                                        {" · "}
+                                                        {cls.durationMinutes} min
+                                                    </p>
+                                                    {(locationName || modality) && (
+                                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+                                                            {locationName && (
+                                                                <span className="flex items-center gap-1">
+                                                                    <MapPin className="h-3 w-3 shrink-0" />
+                                                                    {locationName}
+                                                                </span>
+                                                            )}
+                                                            {modality && (
+                                                                <span className="flex items-center gap-1">
+                                                                    {cls.zoomEnabled && <Video className="h-3 w-3 shrink-0 text-blue-500" />}
+                                                                    {modality}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     )}
                                                 </div>
-                                                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-                                                    {format(new Date(cls.startTime), "h:mm a")}
-                                                    {" · "}
-                                                    {cls.durationMinutes} min
-                                                    {cls.instructor?.user?.profile?.firstName &&
-                                                        ` · ${cls.instructor.user.profile.firstName}`}
-                                                </p>
-                                            </div>
-                                            <Link
-                                                to={`/sign-in?redirect_url=${encodeURIComponent(`/studio/${tenantSlug}/classes`)}`}
-                                                className="shrink-0 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
-                                            >
-                                                Book →
-                                            </Link>
-                                        </li>
-                                    ))}
+                                                <Link
+                                                    to={`/sign-in?redirect_url=${encodeURIComponent(`/studio/${tenantSlug}/classes`)}`}
+                                                    className="shrink-0 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+                                                >
+                                                    Book →
+                                                </Link>
+                                            </li>
+                                        );
+                                    })}
                                 </ul>
                             </section>
                         ))}
