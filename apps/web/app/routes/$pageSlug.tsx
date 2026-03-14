@@ -1,4 +1,4 @@
-import { type LoaderFunctionArgs, type MetaFunction, useLoaderData } from "react-router";
+import { type LoaderFunctionArgs, type MetaFunction, useLoaderData, redirect } from "react-router";
 import { getStudioPage, getSubdomain } from "~/utils/subdomain.server";
 import { lazy, Suspense } from "react";
 const PublicPageRenderer = lazy(() => import("~/components/website/PublicPageRenderer.client").then(m => ({ default: m.PublicPageRenderer })));
@@ -33,6 +33,14 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
     if (!pageSlug) {
         throw new Response("Not Found", { status: 404 });
+    }
+
+    // Special-case app routes that should live under /studio or /portal but are linked from emails
+    if (pageSlug === "schedule") {
+        return redirect(`/studio/${subdomain}/classes`);
+    }
+    if (pageSlug === "portal") {
+        return redirect(`/portal/${subdomain}`);
     }
 
     // info: /classes, /about, etc.
