@@ -270,39 +270,35 @@ function StudioScheduleCalendarView({ slug, isStudentView, roles, features, tena
                         </Button>
                     </div>
 
-                    {!isStudentView && (
-                        <label className="flex items-center gap-1.5 text-sm cursor-pointer mr-2 select-none">
-                            <input
-                                type="checkbox"
-                                className="rounded border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800"
-                                checked={useEventColors}
-                                onChange={(e) => {
-                                    const newParams = new URLSearchParams(searchParams);
-                                    if (e.target.checked) newParams.delete("eventColors");
-                                    else newParams.set("eventColors", "false");
-                                    setSearchParams(newParams);
-                                }}
-                            />
-                            <span className="text-zinc-600 dark:text-zinc-400">Event colors</span>
-                        </label>
-                    )}
+                    <label className="flex items-center gap-1.5 text-sm cursor-pointer mr-2 select-none">
+                        <input
+                            type="checkbox"
+                            className="rounded border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800"
+                            checked={useEventColors}
+                            onChange={(e) => {
+                                const newParams = new URLSearchParams(searchParams);
+                                if (e.target.checked) newParams.delete("eventColors");
+                                else newParams.set("eventColors", "false");
+                                setSearchParams(newParams);
+                            }}
+                        />
+                        <span className="text-zinc-600 dark:text-zinc-400">Event colors</span>
+                    </label>
 
-                    {!isStudentView && (
-                        <label className="flex items-center gap-1.5 text-sm cursor-pointer mr-2 select-none">
-                            <input
-                                type="checkbox"
-                                className="rounded border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800"
-                                checked={showPrevious}
-                                onChange={(e) => {
-                                    const newParams = new URLSearchParams(searchParams);
-                                    if (e.target.checked) newParams.set("showPrevious", "true");
-                                    else newParams.delete("showPrevious");
-                                    setSearchParams(newParams);
-                                }}
-                            />
-                            <span className="text-zinc-600 dark:text-zinc-400">Show previous</span>
-                        </label>
-                    )}
+                    <label className="flex items-center gap-1.5 text-sm cursor-pointer mr-2 select-none">
+                        <input
+                            type="checkbox"
+                            className="rounded border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800"
+                            checked={showPrevious}
+                            onChange={(e) => {
+                                const newParams = new URLSearchParams(searchParams);
+                                if (e.target.checked) newParams.set("showPrevious", "true");
+                                else newParams.delete("showPrevious");
+                                setSearchParams(newParams);
+                            }}
+                        />
+                        <span className="text-zinc-600 dark:text-zinc-400">Show previous</span>
+                    </label>
 
                     {canSchedule && (
                         <>

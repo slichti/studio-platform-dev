@@ -322,22 +322,23 @@ export default function ClassesPage() {
                         </Button>
                     </div>
 
+                    <label className="flex items-center gap-1.5 text-sm cursor-pointer mr-2 select-none">
+                        <input
+                            type="checkbox"
+                            className="rounded border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800"
+                            checked={showPrevious}
+                            onChange={(e) => {
+                                const newParams = new URLSearchParams(searchParams);
+                                if (e.target.checked) newParams.set("showPrevious", "true");
+                                else newParams.delete("showPrevious");
+                                setSearchParams(newParams);
+                            }}
+                        />
+                        <span className="text-zinc-600 dark:text-zinc-400">Show previous</span>
+                    </label>
+
                     {isAdmin && (
                         <>
-                            <label className="flex items-center gap-1.5 text-sm cursor-pointer mr-2 select-none">
-                                <input
-                                    type="checkbox"
-                                    className="rounded border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800"
-                                    checked={showPrevious}
-                                    onChange={(e) => {
-                                        const newParams = new URLSearchParams(searchParams);
-                                        if (e.target.checked) newParams.set("showPrevious", "true");
-                                        else newParams.delete("showPrevious");
-                                        setSearchParams(newParams);
-                                    }}
-                                />
-                                <span className="text-zinc-600 dark:text-zinc-400">Show previous</span>
-                            </label>
                             <Button variant="outline" onClick={() => setBulkOpsOpen(true)}>
                                 <CalendarClock className="h-4 w-4 mr-2" /> Bulk Operations
                             </Button>
@@ -350,7 +351,7 @@ export default function ClassesPage() {
             </div>
 
             <ComponentErrorBoundary>
-                <div className="space-y-8">
+                <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-800 p-4 sm:p-6 space-y-8">
                     {isLoadingClasses ? (
                         <SkeletonLoader type="card" count={3} />
                     ) : Object.keys(grouped).length === 0 ? (

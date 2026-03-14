@@ -15,8 +15,10 @@ export default function HelpClasses() {
                 <div className="prose dark:prose-invert max-w-none">
                     <h3>The Schedule View</h3>
                     <p>
-                        The <strong>Schedule</strong> tab is your command center. It shows a calendar view of all your upcoming classes.
-                        You can view by day, week, or month.
+                        The <strong>Schedule</strong> tab is your command center. It shows all of your upcoming classes and offers
+                        three layouts: <strong>Calendar</strong>, <strong>Tile</strong>, and <strong>List</strong>. Use the view
+                        toggle in the top‑right to switch layouts, and the <strong>Show previous</strong> checkbox to include or
+                        hide past sessions in any view.
                     </p>
                 </div>
 
@@ -34,8 +36,9 @@ export default function HelpClasses() {
                         <Users className="w-8 h-8 text-green-500 mb-4" />
                         <h4 className="font-bold text-zinc-900 dark:text-zinc-100 mb-2">Managing Rosters</h4>
                         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                            Click on any class to view its roster. You can manually add students,
-                            cancel bookings, or check students in as they arrive.
+                            Click on any class to view its roster. You can bulk-add students using the <strong>Add Student</strong>{' '}
+                            modal (keep it open and click <strong>Done</strong> when you are finished), cancel bookings, or check
+                            students in as they arrive.
                         </p>
                     </div>
 

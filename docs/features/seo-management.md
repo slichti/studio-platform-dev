@@ -41,8 +41,9 @@ The system operates across three tiers:
 - **Cross-Platform Syndication**: Blog posts are automatically distributed to the Marketing Site (Public), Student Portal (Engaged), and Mobile App (On-the-go).
 - **Structured Data**: Automatic injection of `BlogPosting` schema to maximize organic reach for studio locations.
 
-### Review AI (T3.4) & Crawl Controls
+### Review AI (T3.4), Review Requests & Crawl Controls
 - **Review AI**: Per-review AI draft replies for Google Reviews via Gemini (`GeminiService.generateReviewReplyDraft`). Stored in `reviews.reply_draft` / `reviews.reply_draft_generated_at`. Studio Reviews page: Generate / Edit / Copy / Clear. API: `POST /reviews/:id/draft-reply`, `PATCH /reviews/:id/reply-draft`. Requires `GEMINI_API_KEY`.
+- **Review Requests**: Platform admins and studio owners can configure a **Google Review Link** (direct Maps review URL) in SEO settings. From the **SEO Management** and **Reviews** screens they can send **email/SMS review requests** in bulk to recent attendees or curated member segments. APIs: tenant-level `POST /reviews/send-request` and platform-level `POST /admin/tenants/:id/send-review-request` accept `{ memberIds, channel: 'email' | 'sms' | 'both' }` and use tenant branding + review link in templates.
 - **Per-tenant robots.txt**: Platform serves `GET /public/robots.txt` with safe defaults (Disallow: /admin, /studio, /sign-in, etc.) plus per-tenant `Disallow: /studios/<slug><path>` for each path in `tenant.settings.seo.robotsDisallow`. Web app `robots.txt` loader fetches from API with fallback. Tenants configure "Paths to hide from search engines" in **Settings → SEO** (one path per line, e.g. `/draft`, `/preview`).
 - **LLM / GEO Snapshot**: `GET /aggregators/llm-snapshot` returns a machine-readable JSON profile per tenant (studio info + up to 25 upcoming classes with booking URLs) for external LLMs and GEO visibility.
 - **SEO safety rails**: Tenant SEO UI validates at least one of title or description; warns when title > 60 or description > 155 characters; Save disabled when both fields empty.

@@ -23,7 +23,11 @@ export default function DocumentationPortal() {
                             <Calendar className="mt-1 text-zinc-400" size={18} />
                             <div>
                                 <strong className="block text-zinc-900 dark:text-zinc-100">Simple Scheduling</strong>
-                                <span className="text-sm text-zinc-500">Book classes, view upcoming sessions, and join waitlists in one click.</span>
+                                <span className="text-sm text-zinc-500">
+                                    Book classes, view upcoming sessions, and join waitlists in one click. Students can switch
+                                    between <strong>Calendar</strong>, <strong>Tile</strong>, and <strong>List</strong> views and
+                                    optionally enable <strong>Show previous</strong> to review past sessions.
+                                </span>
                             </div>
                         </li>
                         <li className="flex items-start gap-3">

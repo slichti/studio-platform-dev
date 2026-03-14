@@ -34,9 +34,10 @@ membership_plans
   tenant_id        FK → tenants
   name
   description
-  price            integer (cents)
+  price            integer (cents)  ← price per billing interval (e.g. 12500 = $125 / month)
   currency         default 'usd'
   interval         enum: 'month' | 'year' | 'week'
+  interval_count   integer default 1 ← number of intervals in the term (e.g. 3 for a 3‑month membership)
   image_url
   image_library       JSON  ← Image library for rotation/scheduling
   overlay_title
@@ -63,6 +64,25 @@ subscriptions
   last_dunning_at
   created_at
 ```
+
+---
+
+## Pricing Semantics
+
+- `price` is always interpreted as **per-interval price** (e.g. `$125 / month`, `$900 / year`).
+- `interval_count` controls the **length of the commitment term** without changing the per-interval billing amount.
+  - Example: a “3‑Month Membership” would use `interval = 'month'`, `interval_count = 3`, `price = 12500` (i.e. `$125 / month`).
+  - The UI shows both **per-month price** and **total over full term** (`price × interval_count`) to avoid confusion.
+
+### Fixed-Term vs Auto-Renewing Memberships
+
+- **Auto‑renew ON** (`autoRenew = true`): standard recurring subscription; Stripe bills each interval indefinitely until canceled.
+- **Auto‑renew OFF** with `interval_count > 1`: **fixed-term membership**.
+  - We still create a Stripe subscription with `interval_count = 1` on the Stripe Price so billing is per interval.
+  - After checkout, a webhook handler sets `cancel_at` for the end of the N‑th period so billing stops automatically after the full term.
+  - Example: 3‑month membership at `$125 / month` charges 3 times ($125 each month) and then ends; the student must purchase again to continue.
+
+This keeps billing consistent (per-interval line items) while giving studios “punch card–like” fixed-term memberships.
 
 ---
 
