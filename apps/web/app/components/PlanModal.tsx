@@ -153,8 +153,9 @@ export function PlanModal({ isOpen, plan, onClose, onSave, isSubmitting, tenantS
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label>Price ($)</Label>
+                                <Label>Price ($) — per interval</Label>
                                 <Input type="number" step="0.01" required value={price} onChange={e => setPrice(e.target.value)} />
+                                <p className="text-xs text-zinc-500">e.g. 125 = $125 per month (or per week/year)</p>
                             </div>
                             <div className="space-y-2">
                                 <Label>Interval Type</Label>
@@ -179,28 +180,30 @@ export function PlanModal({ isOpen, plan, onClose, onSave, isSubmitting, tenantS
                             </div>
                         </div>
 
-                        {/* Pricing Breakdown Preview */}
-                        {(Number(price) > 0) && (interval !== 'one_time') && (intervalCount > 1 || interval === 'year' || interval === 'week') && (
+                        {/* Pricing Breakdown Preview — Price is per-interval (e.g. per month); total = price × intervalCount */}
+                        {(Number(price) > 0) && (interval !== 'one_time') && (
                             <div className="bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 rounded-lg p-3 space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
                                 <Label className="text-indigo-900 dark:text-indigo-400 text-xs font-semibold uppercase tracking-wider">Pricing Breakdown</Label>
                                 <div className="space-y-1">
                                     <div className="flex justify-between text-sm">
                                         <span className="text-indigo-700 dark:text-indigo-300">Customer will be charged:</span>
                                         <span className="font-bold text-indigo-900 dark:text-indigo-200">
-                                            {interval === 'month' && intervalCount > 1
-                                                ? `$${(Number(price) / intervalCount).toFixed(2)} / month`
+                                            {interval === 'month'
+                                                ? `$${Number(price).toFixed(2)} / month`
                                                 : interval === 'year'
-                                                    ? `$${(Number(price) / 12).toFixed(2)} / month`
+                                                    ? `$${Number(price).toFixed(2)} / year`
                                                     : interval === 'week'
-                                                        ? `$${(Number(price)).toFixed(2)} / week`
-                                                        : `$${(Number(price)).toFixed(2)}`
+                                                        ? `$${Number(price).toFixed(2)} / week`
+                                                        : `$${Number(price).toFixed(2)}`
                                             }
                                         </span>
                                     </div>
-                                    <div className="flex justify-between text-xs text-indigo-600 dark:text-indigo-400">
-                                        <span>Total over full term:</span>
-                                        <span>${Number(price).toFixed(2)}</span>
-                                    </div>
+                                    {(intervalCount > 1 || interval === 'year') && (
+                                        <div className="flex justify-between text-xs text-indigo-600 dark:text-indigo-400">
+                                            <span>Total over full term:</span>
+                                            <span>${(interval === 'month' ? Number(price) * intervalCount : interval === 'week' ? Number(price) * (intervalCount || 1) : Number(price)).toFixed(2)}</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -218,7 +221,7 @@ export function PlanModal({ isOpen, plan, onClose, onSave, isSubmitting, tenantS
                                     <label htmlFor="autoRenew" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                                         Auto-Renew Subscription
                                     </label>
-                                    <p className="text-xs text-zinc-500">Renews automatically. Uncheck for fixed-duration passes.</p>
+                                    <p className="text-xs text-zinc-500">Renews automatically. Uncheck for fixed-duration (billing ends after the term, e.g. 3 months then stops).</p>
                                 </div>
                             </div>
                         )}

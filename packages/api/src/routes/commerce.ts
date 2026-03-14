@@ -775,8 +775,9 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
                         name: `${tenant.name} - ${prodName}`,
                         tax_code: 'txcd_00000000'
                     },
+                    // Subscription: price is per-interval (e.g. $125/month); we charge every 1 interval so billing can end after N periods when autoRenew is false
                     unit_amount: Math.max(0, taxableAmount - creditApplied),
-                    ...(stripeMode === 'subscription' && plan ? { recurring: { interval: plan.interval as any, interval_count: plan.intervalCount || 1 } } : {})
+                    ...(stripeMode === 'subscription' && plan ? { recurring: { interval: plan.interval as any, interval_count: 1 } } : {})
                 },
                 quantity: 1
             });
@@ -796,6 +797,7 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
             planId: plan?.id || '',
             planName: plan?.name || '',
             planInterval: plan?.interval || '',
+            planIntervalCount: plan ? String(plan.intervalCount ?? 1) : '',
             recordingId: recording?.id || '',
             tenantId: tenant.id,
             userId: auth.userId || 'guest',

@@ -296,6 +296,20 @@ export class StripeService {
     }
 
     /**
+     * Cancel subscription at end of N billing periods (for fixed-term plans).
+     * Uses cancel_at so the subscription stops after the Nth period.
+     */
+    async cancelSubscriptionAfterPeriods(subscriptionId: string, periodCount: number, connectedAccountId?: string) {
+        const { client, options } = connectedAccountId ? this.getClient(connectedAccountId) : { client: this.stripe, options: {} };
+        const subscription = await client.subscriptions.retrieve(subscriptionId, {}, options) as Stripe.Subscription;
+        const start = (subscription as any).current_period_start as number;
+        const end = (subscription as any).current_period_end as number;
+        const periodLength = end - start;
+        const cancelAt = end + (periodCount - 1) * periodLength;
+        return client.subscriptions.update(subscriptionId, { cancel_at: cancelAt }, options);
+    }
+
+    /**
      * Update Subscription (Change Price/Interval)
      * Note: This assumes swapping the single item in the subscription.
      */

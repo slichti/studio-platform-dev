@@ -342,11 +342,18 @@ export default function PortalMembershipsPage() {
                                                 )}
                                             </div>
 
-                                            {/* Monthly Breakdown for Year/Multi-Month */}
-                                            {!isFree && (plan.interval === 'year' || (plan.interval === 'month' && plan.intervalCount > 1)) && (
+                                            {/* Per-month equivalent for year; term length for multi-interval */}
+                                            {!isFree && plan.interval === 'year' && (
                                                 <div className="mt-1">
                                                     <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 dark:text-indigo-400 px-1.5 py-0.5 rounded-full uppercase tracking-tight">
-                                                        ${((plan.price / 100) / (plan.interval === 'year' ? 12 : plan.intervalCount)).toFixed(2)}/mo
+                                                        ${((plan.price / 100) / 12).toFixed(2)}/mo
+                                                    </span>
+                                                </div>
+                                            )}
+                                            {!isFree && plan.interval === 'month' && plan.intervalCount > 1 && (
+                                                <div className="mt-1">
+                                                    <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 dark:text-indigo-400 px-1.5 py-0.5 rounded-full uppercase tracking-tight">
+                                                        {(plan.intervalCount || 1)} mo · ${(((plan.price / 100) * (plan.intervalCount || 1))).toFixed(0)} total
                                                     </span>
                                                 </div>
                                             )}

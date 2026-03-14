@@ -184,7 +184,12 @@ export class StripeWebhookHandler {
                         if (tenant?.stripeAccountId) {
                             const { StripeService } = await import('./stripe');
                             const stripeSvc = new StripeService(this.env.STRIPE_SECRET_KEY as string);
-                            await stripeSvc.cancelSubscription(subscriptionId, true, tenant.stripeAccountId);
+                            const intervalCount = metadata.planIntervalCount ? parseInt(metadata.planIntervalCount, 10) : 1;
+                            if (intervalCount > 1) {
+                                await stripeSvc.cancelSubscriptionAfterPeriods(subscriptionId, intervalCount, tenant.stripeAccountId);
+                            } else {
+                                await stripeSvc.cancelSubscription(subscriptionId, true, tenant.stripeAccountId);
+                            }
                         }
                     }
                 }
