@@ -1,7 +1,18 @@
-import { eq, and, sql, asc, isNotNull } from 'drizzle-orm';
-import { bookings, tenantMembers, classes, tenants, progressMetricDefinitions, tenantRoles } from '@studio/db/src/schema'; // Added progressMetricDefinitions, tenantRoles
+import { eq, and, sql, asc, inArray, isNotNull } from 'drizzle-orm';
+import { bookings, tenantMembers, classes, tenants, progressMetricDefinitions, tenantRoles, classRequiredTags, tagAssignments, tags } from '@studio/db/src/schema';
 import { EmailService } from './email';
 import { WebhookService } from './webhooks';
+
+/** Thrown when member is not eligible to register (e.g. tag-restricted class). */
+export class TagRequiredError extends Error {
+    code = 'TAG_REQUIRED' as const;
+    requiredTags: { id: string; name: string }[];
+    constructor(message: string, requiredTags: { id: string; name: string }[]) {
+        super(message);
+        this.name = 'TagRequiredError';
+        this.requiredTags = requiredTags;
+    }
+}
 
 export class BookingService {
     constructor(private db: any, private env: any) { }
@@ -10,6 +21,22 @@ export class BookingService {
     async createBooking(classId: string, memberId: string, attendanceType: 'in_person' | 'zoom' = 'in_person') {
         const cls = await this.db.select().from(classes).where(eq(classes.id, classId)).get();
         if (!cls) throw new Error("Class not found");
+
+        // Tag-restricted class: member must have at least one of the required tags
+        const requiredTagRows = await this.db.select().from(classRequiredTags).where(eq(classRequiredTags.classId, classId)).all();
+        if (requiredTagRows.length > 0) {
+            const requiredIds = requiredTagRows.map((r: any) => r.tagId);
+            const memberTagRows = await this.db.select({ tagId: tagAssignments.tagId })
+                .from(tagAssignments)
+                .where(and(eq(tagAssignments.targetId, memberId), eq(tagAssignments.targetType, 'member'), inArray(tagAssignments.tagId, requiredIds)))
+                .all();
+            const memberTagIds = new Set(memberTagRows.map((r: any) => r.tagId));
+            const hasEligibility = requiredIds.some((id: string) => memberTagIds.has(id));
+            if (!hasEligibility) {
+                const tagDetails = await this.db.select({ id: tags.id, name: tags.name }).from(tags).where(inArray(tags.id, requiredIds)).all();
+                throw new TagRequiredError('This class is only available to members with a specific tag (e.g. Silver Sneakers).', tagDetails);
+            }
+        }
 
         // Check Capacity
         const confirmedCount = await this.db.select({ count: sql<number>`count(*)` })

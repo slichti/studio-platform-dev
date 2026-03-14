@@ -2,7 +2,7 @@ import { createRoute, z } from '@hono/zod-openapi';
 import { createOpenAPIApp } from '../lib/openapi';
 import { StudioVariables } from '../types';
 import { createDb } from '../db';
-import { classes, bookings, classSeries, classInstructors, classSeriesInstructors, tenantMembers, users } from '@studio/db/src/schema';
+import { classes, bookings, classSeries, classInstructors, classSeriesInstructors, classRequiredTags, tenantMembers, users } from '@studio/db/src/schema';
 import { eq, sql, desc, asc, and, gte, lte, inArray, ne } from 'drizzle-orm';
 import { RRule } from 'rrule';
 import { EncryptionUtils } from '../utils/encryption';
@@ -203,7 +203,9 @@ const BaseCreateClassSchema = z.object({
     // Recurrence
     isRecurring: z.boolean().optional(),
     recurrenceRule: z.string().optional(),
-    recurrenceEnd: z.string().optional()
+    recurrenceEnd: z.string().optional(),
+    // Tag-restricted registration (e.g. Silver Sneakers only)
+    requiredTagIds: z.array(z.string()).optional(),
 });
 
 export const CreateClassSchema = BaseCreateClassSchema.superRefine((val, ctx) => {
@@ -615,14 +617,17 @@ app.openapi(createRoute({
         }
 
         // Insert one row at a time (D1 has a 100 bind parameter limit per statement)
+        const requiredTagIds = body.requiredTagIds && Array.isArray(body.requiredTagIds) ? body.requiredTagIds : [];
         for (const cls of classData) {
             await db.insert(classes).values(cls).run();
-            // Insert classInstructors
             for (const iid of newInstructorIds) {
                 await db.insert(classInstructors).values({
                     classId: cls.id,
                     instructorId: iid
                 }).run();
+            }
+            for (const tagId of requiredTagIds) {
+                await db.insert(classRequiredTags).values({ classId: cls.id, tagId }).run();
             }
         }
         return c.json({ seriesId, classes: classData.length }, 201);
@@ -674,9 +679,14 @@ app.openapi(createRoute({
             }).run();
         }
 
+        const requiredTagIds = body.requiredTagIds && Array.isArray(body.requiredTagIds) ? body.requiredTagIds : [];
+        for (const tagId of requiredTagIds) {
+            await db.insert(classRequiredTags).values({ classId: id, tagId }).run();
+        }
+
         scheduleInstructorEmail(c, sendInstructorAssignmentEmail(db, c.env, tenant, primaryInstructorId, title, start, dur));
 
-        return c.json({ ...nc, startTime: nc.startTime.toISOString() }, 201);
+        return c.json({ ...nc, startTime: nc.startTime.toISOString(), requiredTagIds }, 201);
     }
 });
 
@@ -746,6 +756,13 @@ app.openapi(createRoute({
             await db.delete(classInstructors).where(eq(classInstructors.classId, id)).run();
             for (const iid of newInstructorIds) {
                 await db.insert(classInstructors).values({ classId: id, instructorId: iid }).run();
+            }
+        }
+        if ('requiredTagIds' in body) {
+            await db.delete(classRequiredTags).where(eq(classRequiredTags.classId, id)).run();
+            const tagIds = Array.isArray(body.requiredTagIds) ? body.requiredTagIds : [];
+            for (const tagId of tagIds) {
+                await db.insert(classRequiredTags).values({ classId: id, tagId }).run();
             }
         }
 

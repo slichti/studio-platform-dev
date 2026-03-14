@@ -3,7 +3,7 @@ import { createDb } from '../db';
 import { classes, bookings, tenantMembers, users, progressMetricDefinitions, tenantRoles } from '@studio/db/src/schema'; // Added progressMetricDefinitions
 import { eq, and, inArray } from 'drizzle-orm';
 import { HonoContext } from '../types';
-import { BookingService } from '../services/bookings';
+import { BookingService, TagRequiredError } from '../services/bookings';
 import { AuditService } from '../services/audit';
 
 const app = new Hono<HonoContext>();
@@ -65,6 +65,7 @@ app.post('/:id/book', async (c) => {
         const result = await service.createBooking(cid, mid, attendanceType);
         return c.json(result, 201);
     } catch (e: any) {
+        if (e instanceof TagRequiredError) return c.json({ error: e.message, code: e.code, requiredTags: e.requiredTags }, 403);
         if (e.message === 'Class is full') return c.json({ error: 'Class is full', code: 'CLASS_FULL' }, 409);
         return c.json({ error: e.message }, 500);
     }

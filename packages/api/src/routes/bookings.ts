@@ -328,11 +328,13 @@ app.post('/', bookingLimit, async (c) => {
     if (!cl.zoomEnabled && cl.capacity && count >= cl.capacity) return c.json({ error: "Class is full" }, 400);
 
     try {
-        const { BookingService } = await import('../services/bookings');
+        const { BookingService, TagRequiredError } = await import('../services/bookings');
         const service = new BookingService(db, c.env);
         const result = await service.createBooking(classId, targetId, attendanceType);
         return c.json({ success: true, id: result.id });
     } catch (e: any) {
+        const { TagRequiredError } = await import('../services/bookings');
+        if (e instanceof TagRequiredError) return c.json({ error: e.message, code: e.code, requiredTags: e.requiredTags }, 403);
         const message = e?.message ?? '';
         const isDbError = message.includes('Failed query') || message.includes('insert into') || message.includes('SQLITE_');
         const safeMessage = isDbError
