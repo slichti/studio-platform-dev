@@ -5,7 +5,7 @@ import { apiRequest } from "../utils/api";
 import { useState } from "react";
 import { useAuth } from "@clerk/react-router";
 import { toast } from "sonner";
-import { Smartphone, Video, CreditCard, MessageSquare, Mail, Save, Globe, MessagesSquare, BookOpen } from "lucide-react";
+import { Smartphone, Video, CreditCard, MessageSquare, Mail, Save, Globe, MessagesSquare, BookOpen, Tag } from "lucide-react";
 
 export const loader = async (args: any) => {
     const { getToken } = await getAuth(args);
@@ -90,6 +90,12 @@ const KNOWN_FEATURES = [
         label: 'Community Hub',
         description: 'Enable rich social engagement, media sharing, and AI-assisted community building.',
         icon: MessagesSquare
+    },
+    {
+        key: 'feature_tags',
+        label: 'Member Tags',
+        description: 'Allow tenants to use member tags, discounts, and tag-restricted classes (e.g. Silver Sneakers, 65+).',
+        icon: Tag
     }
 ];
 

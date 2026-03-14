@@ -373,6 +373,9 @@ export default function StudioLayout() {
                                     <NavItem to={`/studio/${slug}/settings/chat`} icon={<MessageSquare size={18} />}>Chat Settings</NavItem>
                                 )}
                                 <NavItem to={`/studio/${slug}/settings/appointments`} icon={<Calendar size={18} />}>Appointment Services</NavItem>
+                                {featureSet.has('tags') && (
+                                    <NavItem to={`/studio/${slug}/settings/member-tags`} icon={<Tag size={18} />}>Member Tags</NavItem>
+                                )}
                                 <NavItem to={`/studio/${slug}/settings/tags-fields`} icon={<Tag size={18} />}>Tags & Fields</NavItem>
                                 <NavItem to={`/studio/${slug}/settings/activity`} icon={<History size={18} />}>Activity Log</NavItem>
                                 <NavItem to={`/studio/${slug}/data`} icon={<Database size={18} />}>Data</NavItem>

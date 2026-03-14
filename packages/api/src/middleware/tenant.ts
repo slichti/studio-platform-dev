@@ -1,7 +1,7 @@
 import { Context, Next } from 'hono';
 import { createDb } from '../db';
 import { eq, and, sql } from 'drizzle-orm';
-import { tenants, tenantMembers, tenantRoles, users, tenantFeatures, customRoles, memberCustomRoles, tenantInvitations } from '@studio/db/src/schema';
+import { tenants, tenantMembers, tenantRoles, users, tenantFeatures, customRoles, memberCustomRoles, tenantInvitations, platformConfig } from '@studio/db/src/schema';
 import { EncryptionUtils } from '../utils/encryption';
 import { PermissionService, Permission } from '../services/permissions';
 import { EmailService } from '../services/email';
@@ -271,7 +271,14 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Bindings, Variable
     const features = await db.query.tenantFeatures.findMany({
         where: and(eq(tenantFeatures.tenantId, tenant.id), eq(tenantFeatures.enabled, true))
     });
-    const featureSet = new Set(features.map(f => f.featureKey || ''));
+    let featureSet = new Set(features.map(f => f.featureKey || ''));
+    // Tenant 'tags' feature is only active when platform has feature_tags enabled
+    if (featureSet.has('tags')) {
+        const platformTagsRow = await db.query.platformConfig.findFirst({
+            where: eq(platformConfig.key, 'feature_tags')
+        });
+        if (!platformTagsRow?.enabled) featureSet = new Set([...featureSet].filter(k => k !== 'tags'));
+    }
     c.set('features', featureSet);
 
     // Initial default for 'can' helper

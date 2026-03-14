@@ -82,6 +82,7 @@ export default function AdminLayout() {
         { label: "Global Bookings", href: "/admin/bookings", icon: "🎟️" },
         { label: "Global User Directory", href: "/admin/users", icon: "👥" },
         { label: "Internal Docs", href: "/documentation", icon: "📚" },
+        { label: "Member Tags", href: "/admin/tags", icon: "🏷️", featureKey: "feature_tags" },
         { label: "Mobile App", href: "/admin/mobile", icon: "📱", featureKey: "feature_mobile_app" },
         { label: "Operations Dashboard", href: "/admin/ops", icon: "🛠️" },
         { label: "Platform Features", href: "/admin/features", icon: "⚙️" },

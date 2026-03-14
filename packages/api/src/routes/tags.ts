@@ -7,19 +7,35 @@ import { Bindings, Variables } from '../types';
 
 const app = createOpenAPIApp();
 
+function slugify(s: string): string {
+    return s.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || 'tag';
+}
+
 // Schemas
 const TagSchema = z.object({
     id: z.string().openapi({ example: 'tag_123' }),
     tenantId: z.string().openapi({ example: 'tenant_123' }),
     name: z.string().min(1).openapi({ example: 'VIP' }),
+    slug: z.string().openapi({ example: 'vip' }),
     color: z.string().nullable().openapi({ example: '#ff0000' }),
     description: z.string().nullable().openapi({ example: 'Very Important Person' }),
+    category: z.string().nullable().optional(),
+    discountType: z.enum(['percent', 'fixed', 'none']).optional(),
+    discountValue: z.number().nullable().optional(),
+    appliesToProducts: z.any().optional(),
+    visibility: z.enum(['internal_only', 'visible_to_member']).optional(),
 });
 
 const CreateTagSchema = z.object({
     name: z.string().min(1),
+    slug: z.string().min(1).optional(), // default: slugify(name)
     color: z.string().optional(),
     description: z.string().optional(),
+    category: z.string().optional(),
+    discountType: z.enum(['percent', 'fixed', 'none']).optional(),
+    discountValue: z.number().optional(),
+    appliesToProducts: z.union([z.array(z.string()), z.literal('all')]).optional(),
+    visibility: z.enum(['internal_only', 'visible_to_member']).optional(),
 });
 
 const UpdateTagSchema = CreateTagSchema.partial();
@@ -91,15 +107,23 @@ app.openapi(createTagRoute, async (c) => {
         if (!c.get('can')('manage_members')) return c.json({ error: 'Unauthorized' }, 403 as any);
 
         const db = createDb(c.env.DB);
-        const { name, color, description } = c.req.valid('json');
+        const body = c.req.valid('json');
+        const { name, slug: slugInput, color, description, category, discountType, discountValue, appliesToProducts, visibility } = body;
+        const slug = (slugInput && slugInput.trim()) ? slugify(slugInput) : slugify(name);
 
         const id = crypto.randomUUID();
         await db.insert(tags).values({
             id,
             tenantId: tenant.id,
             name,
+            slug,
             color: color || null,
-            description: description || null
+            description: description || null,
+            category: category || null,
+            discountType: discountType || 'none',
+            discountValue: discountValue ?? null,
+            appliesToProducts: appliesToProducts ?? null,
+            visibility: visibility || 'internal_only',
         }).run();
 
         const tag = await db.select().from(tags).where(eq(tags.id, id)).get();
@@ -152,14 +176,23 @@ app.openapi(updateTagRoute, async (c) => {
 
         const db = createDb(c.env.DB);
         const { id } = c.req.valid('param');
-        const { name, color, description } = c.req.valid('json');
+        const body = c.req.valid('json');
+        const { name, slug: slugInput, color, description, category, discountType, discountValue, appliesToProducts, visibility } = body;
+
+        const updates: Record<string, unknown> = { updatedAt: new Date() };
+        if (name !== undefined) updates.name = name;
+        if (slugInput !== undefined) updates.slug = slugify(slugInput);
+        if (name !== undefined && slugInput === undefined) updates.slug = slugify(name);
+        if (color !== undefined) updates.color = color || null;
+        if (description !== undefined) updates.description = description || null;
+        if (category !== undefined) updates.category = category || null;
+        if (discountType !== undefined) updates.discountType = discountType;
+        if (discountValue !== undefined) updates.discountValue = discountValue;
+        if (appliesToProducts !== undefined) updates.appliesToProducts = appliesToProducts;
+        if (visibility !== undefined) updates.visibility = visibility;
 
         await db.update(tags)
-            .set({
-                name,
-                color: color || null,
-                description: description || null
-            })
+            .set(updates as any)
             .where(and(eq(tags.id, id), eq(tags.tenantId, tenant.id)))
             .run();
 
