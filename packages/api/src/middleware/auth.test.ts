@@ -161,6 +161,28 @@ describe('authMiddleware', () => {
         expect(next).not.toHaveBeenCalled();
     });
 
+    it('returns 401 with "Token Expired" when JWT is expired (RS256 path)', async () => {
+        const { verify } = await import('hono/jwt');
+        vi.mocked(verify).mockRejectedValueOnce(Object.assign(new Error('Token expired'), { name: 'JwtTokenExpired' }));
+        const { c, next, jsonFn } = createMockContext({
+            authHeader: 'Bearer eyJhbGciOiJSUzI1NiJ9.x.y',
+            env: { ENVIRONMENT: 'production', CLERK_PEM_PUBLIC_KEY: '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA\n-----END PUBLIC KEY-----' },
+        });
+        await authMiddleware(c, next);
+        expect(jsonFn).toHaveBeenCalledWith(expect.objectContaining({ error: 'Token Expired' }), 401);
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it('returns 401 when Bearer prefix missing (malformed header)', async () => {
+        const { c, next, jsonFn } = createMockContext({
+            authHeader: 'Basic somebase64',
+            env: { ENVIRONMENT: 'production' },
+        });
+        await authMiddleware(c, next);
+        expect(jsonFn).toHaveBeenCalledWith({ error: 'Unauthorized' }, 401);
+        expect(next).not.toHaveBeenCalled();
+    });
+
     it('calls next when auth already set (e.g. by apiKey middleware)', async () => {
         const { c, next, setFn } = createMockContext({
             getAuth: { userId: 'system_key', claims: { role: 'api_key' } },

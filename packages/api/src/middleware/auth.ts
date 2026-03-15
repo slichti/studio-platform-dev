@@ -77,11 +77,12 @@ export const authMiddleware = createMiddleware<{ Variables: Variables, Bindings:
         if (header.alg === 'HS256') {
             let signingSecret = c.env.IMPERSONATION_SECRET || ((c.env as any).ENVIRONMENT === 'test' ? c.env.CLERK_SECRET_KEY : null);
             if (!signingSecret) {
+                const log = c.get('logger');
                 if ((c.env as any).ENVIRONMENT === 'dev' || (c.env as any).ENVIRONMENT === 'development' || (c.env as any).ENVIRONMENT === 'test') {
-                    console.warn('IMPERSONATION_SECRET is not configured, using development fallback');
+                    log?.warn('IMPERSONATION_SECRET is not configured, using development fallback');
                     signingSecret = 'test-impersonation-secret-key-change-me-locally-32-chars';
                 } else {
-                    console.error('IMPERSONATION_SECRET is not configured');
+                    log?.error('IMPERSONATION_SECRET is not configured', { code: 'MISSING_SECRET' });
                     return c.json({ error: 'Server configuration error' }, 500);
                 }
             }
@@ -96,7 +97,7 @@ export const authMiddleware = createMiddleware<{ Variables: Variables, Bindings:
                     return await next();
                 }
             } catch (e: any) {
-                console.error("Impersonation Token Verification Failed:", e.message);
+                c.get('logger')?.error('Impersonation Token Verification Failed', { message: e.message, code: 'IMPERSONATION_FAILED' });
                 return c.json({ error: "Invalid Impersonation Token", details: e.message }, 401);
             }
         }
@@ -109,16 +110,17 @@ export const authMiddleware = createMiddleware<{ Variables: Variables, Bindings:
         // Note: verifyToken from @clerk/backend is incompatible with Workers.
         // We use the PEM Public Key provided in environment variables.
         let publicKey = (c.env as any).CLERK_PEM_PUBLIC_KEY;
+        const log = c.get('logger');
         if (!publicKey) {
             if ((c.env as any).ENVIRONMENT === 'dev' || (c.env as any).ENVIRONMENT === 'development' || (c.env as any).ENVIRONMENT === 'test') {
-                console.warn("Server Configuration Error: Missing Public Key, using development fallback");
+                log?.warn("Server Configuration Error: Missing Public Key, using development fallback");
                 // A dummy public key that won't verify but allows the middleware to proceed past the check
                 // In practice, if token is present but we have no key, it will just fail verification later
                 publicKey = `-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA75P8...
 -----END PUBLIC KEY-----`;
             } else {
-                console.error("Server Configuration Error: Missing Public Key");
+                log?.error("Server Configuration Error: Missing Public Key", { code: 'MISSING_PUBLIC_KEY' });
                 return c.json({ error: "Server Configuration Error" }, 500);
             }
         }
@@ -134,7 +136,7 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA75P8...
         const chunks = dirtyKey.match(/.{1,64}/g);
 
         if (!chunks) {
-            console.error("Server Configuration Error: Invalid Public Key Format (Empty)");
+            c.get('logger')?.error("Server Configuration Error: Invalid Public Key Format (Empty)", { code: 'INVALID_PUBLIC_KEY' });
             return c.json({ error: "Server Configuration Error: Invalid Key" }, 500);
         }
 
@@ -151,7 +153,7 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA75P8...
                 claims: payload as any,
             });
         } catch (jwtErr: any) {
-            console.error("JWT Verification Failed:", jwtErr.message);
+            c.get('logger')?.error("JWT Verification Failed", { message: jwtErr.message, code: 'JWT_VERIFY_FAILED' });
             const isExpired = jwtErr.message?.toLowerCase().includes('expired') || jwtErr.name === 'JwtTokenExpired';
             if (isExpired) {
                 return c.json({ error: "Token Expired", details: jwtErr.message }, 401);
@@ -161,6 +163,7 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA75P8...
 
         // 4. Update Audit / Activity Stats (Throttled)
         const userId = c.get('auth').userId;
+        const reqLogger = c.get('logger');
         if (userId && (c.env as any).ENVIRONMENT !== 'test') {
             // Using waitUntil to not block response
             c.executionCtx.waitUntil((async () => {
@@ -185,14 +188,14 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA75P8...
                         )
                         .run();
                 } catch (e) {
-                    console.error("Failed to update stats", e);
+                    reqLogger?.error("Failed to update stats", { error: e, code: 'STATS_UPDATE_FAILED' });
                 }
             })());
         }
 
         await next();
     } catch (error: any) {
-        console.error("Auth Middleware logic error:", error);
+        c.get('logger')?.error("Auth Middleware logic error", { error, code: 'AUTH_ERROR' });
         return c.json({ error: "Authentication Error" }, 401);
     }
 });
@@ -204,7 +207,7 @@ export const optionalAuthMiddleware = createMiddleware<{ Variables: Variables, B
     const env = (c.env as any).ENVIRONMENT;
     let publicKey = (c.env as any).CLERK_PEM_PUBLIC_KEY;
 
-    console.log(`[OptionalAuth DEBUG] Path: ${c.req.path}, ENV: ${env}, TEST-AUTH: ${testAuth ? 'PRESENT' : 'MISSING'}`);
+    c.get('logger')?.debug('OptionalAuth', { path: c.req.path, env, testAuth: testAuth ? 'PRESENT' : 'MISSING' });
 
     if (authHeader && authHeader.startsWith('Bearer ')) {
         token = authHeader.split(' ')[1];
@@ -215,7 +218,7 @@ export const optionalAuthMiddleware = createMiddleware<{ Variables: Variables, B
 
     // [TEST MOCKING] Allow header bypass in test environment
     if (env === 'test' && testAuth) {
-        console.log(`[OptionalAuth DEBUG] Applying TEST-AUTH bypass for ${testAuth}`);
+        c.get('logger')?.debug('OptionalAuth TEST-AUTH bypass', { userId: testAuth });
         const mockUserId = testAuth;
         c.set('auth', {
             userId: mockUserId,
@@ -267,7 +270,7 @@ export const optionalAuthMiddleware = createMiddleware<{ Variables: Variables, B
         // 3. Clerk Verification (RS256)
         let publicKey = (c.env as any).CLERK_PEM_PUBLIC_KEY;
         if (!publicKey) {
-            console.error("Server Configuration Error: Missing Public Key");
+            c.get('logger')?.error("Server Configuration Error: Missing Public Key (OptionalAuth)", { code: 'MISSING_PUBLIC_KEY' });
             return await next();
         }
 
@@ -290,15 +293,15 @@ export const optionalAuthMiddleware = createMiddleware<{ Variables: Variables, B
         } catch (jwtErr: any) {
             const isExpired = jwtErr.message?.toLowerCase().includes('expired') || jwtErr.name === 'JwtTokenExpired';
             if (isExpired) {
-                console.warn("JWT Verification Failed (Optional): Token Expired");
+                c.get('logger')?.warn("JWT Verification Failed (Optional): Token Expired", { code: 'JWT_EXPIRED' });
             } else {
-                console.error("JWT Verification Failed (Optional):", jwtErr.message);
+                c.get('logger')?.error("JWT Verification Failed (Optional)", { message: jwtErr.message, code: 'JWT_VERIFY_FAILED' });
             }
         }
 
         await next();
     } catch (error: any) {
-        console.error("Optional Auth Middleware logic error:", error);
+        c.get('logger')?.error("Optional Auth Middleware logic error", { error, code: 'AUTH_ERROR' });
         await next();
     }
 });

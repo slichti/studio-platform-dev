@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { z } from 'zod';
 import { createDb } from '../db';
 import { bookings, classes, tenantMembers, users, tenants, tenantRoles } from '@studio/db/src/schema';
 import { eq, and, sql, inArray, lt, desc } from 'drizzle-orm';
@@ -10,6 +11,12 @@ import { AuditService } from '../services/audit';
 import { ConflictService } from '../services/conflicts';
 import { rateLimitMiddleware } from '../middleware/rate-limit';
 import { getFirstName } from '../utils/profile';
+
+const CreateBookingBodySchema = z.object({
+    classId: z.string().min(1, 'classId is required'),
+    attendanceType: z.enum(['in_person', 'zoom']).optional(),
+    memberId: z.string().optional(),
+});
 
 const app = new Hono<HonoContext>();
 
@@ -193,9 +200,17 @@ app.get('/:id', async (c) => {
 
 // POST /
 app.post('/', bookingLimit, async (c) => {
-    const json = await c.req.json();
-    const { classId, attendanceType, memberId } = json;
-    console.log(`[DEBUG] POST /bookings - Class: ${classId}, AuthUser: ${c.get('auth')?.userId}, Tenant: ${c.get('tenant')?.id}`);
+    let raw: unknown;
+    try {
+        raw = await c.req.json();
+    } catch {
+        return c.json({ error: 'Invalid JSON body', code: 'VALIDATION_FAILED' }, 400);
+    }
+    const parsed = CreateBookingBodySchema.safeParse(raw);
+    if (!parsed.success) {
+        return c.json({ error: 'Validation failed', code: 'VALIDATION_FAILED', issues: parsed.error.issues }, 400);
+    }
+    const { classId, attendanceType, memberId } = parsed.data;
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant')!;
     const auth = c.get('auth')!;

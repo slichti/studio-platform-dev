@@ -1,11 +1,34 @@
 import { Hono } from 'hono';
 import { sign } from 'hono/jwt';
+import { z } from 'zod';
 import { createDb } from '../db';
 import * as schema from '@studio/db/src/schema'; // Import all schema
 // Import specific tables for usage
 import { tenants, classes, classSeries, tenantMembers, users, bookings, purchasedPacks } from '@studio/db/src/schema';
 import { eq, and, gte, lte, desc, asc, sql } from 'drizzle-orm';
 import { rateLimitMiddleware } from '../middleware/rate-limit';
+
+const GuestBookingBodySchema = z.object({
+    classId: z.string().min(1, 'classId is required'),
+    tenantId: z.string().min(1, 'tenantId is required'),
+    guestDetails: z.object({
+        email: z.string().email('Valid email is required'),
+        name: z.string().max(500).optional(),
+    }),
+    token: z.string().optional(),
+});
+
+const GuestChatStartBodySchema = z.object({
+    tenantSlug: z.string().min(1, 'tenantSlug is required'),
+    email: z.string().email('Valid email is required'),
+    message: z.string().min(1, 'message is required'),
+    name: z.string().max(500).optional(),
+});
+
+const GuestTokenBodySchema = z.object({
+    email: z.string().email('Valid email is required'),
+    name: z.string().max(500).optional(),
+});
 
 const app = new Hono<{ Bindings: any }>();
 
@@ -28,6 +51,7 @@ app.get('/schedule/:slug', async (c) => {
     const schedule = await db.query.classes.findMany({
         where: and(
             eq(classes.tenantId, tenant.id),
+            eq(classes.status, 'active'),
             gte(classes.startTime, startDate),
             lte(classes.startTime, endDate)
         ),
@@ -76,22 +100,44 @@ app.get('/videos/:slug', async (c) => {
     });
 });
 
+const IDEMPOTENCY_TTL_SEC = 24 * 60 * 60; // 24 hours
+
 // POST /booking - Guest Booking
 app.post('/booking', rateLimitMiddleware({ limit: 5, window: 60, keyPrefix: 'guest_booking' }), async (c) => {
     const db = createDb(c.env.DB);
-    const body = await c.req.json();
-    const { token, classId, tenantId, guestDetails } = body;
+    const idemKey = c.req.header('Idempotency-Key')?.trim();
 
-    // 1. Verify Guest Token (optional if purely open, but good for rate limiting/tracking)
-    // For now, let's assume open booking or token passed in header normally.
-    // If token passed in body, we can verify it manually or rely on authMiddleware if this route was protected.
-    // Since this is public/guest, we might take guestDetails directly.
+    let body: unknown;
+    try {
+        body = await c.req.json();
+    } catch {
+        return c.json({ error: 'Invalid JSON body', code: 'VALIDATION_FAILED' }, 400);
+    }
+    const parsed = GuestBookingBodySchema.safeParse(body);
+    if (!parsed.success) {
+        return c.json({
+            error: 'Validation failed',
+            code: 'VALIDATION_FAILED',
+            issues: parsed.error.issues,
+        }, 400);
+    }
+    const { classId, tenantId, guestDetails } = parsed.data;
 
-    if (!classId || !tenantId || !guestDetails?.email) {
-        return c.json({ error: "Missing required booking details" }, 400);
+    // Idempotency: return stored response if key was already used within TTL
+    if (idemKey) {
+        try {
+            const row = await c.env.DB.prepare(
+                'SELECT response, created_at FROM idempotency_keys WHERE key = ?'
+            ).bind(idemKey).first<{ response: string; created_at: number }>();
+            if (row && row.created_at && (Math.floor(Date.now() / 1000) - row.created_at) < IDEMPOTENCY_TTL_SEC) {
+                return c.json(JSON.parse(row.response) as object, 200);
+            }
+        } catch {
+            // Table may not exist yet; proceed without idempotency
+        }
     }
 
-    // 2. Check Class Availability
+    // 1. Check Class Availability
     const cls = await db.query.classes.findFirst({
         where: and(eq(classes.id, classId), eq(classes.tenantId, tenantId))
     });
@@ -197,15 +243,35 @@ app.post('/booking', rateLimitMiddleware({ limit: 5, window: 60, keyPrefix: 'gue
     // 5. Send Confirmation Email (via EmailService)
     // usage: new EmailService(...).sendBookingConfirmation(...)
 
-    return c.json({ success: true, bookingId, message: "Class booked successfully!" });
+    const successResponse = { success: true, bookingId, message: "Class booked successfully!" };
+
+    if (idemKey) {
+        try {
+            await c.env.DB.prepare(
+                'INSERT OR REPLACE INTO idempotency_keys (key, response, created_at) VALUES (?, ?, ?)'
+            ).bind(idemKey, JSON.stringify(successResponse), Math.floor(Date.now() / 1000)).run();
+        } catch {
+            // Table may not exist; ignore
+        }
+    }
+
+    return c.json(successResponse);
 });
 
 
 // Existing Token Endpoint (kept for reference/usage)
 app.post('/token', rateLimitMiddleware({ limit: 5, window: 60, keyPrefix: 'guest_token' }), async (c) => {
-    const { name, email } = await c.req.json<{ name: string; email: string }>();
-
-    if (!email) return c.json({ error: "Email required" }, 400);
+    let raw: unknown;
+    try {
+        raw = await c.req.json();
+    } catch {
+        return c.json({ error: 'Invalid JSON body', code: 'VALIDATION_FAILED' }, 400);
+    }
+    const parsed = GuestTokenBodySchema.safeParse(raw);
+    if (!parsed.success) {
+        return c.json({ error: 'Validation failed', code: 'VALIDATION_FAILED', issues: parsed.error.issues }, 400);
+    }
+    const { name, email } = parsed.data;
 
     const guestId = `guest_${crypto.randomUUID()}`;
 
@@ -224,16 +290,17 @@ app.post('/token', rateLimitMiddleware({ limit: 5, window: 60, keyPrefix: 'guest
 // POST /public/chat/start - Start a guest support chat
 app.post('/chat/start', rateLimitMiddleware({ limit: 3, window: 60, keyPrefix: 'guest_chat_start' }), async (c) => {
     const db = createDb(c.env.DB);
-    const body = await c.req.json<{
-        tenantSlug: string;
-        name: string;
-        email: string;
-        message: string;
-    }>();
-
-    if (!body.tenantSlug || !body.email || !body.message) {
-        return c.json({ error: 'Missing required fields' }, 400);
+    let raw: unknown;
+    try {
+        raw = await c.req.json();
+    } catch {
+        return c.json({ error: 'Invalid JSON body', code: 'VALIDATION_FAILED' }, 400);
     }
+    const parsed = GuestChatStartBodySchema.safeParse(raw);
+    if (!parsed.success) {
+        return c.json({ error: 'Validation failed', code: 'VALIDATION_FAILED', issues: parsed.error.issues }, 400);
+    }
+    const body = parsed.data;
 
     // 1. Find tenant
     const tenant = await db.query.tenants.findFirst({

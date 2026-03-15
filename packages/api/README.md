@@ -57,6 +57,14 @@ The API is optimized for low-latency execution on Cloudflare Workers:
 *   **Course Curriculum**: Batch-fetches all referenced content (videos, quizzes, articles, assignments, resources) in 5 parallel `inArray()` queries rather than one query per item.
 *   **Tenant Middleware**: Member and roles loaded in a single Drizzle relation query, saving one DB round-trip per authenticated request.
 
+## Error responses
+
+API errors use a consistent JSON shape: `{ error, code, requestId?, details? }`. See [API Error Shape](../../docs/api-error-shape.md) for codes, status mapping, and examples.
+
+## Idempotency
+
+For payments and bookings, clients may send an `Idempotency-Key` header to avoid duplicate processing on retries. See [API Idempotency](../../docs/api-idempotency.md).
+
 ## Security
 
 *   **Stripe API Version**: `2026-01-28.clover` (latest) — set consistently across all SDK initializations.

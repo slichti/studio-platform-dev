@@ -279,11 +279,14 @@ app.use('*', logger((str, ...rest) => {
 app.onError((err: any, c) => {
   const logger = c.get('logger');
   const traceId = c.get('traceId') || c.req.header('X-Request-Id') || 'unknown';
+  const code = err instanceof AppError ? err.code : 'INTERNAL_ERROR';
+  const tenantId = c.get('tenant')?.id;
+  const userId = c.get('auth')?.userId;
 
   if (logger) {
-    logger.error(`Unhandled error: ${err.message}`, { error: err, traceId });
+    logger.error(`Unhandled error: ${err.message}`, { error: err, traceId, code, tenantId, userId });
   } else {
-    console.error('Global App Error:', err);
+    console.error(JSON.stringify({ level: 'error', message: err.message, traceId, code, tenantId, userId }));
   }
 
   // Handle centralized AppErrors
@@ -291,30 +294,40 @@ app.onError((err: any, c) => {
     return c.json(err.toJSON(), err.statusCode as any);
   }
 
-  // Only expose detailed error info in non-production environments
+  // Standardized 500 shape: { error, code, requestId [, message/details in dev] }
   const isDev = ['dev', 'development', 'local', 'test'].includes((c.env as any).ENVIRONMENT);
-
-  if (isDev) {
-    return c.json({
-      error: "Internal Application Error",
-      message: err.message,
-      stack: err.stack,
-      cause: err.cause,
-      requestId: traceId
-    }, 500);
-  }
-
-  return c.json({
+  const payload: { error: string; code: string; requestId: string; message?: string; stack?: string; cause?: unknown; details?: unknown } = {
     error: "Internal Application Error",
-    requestId: traceId
-  }, 500);
+    code: "INTERNAL_ERROR",
+    requestId: traceId,
+  };
+  if (isDev) {
+    payload.message = err.message;
+    payload.stack = err.stack;
+    payload.cause = err.cause;
+  }
+  return c.json(payload, 500);
 });
 
 
 
 app.get('/', (c) => {
   return c.json({ status: 'OK' });
-})
+});
+
+// Public health for load balancers / uptime checks. No auth. Optional DB check.
+app.get('/health', async (c) => {
+  const out: { status: string; db?: string } = { status: 'ok' };
+  try {
+    const db = createDb(c.env.DB);
+    await db.select({ n: sql<number>`1` }).from(tenants).limit(1).get();
+    out.db = 'ok';
+  } catch {
+    out.db = 'error';
+  }
+  const status = out.db === 'ok' ? 200 : 503;
+  return c.json(out, status);
+});
 
 app.route('/public', publicRoutes); // [NEW] Mount public routes
 app.route('/aggregators', aggregatorRoutes); // [NEW] Aggregator Feeds

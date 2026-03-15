@@ -2,6 +2,18 @@
 
 This document tracks the iterative development of features and capabilities over time, generated from the project commit history.
 
+## 2026-03-14
+
+- **🔒 Stability:** API stability and resilience improvements (see `docs/stability-improvements.md`):
+  - [x] Consistent API error shape: `{ error, code, requestId? }` with 500 → `INTERNAL_ERROR`; documented in `docs/api-error-shape.md`.
+  - [x] Input validation (Zod) on guest booking, chat/start, token; commerce checkout/session; POST /bookings — invalid input returns 400 with `VALIDATION_FAILED` and `issues`.
+  - [x] Idempotency for guest booking: `Idempotency-Key` header with D1-backed store (24h TTL); documented in `docs/api-idempotency.md`.
+  - [x] Public `GET /health` endpoint (200/503 with optional DB check).
+  - [x] Guest schedule filtered to active classes only; schedule and checkout wrapped in error boundaries; query client retry/backoff; root ErrorBoundary copy and actions.
+  - [x] Structured logging (traceId, code, tenantId, userId); auth middleware uses request-scoped logger.
+  - [x] Disaster recovery runbook: cron-miss check and manual backup steps.
+  - [x] Auth/optionalAuth unit tests; API key and impersonation integration tests; expanded tenant isolation tests; E2E smoke, a11y, docs, chat widget coverage.
+
 ## 2026-03-12
 
 - **🚀 Feature:** Implement Automated Community Post Notifications:

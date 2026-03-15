@@ -30,7 +30,8 @@ export async function setupTestDb(d1: D1Database) {
         'quizzes', 'quiz_questions', 'quiz_submissions',
         'course_enrollments', 'courses', 'course_modules', 'course_access_codes',
         'course_prerequisites', 'articles', 'assignments', 'assignment_submissions',
-        'course_comments', 'course_resources'
+        'course_comments', 'course_resources',
+        'idempotency_keys'
     ];
 
     for (const table of tables) {
@@ -56,7 +57,7 @@ export async function setupTestDb(d1: D1Database) {
             instructor_count INTEGER DEFAULT 0, last_billed_at INTEGER, archived_at INTEGER, 
             grace_period_ends_at INTEGER, student_access_disabled INTEGER DEFAULT 0, 
             aggregator_config TEXT, is_test INTEGER DEFAULT 0 NOT NULL,
-            seo_config TEXT, gbp_token TEXT,
+            seo_config TEXT, gbp_token TEXT, custom_application_fee_percent INTEGER,
             created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`),
 
@@ -70,11 +71,12 @@ export async function setupTestDb(d1: D1Database) {
         )`),
 
         d1.prepare(`CREATE TABLE tenant_members (
-            id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, user_id TEXT NOT NULL, 
-            profile TEXT, settings TEXT, custom_fields TEXT, status TEXT DEFAULT 'active', 
-            joined_at INTEGER DEFAULT (strftime('%s', 'now')), churn_score INTEGER DEFAULT 100, 
-            churn_status TEXT DEFAULT 'safe', last_churn_check INTEGER, engagement_score INTEGER DEFAULT 50, 
-            last_engagement_calc INTEGER, sms_consent INTEGER DEFAULT 0, sms_consent_at INTEGER, sms_opt_out_at INTEGER
+            id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, user_id TEXT NOT NULL,
+            stripe_customer_id TEXT, profile TEXT, settings TEXT, custom_fields TEXT, status TEXT DEFAULT 'active',
+            joined_at INTEGER DEFAULT (strftime('%s', 'now')), churn_score INTEGER DEFAULT 100,
+            churn_status TEXT DEFAULT 'safe', last_churn_check INTEGER, engagement_score INTEGER DEFAULT 50,
+            last_engagement_calc INTEGER, sms_consent INTEGER DEFAULT 0, sms_consent_at INTEGER, sms_opt_out_at INTEGER,
+            invited_at INTEGER, accepted_at INTEGER
         )`),
 
         d1.prepare(`CREATE TABLE tenant_roles (
@@ -119,17 +121,22 @@ export async function setupTestDb(d1: D1Database) {
         )`),
 
         d1.prepare(`CREATE TABLE bookings (
-            id TEXT PRIMARY KEY, class_id TEXT NOT NULL, member_id TEXT NOT NULL, 
-            status TEXT DEFAULT 'confirmed', attendance_type TEXT DEFAULT 'in_person', 
-            checked_in_at INTEGER, is_guest INTEGER DEFAULT 0, guest_name TEXT, guest_email TEXT, 
-            spot_number TEXT, waitlist_position INTEGER, waitlist_notified_at INTEGER, 
-            payment_method TEXT, used_pack_id TEXT, external_source TEXT, external_id TEXT, 
+            id TEXT PRIMARY KEY, class_id TEXT NOT NULL, member_id TEXT NOT NULL,
+            status TEXT DEFAULT 'confirmed', attendance_type TEXT DEFAULT 'in_person',
+            checked_in_at INTEGER, is_guest INTEGER DEFAULT 0, guest_name TEXT, guest_email TEXT,
+            spot_number TEXT, waitlist_position INTEGER, waitlist_notified_at INTEGER, reminder_sent_at INTEGER,
+            payment_method TEXT, used_pack_id TEXT, external_source TEXT, external_id TEXT,
             created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )`),
         d1.prepare(`CREATE TABLE video_purchases (
             id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, user_id TEXT NOT NULL, 
             class_id TEXT NOT NULL, price_paid INTEGER NOT NULL DEFAULT 0, 
             stripe_payment_id TEXT, created_at INTEGER DEFAULT (strftime('%s', 'now'))
+        )`),
+        d1.prepare(`CREATE TABLE idempotency_keys (
+            key TEXT PRIMARY KEY NOT NULL,
+            response TEXT NOT NULL,
+            created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
         )`),
     ]);
 

@@ -125,6 +125,27 @@ describe('Security Regression Tests', () => {
         expect(res.status).toBe(403);
     });
 
+    it('Scenario 5b: Tenant isolation by slug - member of tenant A cannot list tenant B resources', async () => {
+        // Tenant 2 already exists from Scenario 3 (slug: studio-2). Student A is only in tenant_123.
+
+        // Student A (member of tenant_123 only) must not list tenant_2's classes when using X-Tenant-Slug: studio-2
+        const classesReq = createRequest('GET', '/classes', {
+            'X-Tenant-Slug': 'studio-2',
+            'TEST-AUTH': STUDENT_A_ID,
+        });
+        const classesRes = await SELF.fetch(classesReq);
+        // Tenant middleware: user is not member of tenant_2, so expect 403 Forbidden or 404
+        expect([403, 404]).toContain(classesRes.status);
+
+        // Student A must not list tenant_2's members
+        const membersReq = createRequest('GET', '/members', {
+            'X-Tenant-Slug': 'studio-2',
+            'TEST-AUTH': STUDENT_A_ID,
+        });
+        const membersRes = await SELF.fetch(membersReq);
+        expect([403, 404]).toContain(membersRes.status);
+    });
+
     it('Scenario 5: OAuth Callback User Mismatch - Should fail if different user tries to finish callback', async () => {
         // 1. Initiate Connect as Owner (to get a valid signed state)
         const connectReq = createRequest('GET', `/studios/gc-connect?tenantId=${TENANT_ID}`, {

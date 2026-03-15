@@ -58,4 +58,15 @@ test.describe('Platform Smoke Tests', () => {
         await page.goto('/documentation');
         await expect(page).toHaveURL(/.*sign-in.*/);
     });
+
+    test('public schedule (embed calendar) loads', async ({ page }) => {
+        await page.route('**/guest/schedule/**', async (route) => {
+            await route.fulfill({
+                json: { tenant: { name: 'Test Studio', id: 't1' }, classes: [] },
+            });
+        });
+        await page.goto('/embed/test-studio/calendar');
+        await page.waitForLoadState('networkidle');
+        await expect(page.getByText(/schedule|no classes|class schedule/i).first()).toBeVisible({ timeout: 10000 });
+    });
 });

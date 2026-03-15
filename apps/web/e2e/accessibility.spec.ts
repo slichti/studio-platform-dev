@@ -54,4 +54,20 @@ test.describe('Accessibility Scan', () => {
 
         expect(results.violations).toEqual([]);
     });
+
+    test('should not have major accessibility violations on public schedule (embed)', async ({ page }) => {
+        await page.route('**/guest/schedule/**', async (route) => {
+            await route.fulfill({
+                json: { tenant: { name: 'Test Studio', id: 't1' }, classes: [] },
+            });
+        });
+        await page.goto('/embed/test-studio/calendar');
+        await page.waitForLoadState('networkidle');
+
+        const results = await new AxeBuilder({ page })
+            .disableRules(['color-contrast'])
+            .analyze();
+
+        expect(results.violations).toEqual([]);
+    });
 });

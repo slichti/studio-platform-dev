@@ -1,4 +1,3 @@
-
 import { useLoaderData, useSearchParams, useNavigate, type LoaderFunctionArgs } from "react-router";
 import { getAuth } from "../utils/auth-wrapper.server";
 import { loadStripe } from "@stripe/stripe-js";
@@ -7,6 +6,7 @@ import { apiRequest } from "../utils/api";
 import { useState, useEffect } from "react";
 import { ArrowLeft } from "lucide-react";
 import { GiftCardInput } from "../components/GiftCardInput";
+import { ComponentErrorBoundary } from "~/components/ErrorBoundary";
 
 // Initialize Stripe
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
@@ -142,55 +142,56 @@ export default function CheckoutPage() {
     }
 
     return (
-        <div className="max-w-3xl mx-auto py-8 px-4">
-            <button
-                onClick={() => navigate(-1)}
-                className="flex items-center text-sm text-zinc-500 hover:text-zinc-900 mb-6"
-            >
-                <ArrowLeft className="h-4 w-4 mr-1" />
-                Back
-            </button>
+        <ComponentErrorBoundary>
+            <div className="max-w-3xl mx-auto py-8 px-4">
+                <button
+                    onClick={() => navigate(-1)}
+                    className="flex items-center text-sm text-zinc-500 hover:text-zinc-900 mb-6"
+                >
+                    <ArrowLeft className="h-4 w-4 mr-1" />
+                    Back
+                </button>
 
+                <div className="mb-6 space-y-4">
+                    <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm space-y-4">
+                        <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest pl-1">Apply Promotion</h3>
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                placeholder="Promo Code"
+                                className="flex-1 border-none bg-zinc-100 rounded-xl px-4 py-3 text-sm uppercase font-mono outline-none focus:ring-2 focus:ring-blue-500"
+                                value={couponCode}
+                                onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                            />
+                            <button
+                                onClick={applyCoupon}
+                                disabled={loadingSession || !couponCode}
+                                className="bg-zinc-900 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-zinc-800 disabled:opacity-50 transition-all"
+                            >
+                                Apply
+                            </button>
+                        </div>
 
-            <div className="mb-6 space-y-4">
-                <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm space-y-4">
-                    <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest pl-1">Apply Promotion</h3>
-                    <div className="flex gap-2">
-                        <input
-                            type="text"
-                            placeholder="Promo Code"
-                            className="flex-1 border-none bg-zinc-100 rounded-xl px-4 py-3 text-sm uppercase font-mono outline-none focus:ring-2 focus:ring-blue-500"
-                            value={couponCode}
-                            onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                        />
-                        <button
-                            onClick={applyCoupon}
-                            disabled={loadingSession || !couponCode}
-                            className="bg-zinc-900 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-zinc-800 disabled:opacity-50 transition-all"
-                        >
-                            Apply
-                        </button>
-                    </div>
-
-                    <div className="pt-2 border-t border-zinc-50">
-                        <GiftCardInput
-                            token={token!}
-                            slug={slug}
-                            onApply={(card) => createSession(couponCode, card.code)}
-                            onRemove={() => createSession(couponCode)}
-                        />
+                        <div className="pt-2 border-t border-zinc-50">
+                            <GiftCardInput
+                                token={token!}
+                                slug={slug}
+                                onApply={(card) => createSession(couponCode, card.code)}
+                                onRemove={() => createSession(couponCode)}
+                            />
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div id="checkout" className="bg-white p-6 rounded-lg shadow-sm border border-zinc-200">
-                <EmbeddedCheckoutProvider
-                    stripe={stripePromise}
-                    options={{ clientSecret }}
-                >
-                    <EmbeddedCheckout />
-                </EmbeddedCheckoutProvider>
+                <div id="checkout" className="bg-white p-6 rounded-lg shadow-sm border border-zinc-200">
+                    <EmbeddedCheckoutProvider
+                        stripe={stripePromise}
+                        options={{ clientSecret }}
+                    >
+                        <EmbeddedCheckout />
+                    </EmbeddedCheckoutProvider>
+                </div>
             </div>
-        </div >
+        </ComponentErrorBoundary>
     );
 }

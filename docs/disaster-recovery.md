@@ -24,6 +24,12 @@ This document outlines the procedures for backing up and restoring the Studio Pl
   - **MonitoringService**: Email to `PLATFORM_ADMIN_EMAIL` and, if set, Slack via `SLACK_WEBHOOK_URL`
   - **Optional:** Set `BACKUP_ALERT_WEBHOOK_URL` (e.g. Slack incoming webhook or PagerDuty) in Worker secrets. On system or D1 backup failure, the script POSTs a JSON payload: `{ text, backup_event: 'failure', message, error, ts }`. Configure in Cloudflare Dashboard or `wrangler secret put BACKUP_ALERT_WEBHOOK_URL`.
 
+### If the backup cron did not run (missed run)
+- **Check:** List R2 objects with prefix `backups/` and confirm there is a file for today (or the expected run date). Cron is typically scheduled at 2 AM UTC.
+- **Verify cron trigger:** In Cloudflare Dashboard → Workers & Pages → your API worker → Triggers → Cron Triggers. Ensure the schedule (e.g. `0 2 * * *`) is present and the worker is deployed.
+- **Manual backup:** Run a manual D1 export and upload to R2 (see Scenario 3: Emergency Backup below) so you have a recent snapshot.
+- **Investigate:** Use `wrangler tail` during the next scheduled run to see logs or errors. Check Worker CPU/memory limits and cold-start issues; adjust cron schedule if needed.
+
 ---
 
 ## Restoration Procedures

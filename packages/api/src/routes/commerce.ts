@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { z } from 'zod';
 import { createDb } from '../db';
 import { tenants, tenantMembers, coupons, couponRedemptions, classPackDefinitions, giftCards, membershipPlans, users, userRelationships, classes, purchasedPacks } from '@studio/db/src/schema';
 import { eq, and, gt, sql } from 'drizzle-orm';
@@ -6,6 +7,23 @@ import { rateLimitMiddleware } from '../middleware/rate-limit';
 import { HonoContext } from '../types';
 import { PricingService } from '../services/pricing';
 import { AuditService } from '../services/audit';
+
+const CheckoutSessionBodySchema = z.object({
+    packId: z.string().optional(),
+    planId: z.string().optional(),
+    recordingId: z.string().optional(),
+    couponCode: z.string().optional(),
+    giftCardCode: z.string().optional(),
+    giftCardAmount: z.union([z.string(), z.number()]).optional(),
+    recipientEmail: z.string().email().optional(),
+    recipientName: z.string().max(500).optional(),
+    senderName: z.string().max(500).optional(),
+    message: z.string().max(2000).optional(),
+    platform: z.string().optional(),
+}).refine(
+    (data) => !!(data.packId || data.planId || data.recordingId || (data.giftCardAmount != null && String(data.giftCardAmount) !== '')),
+    { message: 'At least one of packId, planId, recordingId, or giftCardAmount is required', path: [] }
+);
 
 const app = new Hono<HonoContext>();
 
@@ -639,9 +657,18 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
     try {
         if (!!(auth as any).isImpersonating) return c.json({ error: 'Payments cannot be processed while impersonating.' }, 403);
 
-        const body = await c.req.json();
+        let raw: unknown;
+        try {
+            raw = await c.req.json();
+        } catch {
+            return c.json({ error: 'Invalid JSON body', code: 'VALIDATION_FAILED' }, 400);
+        }
+        const parsed = CheckoutSessionBodySchema.safeParse(raw);
+        if (!parsed.success) {
+            return c.json({ error: 'Validation failed', code: 'VALIDATION_FAILED', issues: parsed.error.issues }, 400);
+        }
+        const body = parsed.data;
         const { packId, planId, recordingId, couponCode, giftCardCode, giftCardAmount, recipientEmail, recipientName, senderName, message, platform } = body;
-        if (!packId && !giftCardAmount && !planId && !recordingId) return c.json({ error: "Product ID required" }, 400);
 
         let finalAmount = 0, basePrice = 0, discountAmount = 0, pack = null, plan = null, recording = null, stripeMode: 'payment' | 'subscription' = 'payment';
 

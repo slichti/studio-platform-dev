@@ -19,6 +19,7 @@ export default defineWorkersConfig({
                     bindings: {
                         ENVIRONMENT: 'test',
                         ENCRYPTION_SECRET: 'test-secret-must-be-32-chars-lng',
+                        IMPERSONATION_SECRET: 'test-impersonation-secret-32-chars!!',
                         GOOGLE_CLIENT_ID: 'mock-google-id',
                         GOOGLE_CLIENT_SECRET: 'mock-google-secret',
                         STRIPE_SECRET_KEY: 'sk_test_mock',
