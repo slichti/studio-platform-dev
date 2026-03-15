@@ -690,7 +690,7 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
             if (!recording.isRecordingSellable) return c.json({ error: "This recording is not for sale" }, 403);
             finalAmount = basePrice = recording.recordingPrice || recording.price || 0;
         } else if (giftCardAmount) {
-            finalAmount = basePrice = parseInt(giftCardAmount);
+            finalAmount = basePrice = parseInt(String(giftCardAmount), 10);
         }
 
         let appliedCouponId = undefined;
@@ -720,15 +720,16 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
             const fulfillment = new FulfillmentService(db, c.env.RESEND_API_KEY, c.env);
             const mockId = `direct_${crypto.randomUUID()}`;
             if (pack) {
-                await fulfillment.fulfillPackPurchase({ packId: pack.id, tenantId: tenant.id, memberId: c.get('member')?.id, userId: auth.userId, couponId: appliedCouponId }, mockId, 0);
+                await fulfillment.fulfillPackPurchase({ packId: String(pack.id), tenantId: tenant.id, memberId: c.get('member')?.id, userId: auth.userId, couponId: appliedCouponId }, mockId, 0);
             }
             if (recording) {
-                await fulfillment.fulfillVideoPurchase({ classId: recording.id, tenantId: tenant.id, userId: auth.userId, couponId: appliedCouponId }, mockId, 0);
+                await fulfillment.fulfillVideoPurchase({ classId: String(recording.id), tenantId: tenant.id, userId: auth.userId, couponId: appliedCouponId }, mockId, 0);
             }
             if (giftCardAmount) {
-                await fulfillment.fulfillGiftCardPurchase({ type: 'gift_card_purchase', tenantId: tenant.id, userId: auth.userId, recipientEmail, recipientName, senderName, message, amount: parseInt(giftCardAmount) }, mockId, parseInt(giftCardAmount));
+                const amount = parseInt(String(giftCardAmount), 10);
+                await fulfillment.fulfillGiftCardPurchase({ type: 'gift_card_purchase', tenantId: tenant.id, userId: auth.userId, recipientEmail, recipientName, senderName, message, amount }, mockId, amount);
             }
-            if (appliedGiftCardId && creditApplied > 0) await fulfillment.redeemGiftCard(appliedGiftCardId, creditApplied, mockId);
+            if (appliedGiftCardId != null && creditApplied > 0) await fulfillment.redeemGiftCard(String(appliedGiftCardId), creditApplied, mockId);
 
             if (platform === 'mobile') {
                 // For mobile, we want to return a success URL or status so the app can handle it

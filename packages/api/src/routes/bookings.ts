@@ -325,6 +325,8 @@ app.post('/', bookingLimit, async (c) => {
         targetId = tm.id;
     }
 
+    if (targetId == null) return c.json({ error: "Member context required", code: "BAD_REQUEST" }, 400);
+
     const cl = await db.select().from(classes).where(and(eq(classes.id, classId), eq(classes.tenantId, tenant.id))).get();
     if (!cl) return c.json({ error: "Not found" }, 404);
 

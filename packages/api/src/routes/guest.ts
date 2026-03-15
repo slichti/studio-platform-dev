@@ -126,9 +126,9 @@ app.post('/booking', rateLimitMiddleware({ limit: 5, window: 60, keyPrefix: 'gue
     // Idempotency: return stored response if key was already used within TTL
     if (idemKey) {
         try {
-            const row = await c.env.DB.prepare(
+            const row = (await c.env.DB.prepare(
                 'SELECT response, created_at FROM idempotency_keys WHERE key = ?'
-            ).bind(idemKey).first<{ response: string; created_at: number }>();
+            ).bind(idemKey).first()) as { response: string; created_at: number } | null;
             if (row && row.created_at && (Math.floor(Date.now() / 1000) - row.created_at) < IDEMPOTENCY_TTL_SEC) {
                 return c.json(JSON.parse(row.response) as object, 200);
             }
