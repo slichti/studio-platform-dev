@@ -110,6 +110,91 @@ Ideas for further performance, stability, and resiliency work (not yet scheduled
 
 ---
 
+### Detailed rationale: five high-priority items
+
+Expanded description and need for the items that most often come up next.
+
+#### 1. Idempotency for checkout session (Medium effort, High impact)
+
+**What it is**  
+Support an `Idempotency-Key` header on `POST /commerce/checkout/session`. If the same key is sent again within the TTL window (e.g. 24h), return the same checkout session (or session URL) instead of creating a new one.
+
+**Why it's needed**  
+- Users (or the frontend) often retry when the first request is slow or the response is lost. Without idempotency, each retry creates a **new** Stripe Checkout Session.
+- Multiple sessions for the same intent can cause double charges, confused UX ("which link do I use?"), and extra Stripe usage. Idempotency makes "create checkout" safe to retry.
+- We already do this for guest booking (`POST /guest/booking` with D1 `idempotency_keys`); checkout is the same pattern applied to a payment flow.
+
+**What "done" looks like**  
+- API accepts optional `Idempotency-Key` on `POST /commerce/checkout/session`.
+- First request with a key: create session, store key → session id (or URL) in D1 (reuse or extend `idempotency_keys`), return session.
+- Duplicate request with same key within TTL: return stored response (same session id/URL) with 200, no new Stripe call.
+- Document in `docs/api-idempotency.md` and API README.
+
+---
+
+#### 2. Rate limit fail-closed for critical routes (Medium effort, Low impact)
+
+**What it is**  
+Today, if the RateLimiter Durable Object is unavailable (e.g. timeout, error), the rate-limit middleware **fails open**: the request proceeds and is not counted. For high-value or abuse-prone routes (e.g. checkout, guest booking, password reset), we could **fail closed** instead: if we can't check the limit, reject the request (e.g. 503) or apply a strict per-request fallback (e.g. in-memory cap per isolate).
+
+**Why it's needed**  
+- Fail-open avoids blocking traffic when the DO is down but allows unlimited traffic during that window. For checkout or guest booking, that can mean a burst of duplicate or abusive requests.
+- Fail-closed (or a conservative fallback) trades availability of those routes during DO issues for stricter protection. The choice is policy: "never block legitimate users" vs "never allow unthrottled payment/booking when we can't enforce limits."
+
+**What "done" looks like**  
+- Define which routes are "critical" (e.g. checkout, guest booking, accept-invite).
+- When the rate-limit check fails (catch block in middleware), either: return 503 with a clear code (e.g. `RATE_LIMIT_UNAVAILABLE`), or apply a very low in-memory limit per Worker (e.g. 5 req/min per key) so some traffic is still allowed but abuse is capped.
+- Document behavior in API docs and runbook.
+
+---
+
+#### 3. Enable cache for public/guest schedule (Low effort, Medium impact)
+
+**What it is**  
+Use the existing `cacheMiddleware` (Cache API / Cloudflare cache) for the **guest** schedule endpoint or the routes that serve it. Today it's commented out in `classes.schedules.ts` (which may be the studio schedule, not guest). The goal is to cache responses for `GET /guest/schedule/:slug` (or the equivalent path that serves the public schedule) with a short `maxAge` (e.g. 60s) and optional `staleWhileRevalidate` so repeat views don't hit D1 every time.
+
+**Why it's needed**  
+- The public schedule is often the most viewed page (guests, crawlers, embeds). Every view without cache means a D1 query and serialization. That drives latency and load under traffic spikes.
+- Schedule data is tolerant of short staleness (e.g. 60s). Caching at the edge reduces D1 load and improves p95 latency for that endpoint.
+
+**What "done" looks like**  
+- Identify the exact route(s) that serve public/guest schedule (e.g. guest route in API, or the path used by the web app's loader).
+- Apply `cacheMiddleware({ maxAge: 60, staleWhileRevalidate: 300 })` (or similar) to that path only. Ensure cache key includes tenant slug (and optionally `start`/`end` if query params are used).
+- Confirm Cache API is available in the Worker environment (Cloudflare supports it). Re-enable or add the middleware; do not cache authenticated or tenant-private schedule endpoints.
+
+---
+
+#### 4. Request timeouts on API outbound calls (Medium effort, Medium impact)
+
+**What it is**  
+Every outbound `fetch` from the API to an external service (Stripe, Cloudflare API, Zoom, Resend, etc.) should use a timeout (e.g. `AbortSignal.timeout(15000)`) so a hung connection doesn't hold the Worker until the platform kills it.
+
+**Why it's needed**  
+- If Stripe or another provider is slow or stuck, a request without a timeout can run for the full Worker CPU limit (e.g. 30s+). That consumes capacity and can cause cascading slowdowns or 5xx for other requests on the same Worker.
+- Failing fast (e.g. after 15s) returns a clear error to the client and frees the Worker. Clients can retry; the system stays responsive.
+
+**What "done" looks like**  
+- Audit all external `fetch` and SDK calls (Stripe, Cloudflare, Zoom, Resend, etc.). Where the client supports it, pass `signal: AbortSignal.timeout(N)` (N e.g. 15000 ms). Where only callback-style or no signal is supported, wrap in `Promise.race` with a timeout that rejects or aborts.
+- Prefer a shared constant (e.g. `OUTBOUND_TIMEOUT_MS`) and use it consistently. Optionally log timeouts with a distinct code (e.g. `UPSTREAM_TIMEOUT`) for observability.
+- Document in API/runbook that outbound calls are time-bounded.
+
+---
+
+#### 5. SLO alerts in your monitoring stack (Medium effort, High impact)
+
+**What it is**  
+`docs/observability.md` already defines target SLOs (e.g. read latency p95 &lt; 500ms, write p95 &lt; 1s, error rate &lt; 1%, availability 99%+). "SLO alerts" means configuring your monitoring system (e.g. Grafana, Datadog, Cloudflare Analytics) to **alert** when those targets are breached (e.g. p95 &gt; 500ms, error rate &gt; 1%, or health check failing).
+
+**Why it's needed**  
+- SLOs are only useful if someone is notified when we miss them. Without alerts, regressions (e.g. a slow dependency, a bad deploy) can go unnoticed until users complain.
+- Alerts drive incident response, capacity planning, and prioritization of stability work. They close the loop between "we want p95 &lt; 500ms" and "we know when we're not meeting it."
+
+**What "done" looks like**  
+- In the tool that ingests your API logs or metrics (e.g. from `durationMs`, status, or golden-signals endpoint), define alerts such as: p95 latency (e.g. for GET /classes or key paths) &gt; 500ms (read) or &gt; 1s (write); error rate (5xx or 4xx as you define) &gt; 1% over a window (e.g. 5m); availability: health or golden-signals endpoint failing or returning 5xx for &gt; 1% of checks.
+- Route alerts to the right channel (e.g. PagerDuty, Slack, email) and document in the runbook how to interpret and respond. Keep `docs/observability.md` as the single source of truth for target values and what each signal means.
+
+---
+
 ## Changelog
 
 - **2025-03-14**: Created tracker; started Item 1 testing (auth unit tests, optionalAuth, API key, impersonation, tenant isolation).
@@ -141,6 +226,9 @@ Ideas for further performance, stability, and resiliency work (not yet scheduled
 - **2025-03-15**: Incremental validation and idempotency implementation.
   - **Validation**: POST `/guest/token` (Zod: email, optional name). POST `/commerce/checkout/session` (Zod: at least one of packId/planId/recordingId/giftCardAmount, optional coupon/gift card/recipient fields). POST `/bookings` (Zod: classId, optional attendanceType, memberId).
   - **Idempotency**: POST `/guest/booking` now honors `Idempotency-Key`; uses D1 table `idempotency_keys` (migration 0083), 24h TTL; duplicate key returns stored 200 without creating a second booking. Test schema in test-utils includes idempotency_keys.
+- **2026-03-14**: Idempotency for checkout and rate limit fail-closed.
+  - **Checkout idempotency:** `POST /commerce/checkout/session` now honors `Idempotency-Key`. Same key within 24h returns stored response (200) without creating a second Stripe session. Uses D1 `idempotency_keys` table. Documented in `docs/api-idempotency.md`.
+  - **Rate limit fail-closed:** Added `failClosed` option to rate limit middleware. When the RateLimiter DO is unavailable, critical routes return 503 with `code: 'RATE_LIMIT_UNAVAILABLE'` instead of failing open. Applied to: `POST /commerce/checkout/session`, `POST /guest/booking`, `GET/POST /members/accept-invite`. Documented in `docs/api-error-shape.md`.
 - **2026-03-14**: Stability and observability improvements (from Recommended Next).
   - **429 response shape**: Rate limit middleware now returns `{ error, code: 'RATE_LIMIT_EXCEEDED', requestId? }` and sets `Retry-After` (seconds until reset). Documented in `docs/api-error-shape.md`.
   - **Webhook retry**: Added `docs/api-webhooks.md` (Stripe retry behavior, idempotency via `processed_webhooks`). Linked from API README.

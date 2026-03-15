@@ -646,13 +646,17 @@ app.get('/invoices', async (c) => {
     }
 });
 
+const IDEMPOTENCY_TTL_SEC = 24 * 60 * 60; // 24 hours (same as guest booking)
+
 // POST /checkout/session
-app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPrefix: 'checkout' }), async (c) => {
+app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPrefix: 'checkout', failClosed: true }), async (c) => {
     const db = createDb(c.env.DB);
     const tenant = c.get('tenant');
     const auth = c.get('auth');
     if (!tenant) return c.json({ error: "Tenant context missing" }, 400);
     if (!tenant.stripeAccountId) return c.json({ error: "Payments not enabled." }, 400);
+
+    const idemKey = c.req.header('Idempotency-Key')?.trim();
 
     try {
         if (!!(auth as any).isImpersonating) return c.json({ error: 'Payments cannot be processed while impersonating.' }, 403);
@@ -669,6 +673,20 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
         }
         const body = parsed.data;
         const { packId, planId, recordingId, couponCode, giftCardCode, giftCardAmount, recipientEmail, recipientName, senderName, message, platform } = body;
+
+        // Idempotency: return stored response if key was already used within TTL
+        if (idemKey) {
+            try {
+                const row = (await c.env.DB.prepare(
+                    'SELECT response, created_at FROM idempotency_keys WHERE key = ?'
+                ).bind(idemKey).first()) as { response: string; created_at: number } | null;
+                if (row && row.created_at && (Math.floor(Date.now() / 1000) - row.created_at) < IDEMPOTENCY_TTL_SEC) {
+                    return c.json(JSON.parse(row.response) as object, 200);
+                }
+            } catch {
+                // Table may not exist yet; proceed without idempotency
+            }
+        }
 
         let finalAmount = 0, basePrice = 0, discountAmount = 0, pack = null, plan = null, recording = null, stripeMode: 'payment' | 'subscription' = 'payment';
 
@@ -732,11 +750,23 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
             if (appliedGiftCardId != null && creditApplied > 0) await fulfillment.redeemGiftCard(String(appliedGiftCardId), creditApplied, mockId);
 
             if (platform === 'mobile') {
-                // For mobile, we want to return a success URL or status so the app can handle it
-                // But since there's no checkout session, we can just return success: true
-                return c.json({ complete: true, paymentNotRequired: true });
+                const payload = { complete: true, paymentNotRequired: true };
+                if (idemKey) {
+                    try {
+                        await c.env.DB.prepare('INSERT OR REPLACE INTO idempotency_keys (key, response, created_at) VALUES (?, ?, ?)')
+                            .bind(idemKey, JSON.stringify(payload), Math.floor(Date.now() / 1000)).run();
+                    } catch { /* table may not exist */ }
+                }
+                return c.json(payload);
             }
-            return c.json({ complete: true, returnUrl: `${new URL(c.req.url).origin}/studio/${tenant.slug}/return?session_id=${mockId}` });
+            const payload0 = { complete: true, returnUrl: `${new URL(c.req.url).origin}/studio/${tenant.slug}/return?session_id=${mockId}` };
+            if (idemKey) {
+                try {
+                    await c.env.DB.prepare('INSERT OR REPLACE INTO idempotency_keys (key, response, created_at) VALUES (?, ?, ?)')
+                        .bind(idemKey, JSON.stringify(payload0), Math.floor(Date.now() / 1000)).run();
+                } catch { /* table may not exist */ }
+            }
+            return c.json(payload0);
         }
 
         const amountWithFee = Math.round((amountToPay + 30) / (1 - 0.029));
@@ -859,7 +889,14 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
                 description: `${tenant.name} - ${metadata.productName}`
             });
 
-            return c.json({ url: session.url });
+            const payloadMobile = { url: session.url };
+            if (idemKey) {
+                try {
+                    await c.env.DB.prepare('INSERT OR REPLACE INTO idempotency_keys (key, response, created_at) VALUES (?, ?, ?)')
+                        .bind(idemKey, JSON.stringify(payloadMobile), Math.floor(Date.now() / 1000)).run();
+                } catch { /* table may not exist */ }
+            }
+            return c.json(payloadMobile);
         } else {
             // Embedded (Web)
             const session = await stripeService.createEmbeddedCheckoutSession(tenant.stripeAccountId!, {
@@ -873,7 +910,14 @@ app.post('/checkout/session', rateLimitMiddleware({ limit: 10, window: 60, keyPr
                 description: `${tenant.name} - ${metadata.productName}`
             });
 
-            return c.json({ clientSecret: session.client_secret });
+            const payloadWeb = { clientSecret: session.client_secret };
+            if (idemKey) {
+                try {
+                    await c.env.DB.prepare('INSERT OR REPLACE INTO idempotency_keys (key, response, created_at) VALUES (?, ?, ?)')
+                        .bind(idemKey, JSON.stringify(payloadWeb), Math.floor(Date.now() / 1000)).run();
+                } catch { /* table may not exist */ }
+            }
+            return c.json(payloadWeb);
         }
     } catch (e: any) {
         return c.json({ error: e.message }, 500);

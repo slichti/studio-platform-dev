@@ -29,7 +29,7 @@ Validation errors may also include **issues** (array) from the schema validator.
 - `409` — Conflict (e.g. duplicate resource).
 - `429` — Too Many Requests (`RATE_LIMIT_EXCEEDED`). Response may include `Retry-After` header (seconds until limit resets).
 - `500` — Internal server error (`INTERNAL_ERROR`).
-- `503` — Service unavailable (e.g. health check when DB is down).
+- `503` — Service unavailable (e.g. health check when DB is down, or `RATE_LIMIT_UNAVAILABLE` when rate limiting is temporarily unavailable on critical routes).
 
 ## Codes
 
@@ -40,6 +40,7 @@ Validation errors may also include **issues** (array) from the schema validator.
 | `UNAUTHORIZED` | 403 | Authenticated but not allowed for this resource. |
 | `NOT_FOUND` | 404 | Resource or tenant not found. |
 | `RATE_LIMIT_EXCEEDED` | 429 | Rate limit exceeded. Use `Retry-After` header (seconds) to back off. |
+| `RATE_LIMIT_UNAVAILABLE` | 503 | Rate limit service temporarily unavailable (critical routes fail closed). Retry later. |
 | `INTERNAL_ERROR` | 500 | Unhandled server error. In non-production, response may include `message`, `stack`, `cause`. |
 
 Route-specific errors may use other codes (e.g. `STRIPE_WEBHOOK_ERROR`, `INVENTORY_ERROR`). The same shape applies: `error`, `code`, and optional `details` / `requestId`.

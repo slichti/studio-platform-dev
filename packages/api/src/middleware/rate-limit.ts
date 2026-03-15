@@ -8,10 +8,12 @@ export type RateLimitOptions = {
     window?: number;
     cost?: number;
     keyPrefix?: string;
+    /** When true, if the RateLimiter DO is unavailable we return 503 instead of failing open. Use for critical routes (checkout, guest booking, accept-invite). */
+    failClosed?: boolean;
 };
 
 export const rateLimitMiddleware = (options: RateLimitOptions = {}) => {
-    const { limit: defaultLimit = 300, window = 60, cost = 1, keyPrefix } = options;
+    const { limit: defaultLimit = 300, window = 60, cost = 1, keyPrefix, failClosed = false } = options;
     return async (c: Context, next: Next) => {
         // Skip for OPTIONS (CORS preflight)
         if (c.req.method === 'OPTIONS') {
@@ -132,7 +134,15 @@ export const rateLimitMiddleware = (options: RateLimitOptions = {}) => {
             }
         } catch (e) {
             console.error("Rate limit check failed", e);
-            // Fail open
+            if (failClosed) {
+                const requestId = c.get('traceId') ?? undefined;
+                return c.json({
+                    error: 'Rate limit service temporarily unavailable. Please try again later.',
+                    code: 'RATE_LIMIT_UNAVAILABLE',
+                    ...(requestId && { requestId })
+                }, 503);
+            }
+            // Fail open for non-critical routes
         }
 
         await next();

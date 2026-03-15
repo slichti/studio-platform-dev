@@ -519,7 +519,7 @@ expensivePaths.forEach(path => {
 });
 
 // [SECURITY] Invite acceptance: token in body + auth; limit brute-force per IP/token bucket
-app.use('/members/accept-invite', rateLimitMiddleware({ limit: 30, window: 60, keyPrefix: 'accept-invite' }));
+app.use('/members/accept-invite', rateLimitMiddleware({ limit: 30, window: 60, keyPrefix: 'accept-invite', failClosed: true }));
 
 // 4. Infrastructure/Common Studio Logic
 // 4. Infrastructure/Common Studio Logic

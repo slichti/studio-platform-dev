@@ -104,7 +104,7 @@ app.get('/videos/:slug', async (c) => {
 const IDEMPOTENCY_TTL_SEC = 24 * 60 * 60; // 24 hours
 
 // POST /booking - Guest Booking
-app.post('/booking', rateLimitMiddleware({ limit: 5, window: 60, keyPrefix: 'guest_booking' }), async (c) => {
+app.post('/booking', rateLimitMiddleware({ limit: 5, window: 60, keyPrefix: 'guest_booking', failClosed: true }), async (c) => {
     const db = createDb(c.env.DB);
     const idemKey = c.req.header('Idempotency-Key')?.trim();
 
