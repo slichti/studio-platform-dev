@@ -48,11 +48,16 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         throw new Response("Not Found", { status: 404 });
     }
 
-    // Public schedule: no login required, uses guest API
+    // Public schedule: no login required, uses guest API (explicit 2-month window)
     if (pageSlug === "schedule") {
         const apiUrl = getApiUrl();
+        const start = new Date();
+        start.setUTCHours(0, 0, 0, 0);
+        const end = new Date(start.getTime() + 60 * 24 * 60 * 60 * 1000); // +60 days
+        const startStr = start.toISOString();
+        const endStr = end.toISOString();
         try {
-            const res = await fetch(`${apiUrl}/guest/schedule/${subdomain}`);
+            const res = await fetch(`${apiUrl}/guest/schedule/${subdomain}?start=${encodeURIComponent(startStr)}&end=${encodeURIComponent(endStr)}`);
             if (!res.ok) throw new Response("Studio not found", { status: 404 });
             const data = await res.json() as { tenant: { name: string; id: string; currency?: string }; classes: any[] };
             return {

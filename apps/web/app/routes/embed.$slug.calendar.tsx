@@ -7,9 +7,14 @@ import { ExternalLink, Calendar as CalendarIcon, Video, X } from "lucide-react";
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
     const { slug } = params;
     const API_URL = (import.meta as any).env.VITE_API_URL || "http://localhost:8787";
+    const start = new Date();
+    start.setUTCHours(0, 0, 0, 0);
+    const end = new Date(start.getTime() + 60 * 24 * 60 * 60 * 1000); // 2 months
+    const startStr = start.toISOString();
+    const endStr = end.toISOString();
 
     try {
-        const res = await fetch(`${API_URL}/guest/schedule/${slug}`);
+        const res = await fetch(`${API_URL}/guest/schedule/${slug}?start=${encodeURIComponent(startStr)}&end=${encodeURIComponent(endStr)}`);
         if (!res.ok) throw new Error("Failed to load classes");
         const data = await res.json() as { classes: any[] };
         return { classes: data.classes || [] };
