@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
+import { fetchWithTimeout } from '../lib/outbound';
 import { videos, brandingAssets, videoCollections, videoCollectionItems } from '@studio/db/src/schema';
 import { eq, and, desc, sql, like } from 'drizzle-orm';
 import { HonoContext } from '../types';
@@ -148,7 +149,7 @@ app.post('/branding/upload-url', async (c) => {
     const accountId = c.env.CLOUDFLARE_ACCOUNT_ID;
     const apiToken = c.env.CLOUDFLARE_API_TOKEN;
 
-    const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/direct_upload`, {
+    const response = await fetchWithTimeout(`https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/direct_upload`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${apiToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ maxDurationSeconds: 60, creator: `tenant:${tenant.id}`, meta: { tenantId: tenant.id, type } })
@@ -215,7 +216,7 @@ app.post('/upload-url', async (c) => {
     const accountId = c.env.CLOUDFLARE_ACCOUNT_ID;
     const apiToken = c.env.CLOUDFLARE_API_TOKEN;
 
-    const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/direct_upload`, {
+    const response = await fetchWithTimeout(`https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/direct_upload`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${apiToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ creator: `tenant:${tenant.id}`, meta: { tenantId: tenant.id, type: 'vod' } })

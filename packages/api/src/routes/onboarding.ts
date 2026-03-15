@@ -8,6 +8,7 @@ import { Svix } from 'svix';
 
 import { HonoContext } from '../types';
 import { ensureDefaultTagsForTenant } from '../utils/defaultTags';
+import { fetchWithTimeout } from '../lib/outbound';
 
 const app = new Hono<HonoContext>();
 
@@ -84,7 +85,7 @@ app.post('/studio', rateLimitMiddleware({ limit: 5, window: 300, keyPrefix: 'onb
     // This handles cases where the JWT template is missing the 'email_verified' claim (common in default Clerk setups)
     if (!isVerified) {
         try {
-            const clerkRes = await fetch(`https://api.clerk.com/v1/users/${auth.userId}`, {
+            const clerkRes = await fetchWithTimeout(`https://api.clerk.com/v1/users/${auth.userId}`, {
                 headers: {
                     'Authorization': `Bearer ${c.env.CLERK_SECRET_KEY}`,
                     'Content-Type': 'application/json'

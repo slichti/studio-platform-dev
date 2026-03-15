@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from '../lib/outbound';
 
 export class CloudflareService {
     private accountId: string;
@@ -22,7 +23,7 @@ export class CloudflareService {
         }
 
         const url = `https://api.cloudflare.com/client/v4/accounts/${this.accountId}/pages/projects/${this.projectName}${path}`;
-        const response = await fetch(url, {
+        const response = await fetchWithTimeout(url, {
             ...options,
             headers: {
                 ...this.headers,

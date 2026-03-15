@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createDb } from '../db';
-
+import { fetchWithTimeout } from '../lib/outbound';
 import { tenants, tenantMembers, uploads, users } from '@studio/db/src/schema'; // Consolidated imports
 import { sql, eq, desc, like, and } from 'drizzle-orm';
 import { HonoContext } from '../types';
@@ -83,7 +83,7 @@ app.post('/image', async (c) => {
         formData.append('requireSignedURLs', 'false');
         formData.append('metadata', JSON.stringify({ tenantId: tenant.id }));
 
-        const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/images/v2/direct_upload`, {
+        const response = await fetchWithTimeout(`https://api.cloudflare.com/client/v4/accounts/${accountId}/images/v2/direct_upload`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`

@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from '../lib/outbound';
 
 export class GoogleIndexingService {
     private serviceAccountEmail: string;
@@ -44,7 +45,7 @@ export class GoogleIndexingService {
             type: 'URL_UPDATED'
         };
 
-        const res = await fetch('https://indexing.googleapis.com/v3/urlNotifications:publish', {
+        const res = await fetchWithTimeout('https://indexing.googleapis.com/v3/urlNotifications:publish', {
             method: 'POST',
             headers: {
                 // 'Authorization': `Bearer ${accessToken}`,

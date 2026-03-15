@@ -1,4 +1,5 @@
 import { pushLogs } from '@studio/db/src/schema';
+import { fetchWithTimeout } from '../lib/outbound';
 
 export class PushService {
     private db: any;
@@ -30,7 +31,7 @@ export class PushService {
         }));
 
         try {
-            const response = await fetch('https://exp.host/--/api/v2/push/send', {
+            const response = await fetchWithTimeout('https://exp.host/--/api/v2/push/send', {
                 method: 'POST',
                 headers: {
                     'Accept': 'application/json',

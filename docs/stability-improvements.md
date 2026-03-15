@@ -80,7 +80,7 @@ Ideas for further performance, stability, and resiliency work (not yet scheduled
 |------|--------|--------|-------|
 | **Enable cache for public/guest schedule** | Low | Medium | `cacheMiddleware` exists but is commented out in `classes.schedules.ts`. Enable with short `maxAge` (e.g. 60s) and `staleWhileRevalidate` to cut D1 load on high-traffic public schedule. |
 | **Request timeouts (frontend)** | Low | Medium | `apiRequest` in `apps/web/app/utils/api.ts` has no timeout. Add `AbortSignal.timeout(30000)` (or configurable) so slow API doesn’t hang the UI. |
-| **Request timeouts (API outbound)** | Medium | Medium | External calls (Stripe, Cloudflare API, Zoom) have no explicit timeout. Use `AbortSignal.timeout()` on `fetch` so a stuck dependency doesn’t consume full Worker CPU. |
+| **Request timeouts (API outbound)** | Done | Medium | Shared `fetchWithTimeout` (15s) in `packages/api/src/lib/outbound.ts` applied to Cloudflare (Pages, Stream, Images), Zoom, Clerk, Google (Indexing, Calendar), uploads, video-management, onboarding, push. Stripe and Resend use SDKs without per-request timeout support; consider `Promise.race` wrapper for critical paths. |
 | **Query client tuning** | Low | Low | Consider per-route `staleTime` for heavy dashboards (longer) vs. schedule (shorter). Optional `gcTime` to control cache retention. |
 
 ### Stability
@@ -164,19 +164,16 @@ Use the existing `cacheMiddleware` (Cache API / Cloudflare cache) for the **gues
 
 ---
 
-#### 4. Request timeouts on API outbound calls (Medium effort, Medium impact)
+#### 4. Request timeouts on API outbound calls — **Done**
 
-**What it is**  
-Every outbound `fetch` from the API to an external service (Stripe, Cloudflare API, Zoom, Resend, etc.) should use a timeout (e.g. `AbortSignal.timeout(15000)`) so a hung connection doesn't hold the Worker until the platform kills it.
+**What was implemented**  
+- **Shared helper**: `packages/api/src/lib/outbound.ts` exports `OUTBOUND_TIMEOUT_MS` (15s) and `fetchWithTimeout(input, init?, timeoutMs?)` using `AbortSignal.timeout()` so a hung connection doesn't hold the Worker.
+- **Applied to**: CloudflareService (Pages), StreamService (all Stream API calls), ZoomService (OAuth + create/delete/update meeting), uploads (Cloudflare Images direct_upload), users (Clerk GET/DELETE), GoogleIndexingService, GoogleCalendarService, video-management (Stream direct_upload), onboarding (Clerk user fetch), push (Expo push).
+- **Not yet covered**: Stripe and Resend use their Node/SDK clients, which do not expose per-request `AbortSignal` or timeout. For critical Stripe paths, a future option is to wrap the call in `Promise.race(AbortSignal.timeout(N), stripeCall)` so the handler fails fast even if the SDK request hangs (the underlying HTTP request would still run until completion).
 
-**Why it's needed**  
-- If Stripe or another provider is slow or stuck, a request without a timeout can run for the full Worker CPU limit (e.g. 30s+). That consumes capacity and can cause cascading slowdowns or 5xx for other requests on the same Worker.
-- Failing fast (e.g. after 15s) returns a clear error to the client and frees the Worker. Clients can retry; the system stays responsive.
-
-**What "done" looks like**  
-- Audit all external `fetch` and SDK calls (Stripe, Cloudflare, Zoom, Resend, etc.). Where the client supports it, pass `signal: AbortSignal.timeout(N)` (N e.g. 15000 ms). Where only callback-style or no signal is supported, wrap in `Promise.race` with a timeout that rejects or aborts.
-- Prefer a shared constant (e.g. `OUTBOUND_TIMEOUT_MS`) and use it consistently. Optionally log timeouts with a distinct code (e.g. `UPSTREAM_TIMEOUT`) for observability.
-- Document in API/runbook that outbound calls are time-bounded.
+**Why it matters**  
+- Failing fast (after 15s) frees the Worker and returns a clear error; clients can retry and the system stays responsive.
+- Documented in this tracker and in API code; optional next step: log timeouts with a distinct code (e.g. `UPSTREAM_TIMEOUT`) for observability.
 
 ---
 
@@ -235,3 +232,6 @@ Every outbound `fetch` from the API to an external service (Stripe, Cloudflare A
   - **Health deep checks**: `GET /diagnostics/health?deep=1` (platform admin only) checks D1, R2 (if bound), and Stripe connectivity; returns per-component status and 503 if any check fails.
   - **Rate limit metrics**: `GET /diagnostics/golden-signals` now includes `rateLimitExceeded` (count of 429s in last 24h).
   - **Frontend request timeout**: `apiRequest` in `apps/web/app/utils/api.ts` uses `AbortSignal.timeout(30000)` when no custom signal is passed.
+- **2026-03-14**: Request timeouts on API outbound calls.
+  - **Shared helper**: `packages/api/src/lib/outbound.ts` exports `OUTBOUND_TIMEOUT_MS` (15s) and `fetchWithTimeout(input, init?, timeoutMs?)` using `AbortSignal.timeout()`.
+  - **Applied to**: CloudflareService (Pages), StreamService (all Stream API), ZoomService (OAuth + meetings), uploads (Cloudflare Images), users (Clerk), GoogleIndexingService, GoogleCalendarService, video-management (Stream direct_upload), onboarding (Clerk), push (Expo). Stripe and Resend use SDKs without per-request timeout; documented as caveat in Recommended Next and rationale §4.

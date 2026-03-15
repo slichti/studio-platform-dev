@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from '../lib/outbound';
+
 export class StreamService {
     private accountId: string;
     private apiToken: string;
@@ -23,7 +25,7 @@ export class StreamService {
             // requireSignedURLs: true // Optional: enforce signed URLs for playback
         };
 
-        const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${this.accountId}/stream/copy`, {
+        const response = await fetchWithTimeout(`https://api.cloudflare.com/client/v4/accounts/${this.accountId}/stream/copy`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${this.apiToken}`,
@@ -46,7 +48,7 @@ export class StreamService {
      * Get video details to check status (ready vs processing).
      */
     async getVideoDetails(videoId: string) {
-        const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${this.accountId}/stream/${videoId}`, {
+        const response = await fetchWithTimeout(`https://api.cloudflare.com/client/v4/accounts/${this.accountId}/stream/${videoId}`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${this.apiToken}`,
@@ -72,7 +74,7 @@ export class StreamService {
         // But if requiredSignedURLs is true, we need to POST to /token
         // https://developers.cloudflare.com/stream/viewing-videos/using-signed-urls/
 
-        const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${this.accountId}/stream/${videoId}/token`, {
+        const response = await fetchWithTimeout(`https://api.cloudflare.com/client/v4/accounts/${this.accountId}/stream/${videoId}/token`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${this.apiToken}`,
@@ -97,7 +99,7 @@ export class StreamService {
      * Delete a video from Cloudflare Stream.
      */
     async deleteVideo(videoId: string) {
-        const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${this.accountId}/stream/${videoId}`, {
+        const response = await fetchWithTimeout(`https://api.cloudflare.com/client/v4/accounts/${this.accountId}/stream/${videoId}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${this.apiToken}`,
@@ -125,7 +127,7 @@ export class StreamService {
             recording: { mode: 'automatic' } // Auto-record to VOD
         };
 
-        const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${this.accountId}/stream/live_inputs`, {
+        const response = await fetchWithTimeout(`https://api.cloudflare.com/client/v4/accounts/${this.accountId}/stream/live_inputs`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${this.apiToken}`,

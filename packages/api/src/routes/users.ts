@@ -4,6 +4,7 @@ import { createDb } from '../db';
 import { eq, and, inArray, or } from 'drizzle-orm';
 import { HonoContext } from '../types';
 import { StripeService } from '../services/stripe';
+import { fetchWithTimeout } from '../lib/outbound';
 
 const app = new Hono<HonoContext>();
 
@@ -20,7 +21,7 @@ app.get('/me', async (c) => {
 
     if (!user) {
         try {
-            const res = await fetch(`https://api.clerk.com/v1/users/${auth.userId}`, { headers: { 'Authorization': `Bearer ${c.env.CLERK_SECRET_KEY as string}` } });
+            const res = await fetchWithTimeout(`https://api.clerk.com/v1/users/${auth.userId}`, { headers: { 'Authorization': `Bearer ${c.env.CLERK_SECRET_KEY as string}` } });
             if (!res.ok) return c.json({ error: 'Provisioning failed' }, 500);
             const clerk = await res.json() as any;
             const email = clerk.email_addresses?.[0]?.email_address;
@@ -262,7 +263,7 @@ app.delete('/me', async (c) => {
         // This requires a Secret Key and backend API call. 
         if (c.env.CLERK_SECRET_KEY) {
             try {
-                await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+                await fetchWithTimeout(`https://api.clerk.com/v1/users/${userId}`, {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${c.env.CLERK_SECRET_KEY}` }
                 });

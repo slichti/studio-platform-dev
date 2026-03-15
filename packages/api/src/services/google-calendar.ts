@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from '../lib/outbound';
 
 export class GoogleCalendarService {
     private clientId: string;
@@ -30,7 +31,7 @@ export class GoogleCalendarService {
     }
 
     async exchangeCode(code: string) {
-        const res = await fetch('https://oauth2.googleapis.com/token', {
+        const res = await fetchWithTimeout('https://oauth2.googleapis.com/token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({
@@ -50,7 +51,7 @@ export class GoogleCalendarService {
     async refreshAccessToken(refreshToken: string) {
         if (!refreshToken) throw new Error("No refresh token provided");
 
-        const res = await fetch('https://oauth2.googleapis.com/token', {
+        const res = await fetchWithTimeout('https://oauth2.googleapis.com/token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({
@@ -71,7 +72,7 @@ export class GoogleCalendarService {
     }
 
     async createEvent(accessToken: string, calendarId: string = 'primary', event: any) {
-        const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`, {
+        const res = await fetchWithTimeout(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
@@ -86,7 +87,7 @@ export class GoogleCalendarService {
     }
 
     async updateEvent(accessToken: string, calendarId: string = 'primary', eventId: string, event: any) {
-        const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${eventId}`, {
+        const res = await fetchWithTimeout(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${eventId}`, {
             method: 'PUT', // Use PUT to replace fully or PATCH to update partial. PUT is safer for ensuring state.
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
@@ -101,7 +102,7 @@ export class GoogleCalendarService {
     }
 
     async deleteEvent(accessToken: string, calendarId: string = 'primary', eventId: string) {
-        const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${eventId}`, {
+        const res = await fetchWithTimeout(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${eventId}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${accessToken}`
@@ -117,7 +118,7 @@ export class GoogleCalendarService {
 
     // List calendars to let user pick one?
     async listCalendars(accessToken: string) {
-        const res = await fetch(`https://www.googleapis.com/calendar/v3/users/me/calendarList`, {
+        const res = await fetchWithTimeout(`https://www.googleapis.com/calendar/v3/users/me/calendarList`, {
             headers: {
                 'Authorization': `Bearer ${accessToken}`
             }
