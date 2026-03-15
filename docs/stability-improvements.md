@@ -70,6 +70,46 @@ This document tracks planned and in-progress work to improve platform stability.
 
 ---
 
+## 7. Recommended Next Improvements
+
+Ideas for further performance, stability, and resiliency work (not yet scheduled).
+
+### Performance
+
+| Idea | Effort | Impact | Notes |
+|------|--------|--------|-------|
+| **Enable cache for public/guest schedule** | Low | Medium | `cacheMiddleware` exists but is commented out in `classes.schedules.ts`. Enable with short `maxAge` (e.g. 60s) and `staleWhileRevalidate` to cut D1 load on high-traffic public schedule. |
+| **Request timeouts (frontend)** | Low | Medium | `apiRequest` in `apps/web/app/utils/api.ts` has no timeout. Add `AbortSignal.timeout(30000)` (or configurable) so slow API doesn’t hang the UI. |
+| **Request timeouts (API outbound)** | Medium | Medium | External calls (Stripe, Cloudflare API, Zoom) have no explicit timeout. Use `AbortSignal.timeout()` on `fetch` so a stuck dependency doesn’t consume full Worker CPU. |
+| **Query client tuning** | Low | Low | Consider per-route `staleTime` for heavy dashboards (longer) vs. schedule (shorter). Optional `gcTime` to control cache retention. |
+
+### Stability
+
+| Idea | Effort | Impact | Notes |
+|------|--------|--------|-------|
+| **429 response shape** | Low | Low | Rate limit currently returns `{ error: 'Too Many Requests' }`. Use consistent shape: `{ error, code: 'RATE_LIMIT_EXCEEDED', requestId? }` and add to `docs/api-error-shape.md`. Optional: `Retry-After` header from `X-RateLimit-Reset`. |
+| **Idempotency for checkout session** | Medium | High | POST `/commerce/checkout/session` can create duplicate sessions on retry. Add `Idempotency-Key` support (same pattern as guest booking) to return existing session when key is reused. |
+| **Rate limit fail-open behavior** | Medium | Low | When the RateLimiter DO is unavailable, middleware fails open. For critical routes (e.g. checkout), consider fail-closed or per-isolate fallback limit so abuse doesn’t slip through. |
+| **Webhook retry documentation** | Low | Low | Document that Stripe webhooks return 500 on processing failure (so Stripe retries) and that `processedWebhooks` makes handling idempotent. Add to runbook or API docs. |
+
+### Resiliency
+
+| Idea | Effort | Impact | Notes |
+|------|--------|--------|-------|
+| **Health deep checks** | Low | Medium | Optional admin-only endpoint (e.g. `GET /diagnostics/health?deep=1`) that checks D1 + R2 + optional Stripe connectivity; use for runbooks and escalation. |
+| **Circuit breaker for external services** | High | Medium | If Stripe or another dependency is slow/failing, optionally fail fast with 503 instead of long timeouts. Requires state per isolate or DO. |
+| **Structured 429 with Retry-After** | Low | Low | Set `Retry-After` (seconds until `X-RateLimit-Reset`) on 429 responses so clients can back off correctly. |
+| **E2E / load tests in CI** | Medium | High | Run k6 load tests when `LOAD_TEST_BASE_URL` is set; add E2E for critical flows (e.g. booking → checkout) to catch regressions. |
+
+### Observability
+
+| Idea | Effort | Impact | Notes |
+|------|--------|--------|-------|
+| **SLO alerts** | Medium | High | `docs/observability.md` defines latency/error/availability targets; wire alerts (e.g. p95 &gt; 500ms, error rate &gt; 1%) in your monitoring stack. |
+| **Rate limit metrics** | Low | Low | Expose count of 429s or rate-limit hits in `GET /diagnostics/golden-signals` or logs for dashboards. |
+
+---
+
 ## Changelog
 
 - **2025-03-14**: Created tracker; started Item 1 testing (auth unit tests, optionalAuth, API key, impersonation, tenant isolation).
@@ -101,3 +141,9 @@ This document tracks planned and in-progress work to improve platform stability.
 - **2025-03-15**: Incremental validation and idempotency implementation.
   - **Validation**: POST `/guest/token` (Zod: email, optional name). POST `/commerce/checkout/session` (Zod: at least one of packId/planId/recordingId/giftCardAmount, optional coupon/gift card/recipient fields). POST `/bookings` (Zod: classId, optional attendanceType, memberId).
   - **Idempotency**: POST `/guest/booking` now honors `Idempotency-Key`; uses D1 table `idempotency_keys` (migration 0083), 24h TTL; duplicate key returns stored 200 without creating a second booking. Test schema in test-utils includes idempotency_keys.
+- **2026-03-14**: Stability and observability improvements (from Recommended Next).
+  - **429 response shape**: Rate limit middleware now returns `{ error, code: 'RATE_LIMIT_EXCEEDED', requestId? }` and sets `Retry-After` (seconds until reset). Documented in `docs/api-error-shape.md`.
+  - **Webhook retry**: Added `docs/api-webhooks.md` (Stripe retry behavior, idempotency via `processed_webhooks`). Linked from API README.
+  - **Health deep checks**: `GET /diagnostics/health?deep=1` (platform admin only) checks D1, R2 (if bound), and Stripe connectivity; returns per-component status and 503 if any check fails.
+  - **Rate limit metrics**: `GET /diagnostics/golden-signals` now includes `rateLimitExceeded` (count of 429s in last 24h).
+  - **Frontend request timeout**: `apiRequest` in `apps/web/app/utils/api.ts` uses `AbortSignal.timeout(30000)` when no custom signal is passed.

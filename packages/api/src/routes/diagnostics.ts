@@ -17,7 +17,7 @@ diagnostics.get('/golden-signals', async (c) => {
     const db = createDb(c.env.DB);
     const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    const [webhookStats, recentErrors] = await Promise.all([
+    const [webhookStats, recentErrors, rateLimitCount] = await Promise.all([
         db.select({
             statusCode: webhookLogs.statusCode,
             count: sql<number>`count(*)`
@@ -29,6 +29,10 @@ diagnostics.get('/golden-signals', async (c) => {
         db.select({ count: sql<number>`count(*)` })
             .from(auditLogs)
             .where(and(eq(auditLogs.action, 'client_error'), gte(auditLogs.createdAt, dayAgo)))
+            .all(),
+        db.select({ count: sql<number>`count(*)` })
+            .from(auditLogs)
+            .where(and(eq(auditLogs.action, 'rate_limit_exceeded'), gte(auditLogs.createdAt, dayAgo)))
             .all()
     ]);
 
@@ -40,9 +44,71 @@ diagnostics.get('/golden-signals', async (c) => {
         period: '24h',
         webhooks: { total: totalWebhooks, successRate: webhookSuccessRate },
         clientErrors: recentErrors[0]?.count ?? 0,
+        rateLimitExceeded: rateLimitCount[0]?.count ?? 0,
         logFormat: 'Structured JSON: { timestamp, level, message, traceId, tenantId, userId, status, durationMs }',
         timestamp: new Date().toISOString()
     });
+});
+
+// GET /diagnostics/health — Optional deep checks for runbooks (platform admin only when deep=1)
+diagnostics.get('/health', async (c) => {
+    const deep = c.req.query('deep') === '1';
+    const db = createDb(c.env.DB);
+    const userId = c.get('auth').userId;
+
+    if (deep) {
+        const user = await db.query.users.findFirst({
+            where: eq(users.id, userId as string)
+        });
+        if (!user || !user.isPlatformAdmin) {
+            return c.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, 403);
+        }
+    }
+
+    const result: { status: string; db?: string; r2?: string; stripe?: string; timestamp: string } = {
+        status: 'ok',
+        timestamp: new Date().toISOString()
+    };
+
+    // D1
+    try {
+        await db.run(sql`SELECT 1`);
+        result.db = 'ok';
+    } catch (e: any) {
+        result.db = 'error';
+        if (!deep) return c.json({ ...result, status: 'degraded' }, 200);
+    }
+
+    if (deep) {
+        // R2 (if bound)
+        if (c.env.R2) {
+            try {
+                await c.env.R2.list({ limit: 1 });
+                result.r2 = 'ok';
+            } catch (e: any) {
+                result.r2 = 'error';
+            }
+        } else {
+            result.r2 = 'unbound';
+        }
+
+        // Stripe connectivity (lightweight: balance or account)
+        if (c.env.STRIPE_SECRET_KEY) {
+            try {
+                const { Stripe } = await import('stripe');
+                const stripe = new Stripe(c.env.STRIPE_SECRET_KEY as string, { apiVersion: '2026-01-28.clover' as any });
+                await stripe.balance.retrieve();
+                result.stripe = 'ok';
+            } catch (e: any) {
+                result.stripe = 'error';
+            }
+        } else {
+            result.stripe = 'unbound';
+        }
+    }
+
+    const hasError = (result.db === 'error') || (result.r2 === 'error') || (result.stripe === 'error');
+    return c.json(result, hasError ? 503 : 200);
 });
 
 diagnostics.get('/', async (c) => {

@@ -120,7 +120,15 @@ export const rateLimitMiddleware = (options: RateLimitOptions = {}) => {
                     }
                 })());
 
-                return c.json({ error: 'Too Many Requests' }, 429);
+                const requestId = c.get('traceId') ?? undefined;
+                const resetTs = typeof data.reset === 'number' ? data.reset : 0;
+                const retryAfterSec = Math.max(0, Math.ceil(resetTs - Date.now() / 1000));
+                if (retryAfterSec > 0) c.header('Retry-After', String(retryAfterSec));
+                return c.json({
+                    error: 'Too Many Requests',
+                    code: 'RATE_LIMIT_EXCEEDED',
+                    ...(requestId && { requestId })
+                }, 429);
             }
         } catch (e) {
             console.error("Rate limit check failed", e);

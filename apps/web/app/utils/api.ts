@@ -76,11 +76,13 @@ export async function apiRequest<T = any>(path: string, token: string | null | u
     }
 
     const fullUrl = `${url}${path}`;
-    console.log(`[API] ${options.method || 'GET'} ${fullUrl}`, { headers: Object.fromEntries(headers.entries()) });
+    // Default 30s timeout so a slow API doesn't hang the UI (callers can pass their own signal to override)
+    const signal = options.signal ?? AbortSignal.timeout(30000);
 
     const res = await fetch(fullUrl, {
         ...options,
-        headers
+        headers,
+        signal
     });
 
     if (!res.ok) {

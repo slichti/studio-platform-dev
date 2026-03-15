@@ -65,6 +65,10 @@ API errors use a consistent JSON shape: `{ error, code, requestId?, details? }`.
 
 For payments and bookings, clients may send an `Idempotency-Key` header to avoid duplicate processing on retries. See [API Idempotency](../../docs/api-idempotency.md).
 
+## Webhooks
+
+Stripe webhooks return 500 on processing failure so Stripe retries; we use the `processed_webhooks` table so each event is handled only once. See [API Webhooks](../../docs/api-webhooks.md).
+
 ## Security
 
 *   **Stripe API Version**: `2026-01-28.clover` (latest) — set consistently across all SDK initializations.
