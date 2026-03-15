@@ -46,7 +46,8 @@ app.get('/schedule/:slug', async (c) => {
     if (!tenant) return c.json({ error: "Studio not found" }, 404);
 
     const startDate = start ? new Date(start) : new Date();
-    const endDate = end ? new Date(end) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // Default 7 days
+    const twoMonthsMs = 60 * 24 * 60 * 60 * 1000; // ~2 months in ms
+    const endDate = end ? new Date(end) : new Date(startDate.getTime() + twoMonthsMs);
 
     const schedule = await db.query.classes.findMany({
         where: and(
