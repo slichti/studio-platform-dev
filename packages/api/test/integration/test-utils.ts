@@ -444,6 +444,8 @@ export async function setupTestDb(d1: D1Database) {
         description TEXT,
         slug TEXT NOT NULL,
         thumbnail_url TEXT,
+        overlay_title TEXT,
+        overlay_subtitle TEXT,
         price INTEGER DEFAULT 0,
         member_price INTEGER,
         status TEXT DEFAULT 'draft' NOT NULL,

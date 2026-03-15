@@ -1,6 +1,6 @@
 import { useParams, useOutletContext, useSearchParams, Link, useNavigate } from "react-router";
-import { useState } from "react";
-import { Plus, BookOpen, Clock, Users, ChevronRight, GraduationCap, DollarSign, Globe } from "lucide-react";
+import { useState, useRef } from "react";
+import { Plus, BookOpen, Clock, Users, ChevronRight, GraduationCap, DollarSign, Globe, Image as ImageIcon, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/react-router";
@@ -13,6 +13,7 @@ import { Badge } from "~/components/ui/Badge";
 import { ComponentErrorBoundary } from "~/components/ErrorBoundary";
 import { SkeletonLoader } from "~/components/ui/SkeletonLoader";
 import { Modal } from "../Modal";
+import { CardCreator, type CardCreatorRef } from "~/components/CardCreator";
 
 import { useCourses } from "~/hooks/useCourses";
 import { apiRequest } from "~/utils/api";
@@ -97,9 +98,19 @@ export default function CoursesPage() {
                                                 {course.thumbnailUrl ? (
                                                     <img src={course.thumbnailUrl} alt={course.title} className="w-full h-full object-cover" />
                                                 ) : (
-                                                    <div className="w-full h-full flex items-center justify-center text-zinc-300 dark:text-zinc-700">
-                                                        <BookOpen size={48} />
-                                                    </div>
+                                                    <>
+                                                        <div className="w-full h-full flex items-center justify-center text-zinc-300 dark:text-zinc-700">
+                                                            <BookOpen size={48} />
+                                                        </div>
+                                                        {(course.overlayTitle || course.overlaySubtitle) && (
+                                                            <div className="absolute inset-0 bg-black/20 flex flex-col items-center justify-center text-center p-4">
+                                                                <div className="bg-white/90 dark:bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-md max-w-[90%] shadow-sm">
+                                                                    {course.overlayTitle && <h3 className="font-serif text-lg text-zinc-900 dark:text-white leading-tight">{course.overlayTitle}</h3>}
+                                                                    {course.overlaySubtitle && <p className="text-[10px] text-zinc-700 dark:text-zinc-300 mt-0.5 uppercase tracking-wider">{course.overlaySubtitle}</p>}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </>
                                                 )}
                                                 <div className="absolute top-3 right-3 flex gap-2">
                                                     <Badge className={cn(
@@ -159,6 +170,11 @@ function CreateCourseModal({ isOpen, onClose, onSuccess, courseList }: { isOpen:
     const { getToken } = useAuth();
     const { slug } = useParams();
     const [loading, setLoading] = useState(false);
+    const [showImageSection, setShowImageSection] = useState(false);
+    const [cardData, setCardData] = useState<{ image: Blob | null; title: string; subtitle: string; previewUrl: string; gradient?: any }>({
+        image: null, title: "", subtitle: "", previewUrl: ""
+    });
+    const cardCreatorRef = useRef<CardCreatorRef>(null);
     const [formData, setFormData] = useState({
         title: "",
         description: "",
@@ -175,6 +191,30 @@ function CreateCourseModal({ isOpen, onClose, onSuccess, courseList }: { isOpen:
         setLoading(true);
         try {
             const token = await getToken();
+            let thumbnailUrl: string | undefined;
+            let finalBlob = cardData.image;
+            if (!finalBlob && cardData.gradient && cardCreatorRef.current) {
+                const generated = await cardCreatorRef.current.exportGeneratedCard();
+                if (generated?.blob) finalBlob = generated.blob;
+            }
+            if (finalBlob) {
+                const uploadFormData = new FormData();
+                const file = new File([finalBlob], "course-card.jpg", { type: "image/jpeg" });
+                uploadFormData.append("file", file);
+                const apiUrl = import.meta.env.VITE_API_URL || "https://studio-platform-api.slichti.workers.dev";
+                const uploadRes = await fetch(`${apiUrl}/uploads/r2-image`, {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "X-Tenant-Slug": slug!
+                    },
+                    body: uploadFormData
+                });
+                if (uploadRes.ok) {
+                    const data = (await uploadRes.json()) as { url: string };
+                    thumbnailUrl = data.url;
+                }
+            }
             const res: any = await apiRequest("/courses", token, {
                 method: "POST",
                 headers: { 'X-Tenant-Slug': slug! },
@@ -183,7 +223,10 @@ function CreateCourseModal({ isOpen, onClose, onSuccess, courseList }: { isOpen:
                     price: Math.round(parseFloat(formData.price) * 100),
                     cohortStartDate: formData.deliveryMode === 'cohort' && formData.cohortStartDate
                         ? new Date(formData.cohortStartDate).toISOString()
-                        : null
+                        : null,
+                    thumbnailUrl: thumbnailUrl ?? undefined,
+                    overlayTitle: cardData.title || undefined,
+                    overlaySubtitle: cardData.subtitle || undefined
                 })
             });
 
@@ -221,6 +264,36 @@ function CreateCourseModal({ isOpen, onClose, onSuccess, courseList }: { isOpen:
                         onChange={e => setFormData({ ...formData, description: e.target.value })}
                     />
                 </div>
+
+                <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
+                    <button
+                        type="button"
+                        onClick={() => setShowImageSection(!showImageSection)}
+                        className="w-full flex items-center justify-between px-4 py-3 bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-750 transition-colors text-left"
+                    >
+                        <span className="flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                            <ImageIcon className="w-4 h-4" />
+                            Cover Image
+                            {cardData.previewUrl && <span className="text-green-600 text-xs">(Added)</span>}
+                        </span>
+                        {showImageSection ? <ChevronUp className="w-4 h-4 text-zinc-400" /> : <ChevronDown className="w-4 h-4 text-zinc-400" />}
+                    </button>
+                    {showImageSection && (
+                        <div className="p-4 border-t border-zinc-200 dark:border-zinc-700">
+                            <CardCreator
+                                ref={cardCreatorRef}
+                                initialImage={cardData.previewUrl || undefined}
+                                initialTitle={cardData.title || formData.title}
+                                initialSubtitle={cardData.subtitle || formData.description}
+                                onChange={(newData) => setCardData(prev => ({ ...prev, ...newData }))}
+                            />
+                            <p className="text-xs text-zinc-500 mt-2">
+                                Upload or generate a 600×450 (4:3) cover image. Optional.
+                            </p>
+                        </div>
+                    )}
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                         <label className="text-sm font-semibold flex items-center gap-1">

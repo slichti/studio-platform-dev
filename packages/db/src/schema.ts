@@ -1323,6 +1323,8 @@ export const courses = sqliteTable('courses', {
     slug: text('slug').notNull(), // for public URLs
     thumbnailUrl: text('thumbnail_url'),
     imageLibrary: text('image_library', { mode: 'json' }), // JSON array of image entries for rotation
+    overlayTitle: text('overlay_title'),
+    overlaySubtitle: text('overlay_subtitle'),
     price: integer('price').default(0), // Total course price in cents
     memberPrice: integer('member_price'), // Discounted price for members
     status: text('status', { enum: ['draft', 'active', 'archived'] }).default('draft').notNull(),

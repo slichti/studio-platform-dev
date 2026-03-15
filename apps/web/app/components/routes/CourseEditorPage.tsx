@@ -1,5 +1,5 @@
 import { useParams, useOutletContext, Link } from "react-router";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
     ArrowLeft, Save, Plus, Trash2, Calendar, GripVertical,
     Video, BookOpen, ChevronRight, Settings, CheckSquare,
@@ -20,7 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { ComponentErrorBoundary } from "~/components/ErrorBoundary";
 import { SkeletonLoader } from "~/components/ui/SkeletonLoader";
 import { Modal } from "~/components/Modal";
-import { CardCreator } from "~/components/CardCreator";
+import { CardCreator, type CardCreatorRef } from "~/components/CardCreator";
 
 import { useCourse, useCourses } from "~/hooks/useCourses";
 import { apiRequest } from "~/utils/api";
@@ -456,6 +456,7 @@ export default function CourseEditorPage() {
     const [showCourseImage, setShowCourseImage] = useState(false);
     const [courseImageBlob, setCourseImageBlob] = useState<Blob | null>(null);
     const [uploadingCourseImage, setUploadingCourseImage] = useState(false);
+    const cardCreatorRef = useRef<CardCreatorRef>(null);
 
     // Curriculum state
     const [curriculum, setCurriculum] = useState<any[]>([]);
@@ -493,6 +494,9 @@ export default function CourseEditorPage() {
                 title: course.title,
                 description: course.description || '',
                 slug: course.slug,
+                thumbnailUrl: course.thumbnailUrl,
+                overlayTitle: course.overlayTitle ?? '',
+                overlaySubtitle: course.overlaySubtitle ?? '',
                 status: course.status,
                 isPublic: course.isPublic,
                 price: course.price,
@@ -516,12 +520,17 @@ export default function CourseEditorPage() {
         try {
             const token = await getToken();
 
-            // Upload course image if present
+            // Upload course image if present (from file upload or generated card)
             let thumbnailUrl = formData.thumbnailUrl;
-            if (courseImageBlob) {
+            let blobToUpload = courseImageBlob;
+            if (!blobToUpload && cardCreatorRef.current) {
+                const generated = await cardCreatorRef.current.exportGeneratedCard();
+                if (generated?.blob) blobToUpload = generated.blob;
+            }
+            if (blobToUpload) {
                 setUploadingCourseImage(true);
                 const imgFormData = new FormData();
-                const file = new File([courseImageBlob], 'course-card.jpg', { type: 'image/jpeg' });
+                const file = new File([blobToUpload], 'course-card.jpg', { type: 'image/jpeg' });
                 imgFormData.append('file', file);
 
                 const apiUrl = import.meta.env.VITE_API_URL || 'https://studio-platform-api.slichti.workers.dev';
@@ -815,9 +824,16 @@ export default function CourseEditorPage() {
                                 {showCourseImage && (
                                     <div className="p-4 border-t border-zinc-200 dark:border-zinc-700">
                                         <CardCreator
+                                            ref={cardCreatorRef}
                                             initialImage={course.thumbnailUrl || undefined}
+                                            initialTitle={formData.overlayTitle}
+                                            initialSubtitle={formData.overlaySubtitle}
+                                            initialGradient={formData.gradient}
                                             onChange={(data) => {
                                                 if (data.image !== undefined) setCourseImageBlob(data.image);
+                                                handleFieldChange('overlayTitle', data.title);
+                                                handleFieldChange('overlaySubtitle', data.subtitle);
+                                                if (data.gradient !== undefined) handleFieldChange('gradient', data.gradient);
                                                 setIsDirty(true);
                                             }}
                                         />
